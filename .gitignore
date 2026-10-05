@@ -1,0 +1,10 @@
+**/node_modules/
+**/.next/
+**/.vercel/
+**/.env*
+!**/.env.example
+**/supabase/.temp/
+**/*.answers.local.json
+**/data/fixtures/*.csv
+!**/data/fixtures/synthetic_*.csv
+**/결과_*
