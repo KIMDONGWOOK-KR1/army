@@ -1,0 +1,15 @@
+{
+  "_note": "형식 예시. 값은 1차 시안의 시연용. 실제 값은 jnu.answers.local.json(gitignore)에 두고 시드 스크립트가 해시로 DB에 넣는다. 정문 통신원(51.8→3)·암호해독관(일요일→7)의 답/숫자 대응은 시안을 보고 확인할 것.",
+  "gate": {
+    "commander": { "answer": "2", "digit": 2 },
+    "scout":     { "answer": "1", "digit": 1 },
+    "signal":    { "answer": "51.8", "digit": 3 },
+    "cipher":    { "answer": "일요일", "digit": 7 }
+  },
+  "yongbong": {
+    "commander": { "answer": "3", "digit": 3 },
+    "scout":     { "answer": "TODO", "digit": 4 },
+    "signal":    { "answer": "19.9", "digit": 6 },
+    "cipher":    { "answer": "8", "digit": 8 }
+  }
+}

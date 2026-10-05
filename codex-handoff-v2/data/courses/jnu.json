@@ -1,0 +1,52 @@
+{
+  "courseId": "jnu",
+  "name": "호국실록 전남대편 (시범판)",
+  "confirmed": false,
+  "_note": "좌표·문구·숫자는 10/6 답사 후 확정. 정답은 이 파일에 넣지 않는다(jnu.answers.local.json).",
+  "roles": ["commander", "scout", "signal", "cipher"],
+  "roleNames": { "commander": "지휘관", "scout": "정찰원", "signal": "통신원", "cipher": "암호해독관" },
+  "doubling": {
+    "3": [["commander", "signal"], ["scout"], ["cipher"]],
+    "2": [["commander", "scout"], ["signal", "cipher"]]
+  },
+  "lock": { "attemptsPerSite": 3, "penalty": 10, "cooldownSec": 60, "bonusAttempts": 1 },
+  "arrival": { "accMaxM": 40, "avgN": 3, "dwellSec": 5 },
+  "sites": [
+    {
+      "id": "gate",
+      "seq": 1,
+      "name": "전남대 정문",
+      "lat": null, "lng": null,
+      "radiusM": 30,
+      "verifyBy": "gps",
+      "reverent": false,
+      "lockOrder": ["commander", "scout", "signal", "cipher"],
+      "sacho": { "char": "證", "name": "증언의 사초" },
+      "clues": {
+        "commander": { "type": "quiz", "question": "TODO(확인필요)", "choices": [], "confirmed": false },
+        "scout": { "type": "find", "target": "'5·18 사적지 제1호' 표지석", "photo": null, "confirmed": false },
+        "signal": { "type": "frequency", "hint": "조형물 '피어나다'의 꽃잎 수", "confirmed": false },
+        "cipher": { "type": "calendar", "hint": "1980년 5월 18일은 무슨 요일인가", "confirmed": false }
+      }
+    },
+    {
+      "id": "yongbong",
+      "seq": 2,
+      "name": "용봉관",
+      "walkMin": 4,
+      "lat": null, "lng": null,
+      "radiusM": 30,
+      "verifyBy": "gps",
+      "reverent": false,
+      "protagonist": "cipher",
+      "lockOrder": ["commander", "scout", "signal", "cipher"],
+      "sacho": { "char": "層", "name": "겹친 시간의 사초" },
+      "clues": {
+        "commander": { "type": "quiz", "question": "TODO(확인필요)", "choices": [], "confirmed": false },
+        "scout": { "type": "find", "target": "용봉관 안내판", "photo": null, "confirmed": false },
+        "signal": { "type": "frequency", "hint": "안내판의 연도(1996년)", "confirmed": false },
+        "cipher": { "type": "hanja", "hint": "현판의 한자 鳳을 찾아라", "confirmed": false }
+      }
+    }
+  ]
+}
