@@ -1,0 +1,5 @@
+project_id = "hoguk-sillok"
+
+[functions.game]
+# The handler validates every bearer token using Auth.getUser, including anonymous sessions.
+verify_jwt = false
