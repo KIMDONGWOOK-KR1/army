@@ -10,6 +10,9 @@ test("four browser windows complete the team flow and both sites", async ({
     pages = await Promise.all(contexts.map((c) => c.newPage()));
   try {
     await pages[0].goto("/");
+    await pages[0]
+      .getByRole("button", { name: "작전 시작", exact: true })
+      .click();
     await pages[0].getByLabel("호출명", { exact: true }).fill("동욱");
     await pages[0]
       .getByRole("button", { name: "새 작전 만들기", exact: true })
@@ -84,6 +87,7 @@ test("four browser windows complete the team flow and both sites", async ({
         await p.getByRole("button", { name: "단서 확인하고 보고" }).click();
         await expect(p.locator(".private-digit")).toBeVisible();
       }
+      await commander.getByRole("button", { name: "팀 자물쇠로" }).click();
       await expect(commander.locator(".report-progress")).toContainText(
         "4 / 4",
       );

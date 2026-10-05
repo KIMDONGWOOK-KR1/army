@@ -250,8 +250,7 @@ export function LockPanel({
         </span>
         <span>{snapshot.game.attempts_left}회 남음</span>
       </div>
-      <h3>네 개의 보고를 모아라.</h3>
-      <p className="subtle">숫자는 팀원에게 말로 전해 들어라.</p>
+
       <div className="lock-digits">
         {snapshot.current_site.lockOrder.map((role, i) => (
           <label key={role}>
