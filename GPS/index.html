@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>호국실록 GPS 실측기</title>
+<style>
+:root{
+  --bg:#f4f1ea; --card:#fff; --ink:#1c1a17; --muted:#5f574c; --line:#d9d1c3;
+  --accent:#b3262b; --ok:#2f7a3a; --warn:#b26a00; --blue:#1f5f9e;
+  --r:14px;
+  font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-size:16px;line-height:1.45;
+  padding:calc(12px + env(safe-area-inset-top,0px)) 14px calc(28px + env(safe-area-inset-bottom,0px))}
+.wrap{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
+h1{font-size:20px;margin:4px 0 0}
+.sub{margin:0;color:var(--muted);font-size:13px}
+.card{background:var(--card);border-radius:var(--r);padding:14px;box-shadow:0 1px 0 var(--line),0 0 0 1px var(--line)}
+.card h2{font-size:15px;margin:0 0 10px}
+label{display:block;font-size:13px;color:var(--muted);margin:8px 0 4px}
+input,select{width:100%;font:inherit;font-size:16px;padding:10px 11px;border:1.5px solid var(--line);border-radius:10px;background:#fff;color:var(--ink)}
+input:focus,select:focus{outline:none;border-color:var(--ink)}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.row3{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.row3 input{padding:9px 6px;text-align:center}
+button{font:inherit;cursor:pointer;border:0;border-radius:12px;padding:13px 12px;font-weight:700;font-size:16px;background:#e9e3d7;color:var(--ink)}
+button:disabled{opacity:.4;cursor:default}
+button.main{background:var(--ink);color:#fff}
+button.red{background:var(--accent);color:#fff}
+button.green{background:var(--ok);color:#fff}
+button.small{padding:8px 10px;font-size:13px;border-radius:9px}
+.types{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.types button{text-align:left;font-size:15px;padding:12px;border:2px solid transparent;background:#f1ece2}
+.types button small{display:block;font-weight:400;font-size:12px;color:var(--muted);margin-top:2px}
+.types button.on{border-color:var(--ink);background:#fff}
+.big{display:grid;grid-template-columns:1fr;gap:8px;margin-top:10px}
+.big button{padding:18px 12px;font-size:18px}
+.live{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center}
+.live div{background:#f6f3ec;border-radius:10px;padding:8px 4px}
+.live b{display:block;font-size:22px;font-variant-numeric:tabular-nums}
+.live span{font-size:11px;color:var(--muted)}
+.judge{margin-top:8px;border-radius:10px;padding:10px;text-align:center;font-weight:800;font-size:17px;background:#e9e3d7}
+.judge.in{background:#fff3d6;color:var(--warn)}
+.judge.hit{background:#dcefdc;color:var(--ok)}
+.judge.out{background:#e7eef6;color:var(--blue)}
+.status{font-size:13px;color:var(--muted);margin-top:8px}
+.status.err{color:var(--accent);font-weight:700}
+.trialhead{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.trialhead b{font-size:17px}
+.trialhead span{font-variant-numeric:tabular-nums;color:var(--muted)}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th,td{text-align:left;padding:6px 4px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--muted);font-weight:600}
+.tw{overflow-x:auto}
+.hint{font-size:12.5px;color:var(--muted);margin:6px 0 0}
+.btnrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.btnrow button{flex:1 1 auto}
+details summary{cursor:pointer;font-weight:700;font-size:14px}
+.pill{display:inline-block;font-size:11.5px;padding:2px 8px;border-radius:999px;background:#f1ece2;color:var(--muted);margin-left:4px}
+.flash{animation:fl .5s}
+@keyframes fl{from{background:#ffe9a8}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div>
+    <h1>호국실록 GPS 실측기</h1>
+    <p class="sub">거점마다 정지·진입·스치기·경계 시행을 기록해 CSV로 저장합니다. 판정 규칙은 논문 3.2절과 같습니다.</p>
+  </div>
+
+  <section class="card" id="setup">
+    <h2>1. 측정 정보</h2>
+    <div class="row">
+      <div><label for="observer">측정자</label><input id="observer" placeholder="예: 동욱" autocomplete="off"></div>
+      <div><label for="device">기기 이름</label><input id="device" placeholder="예: iPhone 15" autocomplete="off"></div>
+    </div>
+    <label for="site">거점</label>
+    <select id="site">
+      <option value="정문">① 전남대 정문</option>
+      <option value="용봉관">② 용봉관</option>
+      <option value="기타">기타 (아래에 이름 입력)</option>
+    </select>
+    <input id="siteOther" placeholder="거점 이름" hidden style="margin-top:6px">
+
+    <label for="ref">기준점 좌표 (위도, 경도)</label>
+    <input id="ref" placeholder="예: 35.17650, 126.90720" inputmode="decimal" autocomplete="off">
+    <p class="hint">지도 앱 위성사진에서 기준점을 길게 눌러 나온 좌표를 붙여넣는 게 가장 정확합니다. 없으면 기준점에 서서 아래 버튼을 누르세요.</p>
+    <div class="btnrow"><button class="small" id="refHere">지금 위치를 기준점으로 (20초 평균)</button></div>
+
+    <label>판정 규칙 (실시간 미리보기용 · 분석은 스크립트로 다시 계산)</label>
+    <div class="row3">
+      <div><input id="pR" value="30" inputmode="numeric" aria-label="반경 m"><p class="hint" style="text-align:center">반경 m</p></div>
+      <div><input id="pAcc" value="40" inputmode="numeric" aria-label="오차 상한 m"><p class="hint" style="text-align:center">오차 상한 m</p></div>
+      <div><input id="pN" value="3" inputmode="numeric" aria-label="평균 개수"><p class="hint" style="text-align:center">평균 개수</p></div>
+      <div><input id="pDwell" value="5" inputmode="numeric" aria-label="머무름 초"><p class="hint" style="text-align:center">머무름 초</p></div>
+    </div>
+    <label for="lineM">표시선 거리 (줄자로 표시한 선, m)</label>
+    <input id="lineM" value="30" inputmode="numeric">
+    <p class="status" id="setupMsg"></p>
+  </section>
+
+  <section class="card">
+    <h2>2. 시행 종류</h2>
+    <div class="types" id="types">
+      <button data-t="정지" class="on">정지<small>기준점에 2분 서 있기</small></button>
+      <button data-t="진입">진입<small>60m 밖 → 기준점, 표시선에서 버튼</small></button>
+      <button data-t="스치기">스치기<small>45~50m 선을 따라 지나가기</small></button>
+      <button data-t="경계">경계<small>표시선 위에 1분 서 있기</small></button>
+    </div>
+    <div class="big">
+      <button class="main" id="start">시행 시작</button>
+    </div>
+    <p class="hint">처음 시작할 때 위치 권한과 화면 켜짐 유지를 요청합니다. 시행 전 1분쯤 켜 두면 첫 오차가 줄어듭니다.</p>
+  </section>
+
+  <section class="card" id="trialCard" hidden>
+    <div class="trialhead"><b id="trialTitle">시행</b><span id="elapsed">0:00</span></div>
+    <div class="live" style="margin-top:10px">
+      <div><b id="vDist">-</b><span>기준점까지 m (원시)</span></div>
+      <div><b id="vAcc">-</b><span>추정 오차 m</span></div>
+      <div><b id="vN">0</b><span>기록 수</span></div>
+    </div>
+    <div class="judge" id="judge">위치 기다리는 중</div>
+    <div class="big">
+      <button class="green" id="mark">표시선 통과</button>
+      <button class="red" id="stop">시행 종료</button>
+    </div>
+    <p class="status" id="trialMsg"></p>
+  </section>
+
+  <section class="card">
+    <h2>3. 기록 <span class="pill" id="countPill">0회</span></h2>
+    <div class="tw"><table>
+      <thead><tr><th>#</th><th>거점</th><th>종류</th><th>시간</th><th>기록</th><th>판정</th><th>오차(평균)</th></tr></thead>
+      <tbody id="list"><tr><td colspan="7" class="hint">아직 기록이 없습니다.</td></tr></tbody>
+    </table></div>
+    <div class="btnrow">
+      <button class="main" id="save">CSV 저장</button>
+      <button id="share">공유</button>
+    </div>
+    <p class="hint">기록은 이 폰 브라우저에도 자동 보관됩니다. 측정이 끝나면 꼭 CSV를 저장해 단톡방이나 드라이브에 올리세요.</p>
+    <details style="margin-top:10px"><summary>기록 지우기</summary>
+      <p class="hint">저장한 뒤에만 지우세요. 되돌릴 수 없습니다.</p>
+      <button class="small red" id="clear">이 폰의 기록 전부 지우기</button>
+    </details>
+  </section>
+</div>
+
+<script>
+(function(){
+'use strict';
+const $=id=>document.getElementById(id);
+const KEY='hoguk-gps-v1';
+const R_EARTH=6371008.8;
+function hav(a1,o1,a2,o2){const t=Math.PI/180,dA=(a2-a1)*t,dO=(o2-o1)*t;const h=Math.sin(dA/2)**2+Math.cos(a1*t)*Math.cos(a2*t)*Math.sin(dO/2)**2;return 2*R_EARTH*Math.asin(Math.min(1,Math.sqrt(h)));}
+function load(){try{return JSON.parse(localStorage.getItem(KEY))||{rows:[],trials:[],meta:{}};}catch(e){return {rows:[],trials:[],meta:{}};}}
+let S=load();
+function persist(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){$('trialMsg').textContent='브라우저 저장 공간에 보관하지 못했습니다. 시행이 끝나면 바로 CSV를 저장하세요.';}}
+const session=S.meta.session||(S.meta.session=new Date().toISOString().slice(0,19).replace(/[-:T]/g,''));
+
+// restore inputs
+['observer','device','ref','pR','pAcc','pN','pDwell','lineM','siteOther'].forEach(k=>{if(S.meta[k]!=null)$(k).value=S.meta[k];$(k).addEventListener('input',()=>{S.meta[k]=$(k).value;persist();});});
+if(S.meta.site)$('site').value=S.meta.site;
+function syncSite(){$('siteOther').hidden=$('site').value!=='기타';S.meta.site=$('site').value;persist();}
+$('site').addEventListener('change',syncSite);syncSite();
+if(!$('device').value){const ua=navigator.userAgent;$('device').value=/iPhone/.test(ua)?'iPhone':/Android/.test(ua)?'Android':'';}
+
+let type='정지';
+$('types').addEventListener('click',e=>{const b=e.target.closest('button');if(!b||trial)return;type=b.dataset.t;[...$('types').children].forEach(x=>x.classList.toggle('on',x===b));});
+
+function num(id,d){const v=parseFloat($(id).value);return isFinite(v)?v:d;}
+function siteName(){return $('site').value==='기타'?($('siteOther').value.trim()||'기타'):$('site').value;}
+function parseRef(){const m=$('ref').value.match(/(-?\d+(?:\.\d+)?)\s*[, ]\s*(-?\d+(?:\.\d+)?)/);if(!m)return null;const a=+m[1],o=+m[2];if(Math.abs(a)>90||Math.abs(o)>180)return null;return {lat:a,lng:o};}
+
+// wake lock
+let wl=null;
+async function wake(){try{if('wakeLock' in navigator){wl=await navigator.wakeLock.request('screen');}}catch(e){wl=null;}}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&trial)wake();});
+
+// geolocation
+let watchId=null,lastFix=null;
+const listeners=new Set();
+function ensureWatch(){
+  if(!('geolocation' in navigator)){return Promise.reject(new Error('이 브라우저는 위치를 지원하지 않습니다.'));}
+  if(!window.isSecureContext){return Promise.reject(new Error('https 주소로 열어야 위치를 쓸 수 있습니다.'));}
+  if(watchId!=null)return Promise.resolve();
+  return new Promise((res,rej)=>{
+    let first=true;
+    watchId=navigator.geolocation.watchPosition(p=>{
+      const c=p.coords;lastFix={t:p.timestamp||Date.now(),lat:c.latitude,lng:c.longitude,acc:c.accuracy,spd:c.speed,hdg:c.heading};
+      listeners.forEach(f=>f(lastFix));
+      if(first){first=false;res();}
+    },err=>{
+      const msg=err.code===1?'위치 권한이 거부됐습니다. 설정에서 이 사이트의 위치(정확한 위치)를 허용하세요.':err.code===2?'위치를 잡지 못했습니다. 하늘이 트인 곳으로 이동하세요.':'위치 응답이 늦습니다. 잠시 기다리세요.';
+      if(first&&err.code===1){first=false;navigator.geolocation.clearWatch(watchId);watchId=null;rej(new Error(msg));}
+      $('trialMsg').textContent=msg;$('trialMsg').className='status err';
+    },{enableHighAccuracy:true,maximumAge:0,timeout:20000});
+  });
+}
+
+// reference from current position
+$('refHere').addEventListener('click',async()=>{
+  const btn=$('refHere');btn.disabled=true;$('setupMsg').className='status';
+  try{await ensureWatch();}catch(e){$('setupMsg').textContent=e.message;$('setupMsg').className='status err';btn.disabled=false;return;}
+  const pts=[];const t0=Date.now();
+  const f=x=>{if(x.acc<=25)pts.push(x);};listeners.add(f);
+  const iv=setInterval(()=>{const s=Math.ceil((20000-(Date.now()-t0))/1000);$('setupMsg').textContent=`기준점 측정 중… ${Math.max(0,s)}초 (유효 ${pts.length}개)`;},300);
+  setTimeout(()=>{clearInterval(iv);listeners.delete(f);btn.disabled=false;
+    if(pts.length<5){$('setupMsg').textContent='오차 25m 이하 위치가 부족합니다. 트인 곳에서 다시 하거나 지도 좌표를 입력하세요.';$('setupMsg').className='status err';return;}
+    const lat=pts.reduce((a,p)=>a+p.lat,0)/pts.length,lng=pts.reduce((a,p)=>a+p.lng,0)/pts.length;
+    $('ref').value=lat.toFixed(6)+', '+lng.toFixed(6);S.meta.ref=$('ref').value;persist();
+    $('setupMsg').textContent=`기준점 저장 (${pts.length}개 평균). 위성사진 좌표가 있으면 그걸로 바꾸는 게 더 정확합니다.`;
+  },20000);
+});
+
+// trial
+let trial=null,tick=null;
+function judgeState(){
+  // same rule as analysis: drop acc>accMax, mean of last N kept fixes, inside if <=R for >= dwell s
+  const R=num('pR',30),A=num('pAcc',40),N=Math.max(1,Math.round(num('pN',3))),D=num('pDwell',5);
+  const kept=trial.fixes.filter(x=>x.acc<=A);
+  if(!kept.length)return {txt:'유효한 위치 없음 (오차가 큼)',cls:''};
+  const last=kept.slice(-N),lat=last.reduce((a,p)=>a+p.lat,0)/last.length,lng=last.reduce((a,p)=>a+p.lng,0)/last.length;
+  const d=hav(lat,lng,trial.ref.lat,trial.ref.lng);
+  const now=kept[kept.length-1].t;
+  if(d<=R){if(trial.inSince==null)trial.inSince=now;}else trial.inSince=null;
+  if(trial.inSince!=null&&now-trial.inSince>=D*1000&&trial.hitAt==null)trial.hitAt=now;
+  if(trial.hitAt!=null)return {txt:`도착 판정됨 · 시작 후 ${((trial.hitAt-trial.t0)/1000).toFixed(1)}초 (보정 거리 ${d.toFixed(1)}m)`,cls:'hit'};
+  if(trial.inSince!=null)return {txt:`반경 안 · ${((now-trial.inSince)/1000).toFixed(1)} / ${D}초 (보정 거리 ${d.toFixed(1)}m)`,cls:'in'};
+  return {txt:`반경 밖 · 보정 거리 ${d.toFixed(1)}m`,cls:'out'};
+}
+function onFix(x){
+  if(!trial)return;
+  trial.fixes.push(x);
+  if($('trialMsg').classList.contains('err')){$('trialMsg').textContent=trial.instr;$('trialMsg').className='status';}
+  addRow('fix',x);
+  $('vDist').textContent=hav(x.lat,x.lng,trial.ref.lat,trial.ref.lng).toFixed(1);
+  $('vAcc').textContent=x.acc.toFixed(1);
+  $('vN').textContent=trial.fixes.length;
+  const j=judgeState();$('judge').textContent=j.txt;$('judge').className='judge '+j.cls;
+}
+function addRow(ev,x){
+  const t=x?x.t:Date.now();
+  S.rows.push({session,site:trial.site,device:trial.device,observer:trial.observer,trial:trial.id,type:trial.type,event:ev,t_ms:t,
+    lat:x?x.lat:'',lng:x?x.lng:'',acc:x?x.acc:'',spd:x&&x.spd!=null?x.spd:'',hdg:x&&x.hdg!=null?x.hdg:'',
+    ref_lat:trial.ref.lat,ref_lng:trial.ref.lng,line_m:trial.line,
+    dist:x?+hav(x.lat,x.lng,trial.ref.lat,trial.ref.lng).toFixed(2):''});
+  if(ev!=='fix'||S.rows.length%5===0)persist();
+}
+$('start').addEventListener('click',async()=>{
+  $('setupMsg').className='status';
+  const ref=parseRef();
+  if(!ref){$('setupMsg').textContent='기준점 좌표를 먼저 넣어주세요. 예: 35.17650, 126.90720';$('setupMsg').className='status err';$('ref').focus();return;}
+  if(!$('device').value.trim()){$('setupMsg').textContent='기기 이름을 넣어주세요. 분석에서 기종별로 나눕니다.';$('setupMsg').className='status err';$('device').focus();return;}
+  $('start').disabled=true;
+  wake();
+  try{await ensureWatch();}catch(e){$('setupMsg').textContent=e.message;$('setupMsg').className='status err';$('start').disabled=false;return;}
+  const id=(S.trials.reduce((m,t)=>Math.max(m,t.id),0))+1;
+  trial={id,type,site:siteName(),device:$('device').value.trim(),observer:$('observer').value.trim(),ref,line:num('lineM',30),t0:Date.now(),fixes:[],marks:[],inSince:null,hitAt:null};
+  addRow('start',null);
+  listeners.add(onFix);
+  $('trialCard').hidden=false;$('trialTitle').textContent=`#${id} ${trial.site} · ${type}`;
+  $('vDist').textContent='-';$('vAcc').textContent='-';$('vN').textContent='0';$('judge').textContent='위치 기다리는 중';$('judge').className='judge';
+  trial.instr=type==='정지'?'기준점에 서서 2분 기다린 뒤 종료하세요.':type==='진입'?'60m 밖에서 출발해 표시선을 지나는 순간 "표시선 통과"를 누르고, 기준점까지 걸어가 10초 서 있다가 종료하세요.':type==='스치기'?'기준점에서 45~50m 떨어진 선을 따라 끝까지 걸어간 뒤 종료하세요. 반경 안으로 들어가지 마세요.':'표시선 위에 1분 서 있다가 종료하세요.';
+  $('trialMsg').textContent=trial.instr;$('trialMsg').className='status';
+  $('trialCard').scrollIntoView({behavior:'smooth',block:'start'});
+  tick=setInterval(()=>{const s=Math.floor((Date.now()-trial.t0)/1000);$('elapsed').textContent=`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;},250);
+  [...$('types').children].forEach(b=>b.disabled=true);
+});
+$('mark').addEventListener('click',()=>{
+  if(!trial)return;const x=lastFix&&Date.now()-lastFix.t<5000?Object.assign({},lastFix,{t:Date.now()}):null;
+  trial.marks.push(Date.now());addRow('mark',x);persist();
+  if(navigator.vibrate)navigator.vibrate(60);
+  $('trialMsg').textContent=`표시선 통과 기록 (${trial.marks.length}번째) · ${new Date().toLocaleTimeString('ko-KR')}`;
+  $('mark').classList.remove('flash');void $('mark').offsetWidth;$('mark').classList.add('flash');
+});
+$('stop').addEventListener('click',()=>{
+  if(!trial)return;
+  addRow('end',null);listeners.delete(onFix);clearInterval(tick);
+  const accs=trial.fixes.map(f=>f.acc);
+  S.trials.push({id:trial.id,site:trial.site,type:trial.type,dur:Math.round((Date.now()-trial.t0)/1000),n:trial.fixes.length,hit:trial.hitAt!=null,acc:accs.length?accs.reduce((a,b)=>a+b,0)/accs.length:null,marks:trial.marks.length});
+  persist();trial=null;
+  try{wl&&wl.release();}catch(e){}wl=null;
+  $('trialCard').hidden=true;$('start').disabled=false;[...$('types').children].forEach(b=>b.disabled=false);
+  render();
+});
+
+function render(){
+  $('countPill').textContent=S.trials.length+'회';
+  if(!S.trials.length){$('list').innerHTML='<tr><td colspan="7" class="hint">아직 기록이 없습니다.</td></tr>';return;}
+  $('list').innerHTML=S.trials.slice().reverse().map(t=>`<tr><td>${t.id}</td><td>${esc(t.site)}</td><td>${t.type}${t.marks?` <span class="pill">표시 ${t.marks}</span>`:''}</td><td>${Math.floor(t.dur/60)}:${String(t.dur%60).padStart(2,'0')}</td><td>${t.n}</td><td>${t.hit?'도착':'-'}</td><td>${t.acc!=null?t.acc.toFixed(1)+'m':'-'}</td></tr>`).join('');
+}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+const COLS=['session','site','device','observer','trial','type','event','t_ms','iso','lat','lng','acc','spd','hdg','ref_lat','ref_lng','line_m','dist'];
+function csv(){
+  const q=v=>{v=v==null?'':String(v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
+  const lines=[COLS.join(',')];
+  for(const r of S.rows){const o=Object.assign({},r,{iso:new Date(r.t_ms).toISOString()});lines.push(COLS.map(c=>q(o[c])).join(','));}
+  return '﻿'+lines.join('\n');
+}
+function fname(){const d=($('device').value||'device').replace(/[^\w가-힣-]+/g,'_');return `gps_${session}_${d}.csv`;}
+$('save').addEventListener('click',()=>{
+  if(!S.rows.length){alert('저장할 기록이 없습니다.');return;}
+  const blob=new Blob([csv()],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=fname();document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1500);
+});
+$('share').addEventListener('click',async()=>{
+  if(!S.rows.length){alert('공유할 기록이 없습니다.');return;}
+  const file=new File([csv()],fname(),{type:'text/csv'});
+  if(navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:'GPS 실측 기록'});}catch(e){}}
+  else alert('이 브라우저는 파일 공유를 지원하지 않습니다. "CSV 저장"을 쓰세요.');
+});
+$('clear').addEventListener('click',()=>{
+  if(!confirm('이 폰에 저장된 실측 기록을 전부 지웁니다. CSV를 저장했나요?'))return;
+  S={rows:[],trials:[],meta:Object.assign({},S.meta,{session:new Date().toISOString().slice(0,19).replace(/[-:T]/g,'')})};persist();location.reload();
+});
+render();
+})();
+</script>
+</body>
+</html>
