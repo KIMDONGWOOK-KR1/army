@@ -2,7 +2,7 @@
 
 상무대 군학연계 프로젝트로 개발하는 GPS 기반 보훈·역사 현장 교육 웹 서비스입니다. 네 명이 각자 휴대폰으로 현장을 탐방하고, 역할별로 나누어진 단서를 풀어 얻은 숫자를 말로 공유해 지휘관의 자물쇠를 엽니다.
 
-공동 개발 저장소는 [KIMDONGWOOK-KR1/army](https://github.com/KIMDONGWOOK-KR1/army)입니다. 현재는 개발 기획과 협업 환경을 준비하는 단계이며, 이 문서의 기능 목록은 구현 완료를 뜻하지 않습니다.
+공동 개발 저장소는 [KIMDONGWOOK-KR1/army](https://github.com/KIMDONGWOOK-KR1/army)입니다. `web/`에 전남대 웹앱 데모를 구현했습니다. 합성 시연 코스와 로컬 검증을 제공하며 실제 코스·Supabase 운영 연결·실기기 현장 검증은 별도로 필요합니다. 실행 방법은 [웹앱 안내](web/README.md), 실제 수행·미수행 검증은 [검증 기록](web/docs/VALIDATION.md)을 확인합니다.
 
 ## 먼저 읽을 문서
 
@@ -51,7 +51,7 @@ AR·주적·사격 연출은 제외합니다. 2~3인 겸임, 집결 보너스, �
 
 ## 기술 스택
 
-Next.js 16 App Router, React 19, TypeScript, Tailwind CSS, Supabase Postgres·Realtime·Edge Functions, Vercel, Vitest를 사용합니다. 이는 기존 기획에서 정한 스택이며 실행 앱은 아직 이 폴더에 없습니다. 앱 기반과 실행 안내는 구현 PR에서 추가합니다.
+Next.js 16 App Router, React 19, TypeScript, Tailwind CSS, Supabase Postgres·Realtime·Edge Functions, Vercel, Vitest를 사용합니다. 실행 앱은 `web/`에 있으며 로컬 시연과 Supabase 운영 연결을 같은 서버 규칙으로 구성했습니다. 배포 완료·현장 검증 완료는 아직 뜻하지 않습니다.
 
 ## 작업 브랜치와 PR
 
