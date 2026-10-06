@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { useGame } from "./use-game";
 import { useLocation } from "./use-location";
+import { useLockDraft } from "./use-lock-draft";
 import { Mission, LockPanel } from "./mission";
 import { SceneArt } from "./scene-art";
 import { GameDialog } from "./game-dialog";
@@ -129,7 +130,8 @@ export default function GameApp({ joinCode = "" }: { joinCode?: string }) {
       retry,
       reset,
     } = useGame(),
-    location = useLocation(s, send);
+    location = useLocation(s, send),
+    lockDraft = useLockDraft(s);
   const [entry, setEntry] = useState<"create" | "join" | null>(
       joinCode ? "join" : null,
     ),
@@ -736,7 +738,14 @@ export default function GameApp({ joinCode = "" }: { joinCode?: string }) {
                 </span>
               </div>
               <div className="lock-stage game-window">
-                <LockPanel snapshot={s!} busy={busy} send={send} now={now} />
+                <LockPanel
+                  snapshot={s!}
+                  busy={busy}
+                  send={send}
+                  now={now}
+                  digits={lockDraft.digits}
+                  setDigits={lockDraft.setDigits}
+                />
                 {reports}
               </div>
               <section className="game-console slim">
