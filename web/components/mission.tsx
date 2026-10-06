@@ -208,18 +208,18 @@ export function LockPanel({
   busy,
   send,
   now,
+  digits,
+  setDigits,
 }: {
   snapshot: Snapshot;
   busy: boolean;
   send: (c: Command) => Promise<Snapshot | null>;
   now: number;
+  digits: string[];
+  setDigits: (digits: string[]) => void;
 }) {
-  const [digits, setDigits] = useState(["", "", "", ""]),
-    [feedback, setFeedback] = useState("");
+  const [feedback, setFeedback] = useState("");
   const lock = snapshot.self.lock!;
-  useEffect(() => {
-    setDigits(lock.digits.map((d) => (d === null ? "" : String(d))));
-  }, [JSON.stringify(lock.digits), snapshot.current_site.id]);
   const remaining = Math.max(
       0,
       Math.ceil(((lock.nextAttemptAt ?? 0) - now) / 1000),
@@ -232,9 +232,6 @@ export function LockPanel({
       digits: digits.map(Number),
     });
     if (next) {
-      setDigits(
-        next.self.lock!.digits.map((d) => (d === null ? "" : String(d))),
-      );
       setFeedback(
         next.result?.ok
           ? "기록을 복원했다."
