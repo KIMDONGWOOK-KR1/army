@@ -8,7 +8,7 @@ test("responsive UI and solo demo complete both sites with reload recovery", asy
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto("/");
   await expect(
-    page.getByRole("button", { name: "혼자 데모 체험" }),
+    page.getByRole("button", { name: "혼자 데모 체험", exact: true }),
   ).toBeEnabled();
   await page.evaluate(() => document.fonts.ready);
   expect(
@@ -19,32 +19,30 @@ test("responsive UI and solo demo complete both sites with reload recovery", asy
     ).violations,
   ).toEqual([]);
   await page.screenshot({
+    animations: "disabled",
     path: "test-results/home-desktop.png",
-    fullPage: true,
   });
-  expect(
-    await page
-      .locator(".map-legend")
-      .evaluate((e) => e.getBoundingClientRect().height),
-  ).toBeLessThan(60);
   for (const width of [360, 390, 430, 768]) {
-    await page.setViewportSize({ width, height: 1000 });
+    await page.setViewportSize({ width, height: 844 });
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth),
     ).toBeLessThanOrEqual(width);
+    expect(
+      await page.evaluate(() => document.documentElement.scrollHeight),
+    ).toBeLessThanOrEqual(844);
   }
   await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({
+    animations: "disabled",
     path: "test-results/home-mobile.png",
-    fullPage: true,
   });
-  await page.getByRole("button", { name: "혼자 데모 체험" }).click();
-  await expect(
-    page.getByRole("button", { name: "시연 거점에 도착" }),
-  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "혼자 데모 체험", exact: true })
+    .click();
+  await expect(page.locator('[data-scene="travel"]')).toBeVisible();
   await page.screenshot({
+    animations: "disabled",
     path: "test-results/travel-mobile.png",
-    fullPage: true,
   });
   for (const site of ["gate", "yongbong"]) {
     await page.getByRole("button", { name: "시연 거점에 도착" }).click();
@@ -56,9 +54,8 @@ test("responsive UI and solo demo complete both sites with reload recovery", asy
           .getByRole("button", {
             name:
               site === "gate"
-                ? "서로의 관찰과 기록을 나눈다"
-                : "시대별 기록과 그곳의 사람들",
-            exact: false,
+                ? /서로의 관찰과 기록을 나눈다/
+                : /시대별 기록과 그곳의 사람들/,
           })
           .click();
       if (role === "정찰원")
@@ -75,17 +72,19 @@ test("responsive UI and solo demo complete both sites with reload recovery", asy
           .click();
       if (site === "gate" && role === "통신원")
         await page.screenshot({
+          animations: "disabled",
           path: "test-results/signal-mobile.png",
-          fullPage: true,
         });
       await page.getByRole("button", { name: "단서 확인하고 보고" }).click();
+      await expect(page.locator('[data-scene="report"]')).toBeVisible();
       await expect(page.locator(".private-digit")).toBeVisible();
       await page.reload();
       await expect(page.locator(".private-digit")).toBeVisible();
     }
     await page.getByRole("button", { name: "지휘관", exact: true }).click();
-    const digits =
-      site === "gate" ? ["2", "1", "3", "7"] : ["3", "4", "6", "8"];
+    await page.getByRole("button", { name: "팀 자물쇠로" }).click();
+    await expect(page.locator('[data-scene="lock"]')).toBeVisible();
+    await expect(page.locator(".private-digit")).toHaveCount(0);
     for (const [i, role] of [
       "지휘관",
       "정찰원",
@@ -94,28 +93,30 @@ test("responsive UI and solo demo complete both sites with reload recovery", asy
     ].entries())
       await page
         .getByRole("textbox", { name: `${role} 잠금 숫자` })
-        .fill(digits[i]);
+        .fill(
+          (site === "gate" ? ["2", "1", "3", "7"] : ["3", "4", "6", "8"])[i],
+        );
     if (site === "gate")
       await page.screenshot({
+        animations: "disabled",
         path: "test-results/lock-mobile.png",
-        fullPage: true,
       });
     await page
       .getByRole("button", { name: "자물쇠 확인", exact: true })
       .click();
     if (site === "gate") {
-      await expect(
-        page.getByRole("button", { name: "다음 거점으로 출발" }),
-      ).toBeVisible();
+      await expect(page.locator('[data-scene="sacho"]')).toBeVisible();
+      await page.screenshot({
+        animations: "disabled",
+        path: "test-results/sacho-mobile.png",
+      });
       await page.getByRole("button", { name: "다음 거점으로 출발" }).click();
     }
   }
-  await expect(
-    page.getByRole("button", { name: "수집한 기록 읽기" }),
-  ).toBeVisible();
+  await expect(page.locator('[data-scene="done"]')).toBeVisible();
   await page.screenshot({
+    animations: "disabled",
     path: "test-results/completed-mobile.png",
-    fullPage: true,
   });
   await page.getByRole("button", { name: "수집한 기록 읽기" }).click();
   await expect(page.locator(".record-card.acquired")).toHaveCount(2);

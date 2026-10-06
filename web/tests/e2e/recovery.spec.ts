@@ -36,6 +36,7 @@ async function prepareFinalLock(page: Page) {
     }
   }
   await page.goto("/");
+  await page.getByRole("button", { name: "팀 자물쇠로" }).click();
   await expect(page.locator(".lock-panel")).toBeVisible();
 }
 test("late mutation response cannot undo returning to the home screen", async ({
