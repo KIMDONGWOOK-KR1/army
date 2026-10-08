@@ -107,12 +107,24 @@ type VerifyMethod = "field" | "official_digital" | "explained" | "simulated" | "
 type StepPrivate = {
   answerHash?: string;          // grading이 *-hash일 때
   rubric?: { required: string[] }; // record형의 필수 항목 이름(정답 아님)
-  hints: [string, string, string];
   explanation: string;          // 3단계 힌트 사용 또는 제출 후 공개
   reward?: string;              // 정답 후 열리는 콘텐츠(예: G-03 복원된 통신문)
 };
-type RolePrivate = { digit?: number };
+type RolePrivate = {
+  digit?: number;
+  hints: [string, string, string]; // 2026-10-08 사용자 결정: 역할별 3단계 유지
+  transferClue?: { kind: "relay-frequency"; label: string; value: string; targetStepId: string };
+};
 ```
+
+#### PR-1 구현 결정과 비공개 예외 (2026-10-08 사용자 확인)
+
+- 지휘관 주파수는 **정답이 아닌 전달형 개인 단서**로 취급한다. `RolePrivate.transferClue`에 저장하고 지휘관 `self.transfer_clue`에만 제공한다. 통신원의 목표값 표시는 하지 않는다. 통신원 정답은 기존 원칙대로 해시만 저장하되 seed가 전달값과 해시 입력의 일치를 확인한다. 이 평문 개인 단서가 "정답 계열 평문을 저장/응답하지 않는다" 원칙의 명시적 예외다. `game_public`, 공개 투영, 타 역할 응답에는 넣지 않으며 직렬화 테스트로 검사한다.
+- 원문에 있는 **역할별 힌트 3단계**를 유지한다. StepPrivate에 같은 힌트를 복제하지 않는다. 단계별 explanation/reward는 여전히 비공개다. 통신원 주파수 문제도 역할 힌트 정책에 속하며 전달 안내는 위 개인 단서로 분리한다. 힌트 3단계의 다단계 해설 처리 범위는 PR-2에서 확인한다.
+- G-01의 사건 카드–근거 연결은 원문에 근거 선택지와 정답 짝이 없다. 사용자가 **연결 유형·필드만 구현하고 미확정으로 남기기**를 선택했다. `confirmed:false`, 빈 choices로 두며 운영 seed를 차단한다. 합성 비공개 예시의 짝은 실제 정답이 아니다.
+- `requiresReports`로 지휘관 판정이 나머지 세 역할 보고 뒤 열리게 표현한다. 같은 거점 내 requires와 보고 조건을 합쳐 순환을 검사한다. G-03.words는 본인 주파수 단계만 선행하며 정찰원 보고는 나레이션 trigger에만 사용한다.
+- Stage/Step/arrival/scoring/asset의 confirmed, null 점수, 명시적 scene trigger·입력 fields 등을 타입에 추가했다. 확정된 GPS 코스만 운영 seed를 통과하며 시연은 명시적 demo 플래그와 dev ID가 필요하다. 합성 입력은 seed:course의 DB 등록 대상에서 제외한다.
+- 실제 타입은 `_shared/types.ts`, 직렬화·액션별 FE 계약은 [API_CONTRACT.md](API_CONTRACT.md)를 따른다. 이 문서의 나머지 게임 상태/API 모델은 후속 PR용 초안이며 PR-1에서 엔진·DB를 변경하지 않았다.
 
 ### 3.3 시나리오 장면과 단계 유형 대응
 

@@ -152,3 +152,125 @@ export type Snapshot = {
   };
   result?: Record<string, unknown>;
 };
+
+// PR-1: v2 content contracts only. The v1 engine/Snapshot remains unchanged.
+export type StageKind = "prologue" | "mission" | "memorial" | "epilogue";
+export type VerifyMethod = "field" | "official_digital" | "explained" | "simulated" | "proxy";
+export type StepType =
+  | "truefalse" | "order" | "match" | "choice" | "multi-choice"
+  | "frequency" | "words" | "spot-correct" | "text" | "observation"
+  | "record-form" | "fill-blank" | "confirm";
+export type Grading = "hash" | "set-hash" | "order-hash" | "map-hash" | "record" | "open" | "confirm";
+export type StepAnswer = string | string[] | Record<string, string>;
+export type StepRef = { role: Role; stepId: string };
+export type SceneText = {
+  id: string;
+  channel: "narration" | "guide" | "screen";
+  text: string;
+  // Render only when this server-side event occurs; never on stage fetch alone.
+  trigger: "enter" | "role-reveal" | "ready" | "retry" | "role-complete" | "reports-ready" | "stage-complete" | "scout-reported";
+};
+export type FieldSpec = { id: string; label: string; required: boolean; maxLen: number };
+export type Step = {
+  id: string;
+  confirmed: boolean;
+  type: StepType;
+  prompt: string;
+  choices?: string[]; // Wire choice IDs are decimal strings "1" ... "N".
+  statements?: string[]; // truefalse: answer array in this exact order.
+  fields?: FieldSpec[]; // match: keys to associate with choices; record: input fields.
+  requires?: StepRef[];
+  requiresReports?: Role[];
+  grading: Grading;
+  sourceRequired?: boolean;
+  sourceIds?: string[];
+  answerCount?: number;
+  maxLen?: number;
+  note?: string;
+};
+export type RoleMission = {
+  intro: SceneText;
+  scenes: SceneText[];
+  steps: Step[];
+  digit: boolean;
+  asset?: { url: string | null; alt: string; confirmed: boolean };
+};
+export type Stage = {
+  id: string;
+  seq: number;
+  kind: StageKind;
+  name: string;
+  confirmed: boolean;
+  arrival: {
+    mode: "gps" | "qr" | "manual" | "none";
+    confirmed: boolean;
+    require: "all" | "any";
+    lat: number | null;
+    lng: number | null;
+    radiusM?: number;
+    noticeM?: number;
+    dwellSec?: number;
+    note?: string;
+  };
+  quiet: boolean;
+  scoring: {
+    enabled: boolean;
+    confirmed: boolean;
+    hintPenalty: Record<1 | 2 | 3, number | null>;
+    noHintBonus: number | null;
+    note?: string;
+  };
+  narration: SceneText[];
+  roles: Record<Role, RoleMission | null>;
+  completion:
+    | { type: "lock"; order: Role[] }
+    | { type: "confirm"; labels: Record<Role, string> }
+    | { type: "joint-record" };
+  sacho?: { id: string; name: string; sections: string[] };
+  altModes?: { id: string; label: string }[];
+};
+export type CourseV2Content = {
+  schemaVersion: 2;
+  id: string;
+  name: string;
+  confirmed: boolean;
+  demo: boolean;
+  sources: { id: string; title: string; url: string }[];
+  settings: { teamSize: 4; roleSwapEnabled: boolean; roleSwapSeconds: 30; note: string };
+  stages: Stage[];
+  note?: string;
+};
+export type StepPrivate = {
+  answerHash?: string;
+  rubric?: { required: string[] };
+  explanation: string;
+  reward?: string;
+};
+export type TransferClue = {
+  kind: "relay-frequency";
+  label: string;
+  value: string;
+  targetStepId: string;
+};
+export type RolePrivate = {
+  digit?: number;
+  // User decision: three levels per role, not duplicated per step.
+  hints: [string, string, string];
+  transferClue?: TransferClue; // Commander only; never a public course property.
+};
+export type StagePrivate = {
+  roles: Record<Role, RolePrivate | null>;
+  steps: Record<string, StepPrivate>;
+};
+export type CourseV2 = CourseV2Content & {
+  private: { stages: Record<string, StagePrivate> };
+};
+export type CourseV2PrivateInput = {
+  schemaVersion: 2;
+  courseId: string;
+  synthetic: boolean;
+  stages: Record<string, {
+    roles: Record<Role, RolePrivate | null>;
+    steps: Record<string, Omit<StepPrivate, "answerHash"> & { answer?: StepAnswer }>;
+  }>;
+};

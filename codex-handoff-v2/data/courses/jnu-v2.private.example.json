@@ -1,0 +1,170 @@
+{
+  "schemaVersion": 2,
+  "courseId": "jnu-v2",
+  "synthetic": true,
+  "stages": {
+    "prologue": {
+      "roles": {
+        "commander": {
+          "hints": [
+            "합성 예시: 첫 번째 안내",
+            "합성 예시: 두 번째 안내",
+            "합성 예시: 세 번째 안내"
+          ]
+        },
+        "scout": {
+          "hints": [
+            "합성 예시: 첫 번째 안내",
+            "합성 예시: 두 번째 안내",
+            "합성 예시: 세 번째 안내"
+          ]
+        },
+        "signal": {
+          "hints": [
+            "합성 예시: 첫 번째 안내",
+            "합성 예시: 두 번째 안내",
+            "합성 예시: 세 번째 안내"
+          ]
+        },
+        "cipher": {
+          "hints": [
+            "합성 예시: 첫 번째 안내",
+            "합성 예시: 두 번째 안내",
+            "합성 예시: 세 번째 안내"
+          ]
+        }
+      },
+      "steps": {
+        "P-03.commander": {
+          "explanation": "합성 예시 해설 — 실제 시나리오에 사용하지 않는다."
+        },
+        "P-03.scout": {
+          "explanation": "합성 예시 해설 — 실제 시나리오에 사용하지 않는다."
+        },
+        "P-03.signal": {
+          "explanation": "합성 예시 해설 — 실제 시나리오에 사용하지 않는다."
+        },
+        "P-03.cipher": {
+          "explanation": "합성 예시 해설 — 실제 시나리오에 사용하지 않는다."
+        }
+      }
+    },
+    "gate": {
+      "roles": {
+        "commander": {
+          "digit": 8,
+          "hints": [
+            "합성 예시: 첫 번째 안내",
+            "합성 예시: 두 번째 안내",
+            "합성 예시: 세 번째 안내"
+          ],
+          "transferClue": {
+            "kind": "relay-frequency",
+            "label": "통신원에게 말로 전달할 가상 주파수",
+            "value": "12.3",
+            "targetStepId": "G-03.freq"
+          }
+        },
+        "scout": {
+          "digit": 6,
+          "hints": [
+            "합성 예시: 첫 번째 안내",
+            "합성 예시: 두 번째 안내",
+            "합성 예시: 세 번째 안내"
+          ]
+        },
+        "signal": {
+          "digit": 0,
+          "hints": [
+            "합성 예시: 첫 번째 안내",
+            "합성 예시: 두 번째 안내",
+            "합성 예시: 세 번째 안내"
+          ]
+        },
+        "cipher": {
+          "digit": 9,
+          "hints": [
+            "합성 예시: 첫 번째 안내",
+            "합성 예시: 두 번째 안내",
+            "합성 예시: 세 번째 안내"
+          ]
+        }
+      },
+      "steps": {
+        "G-01.verdict": {
+          "explanation": "합성 예시 해설 — 실제 시나리오에 사용하지 않는다.",
+          "answer": [
+            "true",
+            "true",
+            "true",
+            "true"
+          ]
+        },
+        "G-01.order": {
+          "explanation": "합성 예시 해설 — 실제 시나리오에 사용하지 않는다.",
+          "answer": [
+            "2",
+            "1",
+            "4",
+            "3"
+          ]
+        },
+        "G-01.evidence": {
+          "explanation": "합성 예시 해설 — 실제 시나리오에 사용하지 않는다.",
+          "answer": {
+            "event-a": "2",
+            "event-b": "4",
+            "event-c": "1",
+            "event-d": "3"
+          }
+        },
+        "G-02.name": {
+          "explanation": "합성 예시 해설 — 실제 시나리오에 사용하지 않는다.",
+          "answer": "가상 조형물 예시"
+        },
+        "G-02.record": {
+          "explanation": "합성 예시 해설 — 실제 시나리오에 사용하지 않는다.",
+          "rubric": {
+            "required": [
+              "shape",
+              "source",
+              "memo"
+            ]
+          }
+        },
+        "G-03.freq": {
+          "explanation": "합성 예시 해설 — 실제 시나리오에 사용하지 않는다.",
+          "answer": "12.3",
+          "reward": "합성 예시 보상 통신 — 실제 탐색 단서가 아니다."
+        },
+        "G-03.words": {
+          "explanation": "합성 예시 해설 — 실제 시나리오에 사용하지 않는다.",
+          "answer": [
+            "가상낱말가",
+            "가상낱말나",
+            "가상낱말다"
+          ]
+        },
+        "G-04.spots": {
+          "explanation": "합성 예시 해설 — 실제 시나리오에 사용하지 않는다.",
+          "answer": [
+            "1",
+            "3",
+            "5"
+          ]
+        },
+        "G-04.corrections": {
+          "explanation": "합성 예시 해설 — 실제 시나리오에 사용하지 않는다.",
+          "rubric": {
+            "required": [
+              "time",
+              "reason",
+              "destination",
+              "source"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

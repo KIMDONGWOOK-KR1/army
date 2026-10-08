@@ -34,6 +34,8 @@ npm run seed:course -- ..\codex-handoff-v2\data\courses\jnu.json ..\codex-handof
 
 시드는 미확정 좌표, 중복 거점, 빈 문항, 잘못된 선택 번호, 빠진 역할, 범위 밖 숫자·주파수, 짧은 salt를 거절한다. 정답 원문은 저장하지 않고 해시를 저장한다. 숫자와 역할별 단서는 서버 전용 코스에만 저장한다. 기존 코스를 덮어쓰지 않으며 변경 시 새로운 `courseId`로 리비전을 등록한다. 진행 중 게임은 원래 코스를 사용한다.
 
+PR-1의 v2 콘텐츠·비공개 형식·검증 전용 seed는 [BE v2 API 계약](../docs/be/API_CONTRACT.md)에 정리했다. v2 실행은 PR-2에서 연결하므로 아직 ACTIVE_COURSE_ID에 v2 코스를 지정하지 않는다. 저장소의 v2 초안은 미확정 자료가 있어 운영 시드에서 거절한다.
+
 6. Edge 함수의 비밀 환경변수 `ANSWER_SALT`, `ACTIVE_COURSE_ID`, `ALLOWED_ORIGIN`(정확한 HTTPS 웹앱 출처)을 설정하고 `game` 함수를 배포한다. `SUPABASE_URL`과 `SUPABASE_SERVICE_ROLE_KEY`는 Supabase 함수 환경에서 제공된다. `verify_jwt=false`는 인증 생략이 아니다. 함수가 매 요청의 Bearer JWT를 `auth.getUser()`로 검증한다.
 
 ```powershell

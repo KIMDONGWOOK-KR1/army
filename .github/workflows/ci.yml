@@ -37,4 +37,4 @@ jobs:
         with:
           deno-version: v2.x
       - name: Check Edge function
-        run: deno check --no-lock supabase/functions/game/index.ts
+        run: deno check --no-lock supabase/functions/game/index.ts supabase/functions/_shared/prepare-seed-course.ts supabase/functions/_shared/project-course-v2.ts
