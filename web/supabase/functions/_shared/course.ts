@@ -19,6 +19,27 @@ const clue = (
 export async function demoCourse(
   salt = "hoguk-synthetic-demo-only",
 ): Promise<Course> {
+  const { course, synthetic } = demoCourseInput();
+  for (const s of course.sites) {
+    for (const role of ROLES) {
+      const [answer, digit] = synthetic[s.id][role];
+      s.answers[role] = {
+        answerHash: await answerHash(
+          salt,
+          s.id,
+          role,
+          s.clues[role],
+          answer,
+        ),
+        digit,
+      };
+    }
+  }
+  return course;
+}
+
+// Server/seed input only. Never project or import this module from client code.
+export function demoCourseInput() {
   const course: Course = {
     id: "jnu-demo",
     name: "전남대, 기억을 잇는 길",
@@ -142,20 +163,5 @@ export async function demoCourse(
       cipher: ["8", 8],
     },
   };
-  for (const s of course.sites) {
-    for (const role of ROLES) {
-      const [answer, digit] = synthetic[s.id][role];
-      s.answers[role] = {
-        answerHash: await answerHash(
-          salt,
-          s.id,
-          role,
-          s.clues[role],
-          answer,
-        ),
-        digit,
-      };
-    }
-  }
-  return course;
+  return { course, synthetic };
 }

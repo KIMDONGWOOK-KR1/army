@@ -10,6 +10,7 @@ import {
 } from "@/supabase/functions/_shared/engine";
 import { demoCourse } from "@/supabase/functions/_shared/course";
 import { demoCourseV2 } from "@/supabase/functions/_shared/demo-course-v2";
+import { legacyDemoCourseV2 } from "@/supabase/functions/_shared/legacy-demo-course-v2";
 import {
   ROLES,
   type Game,
@@ -60,7 +61,12 @@ async function operation(session: string, cmd: Command): Promise<Snapshot> {
   const courseFor = async (id?: string) => {
     if (!id?.startsWith("jnu-demo-dev-")) return demoCourse();
     db.courses ??= {};
-    return db.courses[id] ??= await demoCourseV2(id, salt ?? "");
+    if (db.courses[id]) return db.courses[id];
+    const preset = process.env.LOCAL_V2_PRESET ?? "synthetic";
+    if (!["synthetic", "v1-gate"].includes(preset))
+      throw new DomainError("SERVER_ERROR", "로컬 v2 preset 설정을 확인하라.");
+    const build = preset === "v1-gate" ? legacyDemoCourseV2 : demoCourseV2;
+    return db.courses[id] = await build(id, salt ?? "");
   };
   let course: Course | CourseV2 = await demoCourse();
   const events: GameEvent[] = [];
