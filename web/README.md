@@ -6,6 +6,8 @@
 
 정문 v2 화면 개발은 **[FE 인수인계](../docs/fe/README.md)**와 [API 계약](../docs/be/API_CONTRACT.md)을 먼저 본다. 아래 기본 실행·기존 화면은 v1 데모이며, PR-2의 v2 서버 구현과 구분한다.
 
+정식 디자인 전에 정문을 시험할 수 있는 **[/verify 확인용 UI](../docs/fe/VERIFY_UI.md)**도 제공한다. 로컬 v2 실행 설정과 4인 정상/해설 개방 확인 순서는 해당 안내를 따른다. 자동 브라우저 검증은 `npm run test:e2e:v2`다.
+
 Node.js 22.9 이상(검증 환경 24.15), npm이 필요하다.
 
 ```powershell

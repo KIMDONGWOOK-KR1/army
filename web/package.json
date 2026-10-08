@@ -13,6 +13,7 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "test:e2e": "playwright test",
+    "test:e2e:v2": "playwright test --config playwright.v2.config.ts",
     "seed:course": "node --env-file-if-exists=.env.local --import=tsx scripts/seed-course.ts",
     "seed:demo": "node --import=tsx scripts/seed-demo-course.ts"
   },

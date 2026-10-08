@@ -2,7 +2,7 @@
 
 2026-10-08 기준 · FE 이환희 / BE·Infra 김종연 / 리뷰·머지 김동욱
 
-**지금은 12개 mock으로 v2 화면을 개발할 수 있고, PR-2 서버 코드로 정문 API를 시험할 수 있다. 기존 화면은 v1 방식이므로 활성 코스를 바로 v2로 바꾸지 않는다.** 이 문서는 전달용 안내이며 배포 완료를 의미하지 않는다.
+**12개 mock으로 정식 v2 화면을 개발할 수 있으며, `/verify` 확인용 UI로 PR-2의 정문 4인 흐름을 시험할 수 있다. 기존 `/` 화면은 v1 방식이다.** 확인 UI와 새 DB·Edge·합성 코스의 dev 적용 준비를 맞춘 뒤 활성 코스를 전환한다. 이 문서는 전달용 안내이며 배포 완료를 의미하지 않는다.
 
 ## 1. 먼저 볼 자료
 
@@ -12,6 +12,7 @@
 | [역할별 mock 12개](../be/API_CONTRACT.md#31-fe용-전체-snapshot-mock) | commander/scout/signal/cipher × 힌트 전/후/정문 완료 후 전체 JSON. FE 화면·Storybook·테스트에 사용 가능 |
 | [확정 사항·결정 대기](../be/DECISIONS.md) | 정규화·힌트 3단계·해설 개방·사초 저장 방식과 미확정 항목 |
 | [PR-2 적용 안내](../be/PR_2_APPLY.md) | BE 담당의 DB 적용·Edge 재배포·새 코스 등록 및 FE 연결 순서 |
+| [정문 확인용 UI](VERIFY_UI.md) | 정식 디자인 전 `/verify`에서 로컬 4인 동작을 확인하는 방법과 dev 연결 절차 |
 | [웹앱 README](../../web/README.md) | 기본 설치·기존 v1 실행·테스트 방법 |
 | [공통 타입](../../web/supabase/functions/_shared/types.ts), [SnapshotV2](../../web/supabase/functions/_shared/engine-v2.ts) | type-only import용 타입. 서버 엔진·코스·비공개 자료를 클라이언트 런타임에 import하지 않는다 |
 | [API 계약 테스트](../../web/tests/api-v2.test.ts) | 실제 Next POST 핸들러와 로컬 저장소를 이용한 네 세션·12종 응답 비교 예시 |
@@ -26,14 +27,15 @@
 | dev 백엔드 | Supabase 프로젝트 ref `vmadbgniurfzqygqidzw`, Edge Function `game`. 배포된 합성 `jnu-demo-dev-r1`은 v1 |
 | PR-2 서버 | get-stage, submit-step, 역할별 힌트, 보고, 일반 자물쇠, 전원 해설 확인 후 별도 개방, 사초① 저장 구현 |
 | PR-2 검증 | 단위·DB·계약 테스트 94개, 타입 검사·빌드·Deno 검사/lint 통과. 기존 v1 E2E 9개 시나리오 통과 |
-| 아직 하지 않은 것 | PR-2 DB/Edge 클라우드 적용, v2 FE 화면, v2 실기기 시험. 공개 dev URL에서 v2가 동작한다고 가정하지 않는다 |
+| 확인용 UI | `/verify`에 v2 문제·별도 보고·힌트·읽음 확인·두 개방 경로 제공. 정식 FE 디자인은 후속 작업 |
+| 아직 하지 않은 것 | PR-2 DB/Edge 클라우드 적용, 확인 UI Vercel 배포, 정식 v2 FE 디자인·실기기 시험. 공개 dev URL에서 v2가 동작한다고 가정하지 않는다 |
 | 후속 범위 | PR-3 프롤로그·역할 교환·QR·수동 대행, 후속 거점·추모·봉지·최종 결과, 시간 점수·랭킹 |
 
 v2 FE와 API 시험 준비 후 BE 담당이 새 마이그레이션·Edge·새 불변 v2 합성 코스 리비전을 준비한다. 이후 ACTIVE_COURSE_ID를 전환해 **새 방**을 만든다. 기존 방은 기존 코스에 고정되며 r1을 덮어쓰지 않는다. FE가 임의로 DB·시드·Edge 비밀값을 바꿀 필요는 없다.
 
 ## 3. FE에서 바꿔야 하는 부분
 
-인증과 HTTP 전송은 [lib/client.ts](../../web/lib/client.ts)의 `requestGame`을 재사용할 수 있다. 다만 현재 반환 타입과 화면 상태는 v1 `Snapshot` 기준이다. 응답에 stage 필드가 있고 그 schema_version이 2인지 확인해 v1/v2를 구분하고 v2 타입과 화면을 연결해야 한다.
+인증과 HTTP 전송은 [lib/client.ts](../../web/lib/client.ts)에서 공유한다. 기존 `requestGame`은 v1 전용이며 `requestGameV2`는 응답의 `stage.schema_version === 2`를 확인한다. 확인 UI의 `useGameV2`가 로비·이동 상태 조회, 도착 후 get-stage, private Realtime 갱신과 재접속을 처리한다. 기존 정식 화면의 반환 타입과 상태는 여전히 v1 `Snapshot` 기준이므로 아래 전환 지점은 정식 FE 개발에도 적용된다.
 
 | 기존 v1 | v2에서 연결할 내용 |
 |---|---|
@@ -43,7 +45,7 @@ v2 FE와 API 시험 준비 후 BE 담당이 새 마이그레이션·Edge·새 �
 | game.demo를 보고 혼자 체험 도구 표시 | v2 합성 4인 코스도 demo=true다. 이 값만으로 solo 기능을 켜지 않는다. v2의 create-demo/demo-role/demo-arrival/demo-time은 지원하지 않는다 |
 | 거점 완료 시 다음 거점/전체 종료로 이동 | gate 완료는 playing + site_phase:cleared + stage_phase:done. 현재 dev v2에는 다음 거점이 없어 이동은 NO_STAGE. 정문 완료 화면을 유지한다 |
 
-타입 참조 예시(실제 화면 연결 코드는 아직 추가하지 않았다):
+타입 참조 예시(확인용 UI의 공통 타입은 [game-snapshot.ts](../../web/lib/game-snapshot.ts) 참조):
 
 ```ts
 import type { SnapshotV2 } from "@/supabase/functions/_shared/engine-v2";
@@ -107,7 +109,7 @@ type V2ActionResponse = SnapshotV2 & { result?: Record<string, unknown> };
 ## 7. 인증·Realtime·환경 설정
 
 - FE 공개 환경변수는 `NEXT_PUBLIC_BACKEND`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` 세 개다. 실제 값은 BE 담당과 프로젝트 설정으로 확인한다. service role key·Edge ANSWER_SALT는 FE 전달 대상이 아니다.
-- 클라우드는 익명 로그인 Bearer JWT로 `<SUPABASE_URL>/functions/v1/game`에 POST한다. 기존 requestGame이 익명 세션·apikey·Authorization 헤더를 처리한다. Vercel에서 로컬 `/api/game`은 차단된다.
+- 클라우드는 익명 로그인 Bearer JWT로 `<SUPABASE_URL>/functions/v1/game`에 POST한다. requestGame/requestGameV2가 공통 전송부에서 익명 세션·apikey·Authorization 헤더를 처리한다. Vercel에서 로컬 `/api/game`은 차단된다.
 - FE 로컬 주소나 새 Vercel Preview로 dev Edge에 접속할 경우 정확한 origin을 BE에게 전달해 허용 목록에 추가해야 한다. 이때 origin에는 경로나 와일드카드를 넣지 않는다.
 - 기존 private `game:<gameId>` Realtime 구독을 재사용할 수 있다. game_public 변경/Broadcast 후 자기 get-game/get-stage를 다시 조회한다. game_public에는 self·개인 단서가 없다. 낮은 version의 늦은 응답은 버리고 네트워크 복구 시 재조회한다.
 - 네 명 검증은 서로 다른 브라우저 프로필/Playwright context/기기를 사용한다. 같은 프로필의 탭 네 개는 같은 익명 참가자로 인식될 수 있다.
