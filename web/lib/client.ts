@@ -1,6 +1,7 @@
 "use client";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { Command, Snapshot } from "@/supabase/functions/_shared/types";
+import { isV2Response, type GameResponse, type V2Response } from "./game-snapshot";
 export const backend =
   process.env.NEXT_PUBLIC_BACKEND === "supabase" ? "supabase" : "local";
 let supabase: SupabaseClient | null = null,
@@ -18,7 +19,7 @@ export function getSupabase() {
     },
   }));
 }
-async function token() {
+function token() {
   const client = getSupabase()!;
   return (authentication ??= (async () => {
     const { data } = await client.auth.getSession();
@@ -40,7 +41,7 @@ export class ApiError extends Error {
     super(message);
   }
 }
-export async function requestGame(command: Command): Promise<Snapshot> {
+async function requestSnapshot(command: Command): Promise<GameResponse> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };
@@ -67,7 +68,7 @@ export async function requestGame(command: Command): Promise<Snapshot> {
       "연결이 끊겼다. 화면은 유지된다. 다시 연결하라.",
     );
   }
-  let data: Snapshot & { code?: string; message?: string; retry_at?: number };
+  let data: GameResponse & { code?: string; message?: string; retry_at?: number };
   try {
     data = await response.json();
   } catch {
@@ -82,5 +83,24 @@ export async function requestGame(command: Command): Promise<Snapshot> {
       data.message ?? "연결을 확인하라.",
       data.retry_at,
     );
+  return data;
+}
+
+export async function requestGame(command: Command): Promise<Snapshot> {
+  const data = await requestSnapshot(command);
+  if (isV2Response(data))
+    throw new ApiError("SCHEMA_MISMATCH", "이 방은 v2 코스다. /verify 확인 화면에서 연결하라.");
+  return data;
+}
+
+/** Keep the authenticated transport unchanged while the main UI accepts either course schema. */
+export function requestGameAny(command: Command): Promise<GameResponse> {
+  return requestSnapshot(command);
+}
+
+export async function requestGameV2(command: Command): Promise<V2Response> {
+  const data = await requestSnapshot(command);
+  if (!isV2Response(data))
+    throw new ApiError("SCHEMA_MISMATCH", "현재 방은 v1 코스다. 기존 화면을 이용하거나 v2 합성 코스 설정을 확인하라.");
   return data;
 }

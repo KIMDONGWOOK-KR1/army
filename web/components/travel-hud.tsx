@@ -42,6 +42,7 @@ export function TravelHud({
   field,
   location,
   demo,
+  v2Arrival,
   busy,
   remaining,
   onDemoArrival,
@@ -57,6 +58,7 @@ export function TravelHud({
   field: FieldStatus | null;
   location: Location;
   demo: boolean;
+  v2Arrival?: { simulated: boolean; arrived: boolean; count: number };
   busy: boolean;
   remaining: number;
   onDemoArrival: () => void;
@@ -133,7 +135,15 @@ export function TravelHud({
       />
 
       <div className="hud-action-area">
-        {demo ? (
+        {v2Arrival?.arrived ? (
+          <button className="hud-action waiting" disabled>
+            내 도착 확인됨 · 팀원 대기 ({v2Arrival.count}/4)
+          </button>
+        ) : v2Arrival?.simulated ? (
+          <button className="hud-action ready" disabled={busy} onClick={onDemoArrival}>
+            본인 모의 도착 확인 <ArrowRight size={18} aria-hidden="true" />
+          </button>
+        ) : demo ? (
           <button
             className={`hud-action ${inRange ? "ready" : ""}`}
             // 보이는 말이 이름 앞에 오게 해 음성 조작으로도 누를 수 있게 한다
@@ -163,7 +173,7 @@ export function TravelHud({
             <ArrowRight size={18} aria-hidden="true" />
           </button>
         ) : (
-          <span className="hud-note">도착 신호를 기다리라.</span>
+          <span className="hud-note">{v2Arrival ? "본인 GPS 도착 확인을 기다리라." : "도착 신호를 기다리라."}</span>
         )}
       </div>
 

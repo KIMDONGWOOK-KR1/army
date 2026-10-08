@@ -9,17 +9,23 @@ import {
   sha256,
 } from "@/supabase/functions/_shared/engine";
 import { demoCourse } from "@/supabase/functions/_shared/course";
+import { demoCourseV2 } from "@/supabase/functions/_shared/demo-course-v2";
 import {
   ROLES,
   type Game,
   type Command,
   type Snapshot,
+  type GameEvent,
+  type CourseV2,
+  type Course,
 } from "@/supabase/functions/_shared/types";
 type Database = {
   games: Record<string, Game>;
   sessions: Record<string, string>;
   creates: Record<string, { hash: string; gameId: string }>;
   failures: Record<string, { count: number; retryAt: number | null }>;
+  events?: Record<string, GameEvent[]>;
+  courses?: Record<string, CourseV2>;
 };
 const folder = join(process.cwd(), ".demo-data"),
   file = join(folder, "state.json");
@@ -49,12 +55,31 @@ function code() {
 }
 async function operation(session: string, cmd: Command): Promise<Snapshot> {
   const now = Date.now(),
-    db = await read(),
-    course = await demoCourse();
+    db = await read();
+  const salt = process.env.ANSWER_SALT;
+  const courseFor = async (id?: string) => {
+    if (!id?.startsWith("jnu-demo-dev-")) return demoCourse();
+    db.courses ??= {};
+    return db.courses[id] ??= await demoCourseV2(id, salt ?? "");
+  };
+  let course: Course | CourseV2 = await demoCourse();
+  const events: GameEvent[] = [];
+  const persistEvents = (game: Game) => {
+    if (!events.length) return;
+    db.events ??= {};
+    (db.events[game.id] ??= []).push(...events);
+  };
   // Only hashed session identifiers are persisted; raw location fixes never reach this route.
   const userId = await sha256(session);
   let game: Game | undefined;
   if (cmd.action === "create-game" || cmd.action === "create-demo") {
+    if (process.env.LOCAL_V2_COURSE_ID) {
+      if (!process.env.LOCAL_V2_COURSE_ID.startsWith("jnu-demo-dev-"))
+        throw new DomainError("SERVER_ERROR", "로컬 v2 dev 코스 설정을 확인하라.");
+      course = await courseFor(process.env.LOCAL_V2_COURSE_ID);
+    }
+    if (cmd.action === "create-demo" && "schemaVersion" in course)
+      throw new DomainError("FORBIDDEN", "v2 합성 코스도 네 명이 합류해야 한다.");
     if (!cmd.request_id || !/^[a-zA-Z0-9_-]{1,128}$/.test(cmd.request_id))
       throw new DomainError("INVALID_REQUEST", "요청 식별자가 필요하다.");
     const key = userId + ":" + cmd.request_id,
@@ -67,6 +92,7 @@ async function operation(session: string, cmd: Command): Promise<Snapshot> {
           "같은 요청 번호의 내용이 다르다.",
         );
       game = db.games[prev.gameId];
+      course = await courseFor(game.courseId);
     } else {
       const active = Object.values(db.games).filter(
         (g) =>
@@ -132,7 +158,9 @@ async function operation(session: string, cmd: Command): Promise<Snapshot> {
     try {
       if (!game)
         throw new DomainError("INVALID_CODE", "입장 코드를 다시 확인하라.");
-      const result = await dispatch(game, course, userId, cmd, now);
+      course = await courseFor(game.courseId);
+      const result = await dispatch(game, course, userId, cmd, now, game.v2 ? salt : undefined, events);
+      persistEvents(game);
       db.sessions[userId] = game.id;
       delete db.failures[userId];
       await save(db);
@@ -154,9 +182,12 @@ async function operation(session: string, cmd: Command): Promise<Snapshot> {
   }
   game = db.games[cmd.game_id ?? db.sessions[userId]];
   if (!game) throw new DomainError("NO_GAME", "진행 중인 작전이 없다.");
-  const result = await dispatch(game, course, userId, cmd, now);
+  course = await courseFor(game.courseId);
+  const result = await dispatch(game, course, userId, cmd, now, game.v2 ? salt : undefined, events);
+  persistEvents(game);
   await save(db);
-  return { ...project(game, course, userId, now), result };
+  const snapshot = project(game, course, userId, now);
+  return cmd.action === "get-stage" ? snapshot : { ...snapshot, result };
 }
 export function localRequest(session: string, cmd: Command) {
   const pending = (globalStore.hogukQueue ?? Promise.resolve()).then(() =>

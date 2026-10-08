@@ -1,34 +1,27 @@
 import {
-  ROLES,
-  type Role,
-  type Course,
-  type Game,
+  type Clue,
   type Command,
-  type Snapshot,
+  type Course,
+  type CourseV2,
+  type Game,
+  type GameEvent,
+  type Role,
+  ROLES,
   type Site,
   type SiteInfo,
-  type Clue,
+  type Snapshot,
 } from "./types.ts";
-export class DomainError extends Error {
-  constructor(
-    public code: string,
-    message: string,
-    public retry_at?: number,
-  ) {
-    super(message);
-  }
-}
+import { DomainError, sha256, validateNickname } from "./game-core.ts";
+import {
+  dispatchV2,
+  initializeV2,
+  isCourseV2,
+  projectGameV2,
+} from "./engine-v2.ts";
+export { DomainError, sha256, validateNickname } from "./game-core.ts";
 const fail = (code: string, message: string, retry?: number): never => {
   throw new DomainError(code, message, retry);
 };
-export async function sha256(value: string) {
-  return Array.from(
-    new Uint8Array(
-      await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value)),
-    ),
-    (x) => x.toString(16).padStart(2, "0"),
-  ).join("");
-}
 export function normalizeAnswer(
   type: Clue["type"],
   answer: string,
@@ -54,15 +47,10 @@ export async function answerHash(
     salt + siteId + role + normalizeAnswer(clue.type, answer, clue.normalize),
   );
 }
-export function validateNickname(value: unknown) {
-  if (typeof value !== "string" || !/^[가-힣a-zA-Z0-9]{1,6}$/.test(value))
-    fail("INVALID_NICKNAME", "호출명은 한글·영문·숫자 1~6자로 입력하라.");
-  return value as string;
-}
 export function createGame(
   userId: string,
   nickname: string,
-  course: Course,
+  course: Course | CourseV2,
   now: number,
   code: string,
 ): Game {
@@ -98,6 +86,7 @@ export function createGame(
     arrivals: [],
     receipts: {},
     reportTimes: {},
+    ...(isCourseV2(course) ? { v2: initializeV2(course) } : {}),
   };
 }
 export function siteInfo(site: Course["sites"][number]): SiteInfo {
@@ -106,12 +95,12 @@ export function siteInfo(site: Course["sites"][number]): SiteInfo {
 }
 export function project(
   game: Game,
-  course: Course,
+  course: Course | CourseV2,
   userId: string,
   now: number,
 ): Snapshot {
-  const m =
-    game.members.find((x) => x.userId === userId) ??
+  if (isCourseV2(course)) return projectGameV2(game, course, userId, now);
+  const m = game.members.find((x) => x.userId === userId) ??
     fail("FORBIDDEN", "이 작전에 소속된 기기가 아니다.");
   const site = course.sites[game.siteIndex];
   const lock = game.locks[site.id] ?? {
@@ -121,12 +110,11 @@ export function project(
     openedAt: null,
   };
   const report = m.role ? game.reports[site.id]?.[m.role] : null;
-  const attemptsLeft =
-    lock.attempts < 3
-      ? 3 - lock.attempts
-      : lock.nextAttemptAt !== null && now >= lock.nextAttemptAt
-        ? 1
-        : 0;
+  const attemptsLeft = lock.attempts < 3
+    ? 3 - lock.attempts
+    : lock.nextAttemptAt !== null && now >= lock.nextAttemptAt
+    ? 1
+    : 0;
   return {
     server_now: now,
     version: game.version,
@@ -179,10 +167,9 @@ export function project(
       ready: m.ready,
       reported: !!report,
       digit: report?.digit ?? null,
-      clue:
-        m.role && game.status === "playing" && game.phase === "mission"
-          ? site.clues[m.role]
-          : null,
+      clue: m.role && game.status === "playing" && game.phase === "mission"
+        ? site.clues[m.role]
+        : null,
       lock: m.role === "commander" ? structuredClone(lock) : null,
     },
   };
@@ -203,40 +190,51 @@ const writes = new Set([
 ]);
 export async function dispatch(
   game: Game,
-  course: Course,
+  course: Course | CourseV2,
   userId: string,
   cmd: Command,
   now: number,
   salt = "hoguk-synthetic-demo-only",
+  events: GameEvent[] = [],
 ): Promise<Record<string, unknown>> {
-  if (!["get-game", "get-clue", ...writes].includes(cmd.action))
+  if (isCourseV2(course)) {
+    return dispatchV2(game, course, userId, cmd, now, salt, events);
+  }
+  if (!["get-game", "get-clue", ...writes].includes(cmd.action)) {
     fail("INVALID_ACTION", "알 수 없는 요청이다.");
+  }
   const mutating = writes.has(cmd.action);
   if (
     mutating &&
     (!cmd.request_id || !/^[a-zA-Z0-9_-]{1,128}$/.test(cmd.request_id))
-  )
+  ) {
     fail("INVALID_REQUEST", "요청 식별자가 필요하다.");
+  }
   const receiptKey = `${userId}:${cmd.request_id}`;
   const fingerprint = await sha256(JSON.stringify(cmd));
   const receipt = game.receipts[receiptKey];
   if (mutating && receipt) {
-    if (receipt.hash !== fingerprint)
+    if (receipt.hash !== fingerprint) {
       fail("REQUEST_CONFLICT", "같은 요청 번호의 내용이 다르다.");
+    }
     return receipt.result;
   }
-  if (game.expiresAt <= now && game.status !== "done")
+  if (game.expiresAt <= now && game.status !== "done") {
     fail("EXPIRED", "작전 대기 시간이 만료되었다. 새 방을 만들라.");
+  }
   let member = game.members.find((m) => m.userId === userId);
   if (cmd.action === "join-game") {
     if (member) return { joined: true };
-    if (game.status !== "lobby")
+    if (game.status !== "lobby") {
       fail("WRONG_STAGE", "이미 출발했거나 종료된 작전이다.");
-    if (game.members.length >= 4)
+    }
+    if (game.members.length >= 4) {
       fail("ROOM_FULL", "이 작전의 네 자리가 모두 찼다.");
+    }
     const nickname = validateNickname(cmd.nickname);
-    if (game.members.some((x) => x.nickname === nickname))
+    if (game.members.some((x) => x.nickname === nickname)) {
       fail("INVALID_NICKNAME", "이미 사용 중인 호출명이다.");
+    }
     game.members.push({
       id: crypto.randomUUID(),
       userId,
@@ -259,41 +257,51 @@ export async function dispatch(
     game.version++;
   }
   if (cmd.action === "get-clue") {
-    if (game.status !== "playing" || game.phase !== "mission")
+    if (game.status !== "playing" || game.phase !== "mission") {
       fail("WRONG_STAGE", "도착 후 자신의 단서를 확인하라.");
-    if (cmd.site_id !== course.sites[game.siteIndex].id)
+    }
+    if (cmd.site_id !== course.sites[game.siteIndex].id) {
       fail("STALE_SITE", "현재 거점의 단서를 요청하라.");
-    if (cmd.role && cmd.role !== member.role)
+    }
+    if (cmd.role && cmd.role !== member.role) {
       fail("FORBIDDEN", "자신의 보직 단서만 확인하라.");
+    }
     return {};
   }
   if (cmd.action === "get-game") return {};
   // 끝난 작전은 바꿀 수 없다(시연 작전의 장면 건너뛰기만 예외)
-  if (game.status === "done" && cmd.action !== "demo-jump")
+  if (game.status === "done" && cmd.action !== "demo-jump") {
     fail("WRONG_STAGE", "작전은 종료되었다. 수집한 기록을 확인하라.");
-  if (Object.keys(game.receipts).length >= 2000)
+  }
+  if (Object.keys(game.receipts).length >= 2000) {
     fail("RATE_LIMITED", "작전 요청 한도를 초과했다.");
+  }
   const site = course.sites[game.siteIndex];
   const requireStage = (status: Game["status"], phase?: Game["phase"]) => {
-    if (game.status !== status || (phase && game.phase !== phase))
+    if (game.status !== status || (phase && game.phase !== phase)) {
       fail("WRONG_STAGE", "현재 단계에서 사용할 수 없는 요청이다.");
+    }
   };
   const requireCommander = () => {
-    if (member.role !== "commander")
+    if (member.role !== "commander") {
       fail("FORBIDDEN", "지휘관만 이 요청을 할 수 있다.");
+    }
   };
   const requireSite = () => {
-    if (cmd.site_id !== site.id)
+    if (cmd.site_id !== site.id) {
       fail("STALE_SITE", "현재 거점이 바뀌었다. 화면을 다시 확인하라.");
+    }
   };
   let result: Record<string, unknown> = {};
   switch (cmd.action) {
     case "start-game": {
       requireStage("lobby");
-      if (member.id !== game.hostId)
+      if (member.id !== game.hostId) {
         fail("FORBIDDEN", "방장만 보직을 공개할 수 있다.");
-      if (game.members.length !== 4)
+      }
+      if (game.members.length !== 4) {
         fail("NOT_READY", "네 명이 모두 합류해야 한다.");
+      }
       const roles: Role[] = [...ROLES];
       for (let i = 3; i > 0; i--) {
         const random = new Uint32Array(1);
@@ -313,18 +321,21 @@ export async function dispatch(
     case "begin-operation":
       requireStage("equip");
       requireCommander();
-      if (!game.members.every((m) => m.ready))
+      if (!game.members.every((m) => m.ready)) {
         fail("NOT_READY", "네 명의 장비 점검이 필요하다.");
+      }
       game.status = "playing";
       game.phase = "travel";
       game.startedAt = now;
       game.siteStartedAt = now;
       break;
     case "demo-role": {
-      if (game.demoOwner !== userId || !course.demo)
+      if (game.demoOwner !== userId || !course.demo) {
         fail("FORBIDDEN", "시연 작전에서만 보직을 바꿀 수 있다.");
-      if (!ROLES.includes(cmd.demo_role!))
+      }
+      if (!ROLES.includes(cmd.demo_role!)) {
         fail("INVALID_REQUEST", "유효한 보직을 선택하라.");
+      }
       const other = game.members.find((x) => x.role === cmd.demo_role)!;
       const prev = member.role;
       member.role = other.role;
@@ -332,8 +343,9 @@ export async function dispatch(
       break;
     }
     case "demo-time": {
-      if (game.demoOwner !== userId || !course.demo)
+      if (game.demoOwner !== userId || !course.demo) {
         fail("FORBIDDEN", "시연 작전에서만 시간을 건너뛸 수 있다.");
+      }
       if (game.phase === "travel") game.siteStartedAt = now - 30000;
       const lock = game.locks[site.id];
       if (lock?.nextAttemptAt) lock.nextAttemptAt = now;
@@ -409,22 +421,25 @@ export async function dispatch(
       requireStage("playing", "travel");
       requireSite();
       const simulated = cmd.action === "demo-arrival";
-      if (simulated && (game.demoOwner !== userId || !course.demo))
+      if (simulated && (game.demoOwner !== userId || !course.demo)) {
         fail("FORBIDDEN", "모의 도착은 시연 작전 전용이다.");
-      if (!simulated && !cmd.manual && !course.confirmed)
+      }
+      if (!simulated && !cmd.manual && !course.confirmed) {
         fail(
           "UNCONFIRMED_COURSE",
           "좌표가 미확정이다. 지휘관의 수동 도착을 사용하라.",
         );
+      }
       if (cmd.manual) {
         requireCommander();
         const retry = (game.siteStartedAt ?? now) + 30000;
-        if (now < retry)
+        if (now < retry) {
           fail(
             "COOLDOWN",
             "이동 시작 30초 후 수동 도착을 사용할 수 있다.",
             retry,
           );
+        }
       }
       game.arrivals.push({
         siteId: site.id,
@@ -439,29 +454,31 @@ export async function dispatch(
     case "submit-report": {
       requireStage("playing", "mission");
       requireSite();
-      if (cmd.role !== member.role)
+      if (cmd.role !== member.role) {
         fail("FORBIDDEN", "자신의 보직에 해당하는 단서만 제출하라.");
+      }
       const role = member.role!;
       const previous = game.reports[site.id]?.[role];
       if (previous) {
         result = { ok: true, digit: previous.digit };
         break;
       }
-      if (typeof cmd.answer !== "string" || cmd.answer.length > 200)
+      if (typeof cmd.answer !== "string" || cmd.answer.length > 200) {
         fail("INVALID_REQUEST", "답을 200자 이내로 입력하라.");
+      }
       const timeKey = `${member.id}:${site.id}:${role}`;
       const last = game.reportTimes[timeKey];
-      if (last !== undefined && now - last < 1000)
+      if (last !== undefined && now - last < 1000) {
         fail("RATE_LIMITED", "잠시 뒤 다시 보고하라.", last + 1000);
+      }
       game.reportTimes[timeKey] = now;
-      const correct =
-        (await answerHash(
-          salt,
-          site.id,
-          role,
-          site.clues[role],
-          cmd.answer!,
-        )) === site.answers[role].answerHash;
+      const correct = (await answerHash(
+        salt,
+        site.id,
+        role,
+        site.clues[role],
+        cmd.answer as string,
+      )) === site.answers[role].answerHash;
       if (correct) {
         game.reports[site.id] ??= {};
         const digit = site.answers[role].digit;
@@ -474,16 +491,18 @@ export async function dispatch(
       requireStage("playing", "mission");
       requireSite();
       requireCommander();
-      if (!site.lockOrder.every((r) => game.reports[site.id]?.[r]))
+      if (!site.lockOrder.every((r) => game.reports[site.id]?.[r])) {
         fail("REPORTS_INCOMPLETE", "네 보직의 보고를 모두 완료하라.");
-      const digits =
-        cmd.digits ?? fail("INVALID_REQUEST", "네 자리 숫자를 입력하라.");
+      }
+      const digits = cmd.digits ??
+        fail("INVALID_REQUEST", "네 자리 숫자를 입력하라.");
       if (
         !Array.isArray(digits) ||
         digits.length !== 4 ||
         !digits.every((d) => Number.isInteger(d) && d >= 0 && d <= 9)
-      )
+      ) {
         fail("INVALID_REQUEST", "네 자리 숫자를 입력하라.");
+      }
       game.locks[site.id] ??= {
         digits: [null, null, null, null],
         attempts: 0,
@@ -491,15 +510,17 @@ export async function dispatch(
         openedAt: null,
       };
       const lock = game.locks[site.id];
-      if (lock.attempts >= 3 && now < (lock.nextAttemptAt ?? Infinity))
+      if (lock.attempts >= 3 && now < (lock.nextAttemptAt ?? Infinity)) {
         fail(
           "COOLDOWN",
           "다음 시도까지 기다리라.",
           lock.nextAttemptAt ?? undefined,
         );
+      }
       lock.digits.forEach((d, i) => {
-        if (d !== null && d !== digits[i])
+        if (d !== null && d !== digits[i]) {
           fail("INVALID_REQUEST", "이미 잠긴 숫자를 바꿀 수 없다.");
+        }
       });
       lock.attempts++;
       const mask = site.lockOrder.map(
@@ -527,8 +548,9 @@ export async function dispatch(
       requireStage("playing", "cleared");
       requireSite();
       requireCommander();
-      if (game.siteIndex >= course.sites.length - 1)
+      if (game.siteIndex >= course.sites.length - 1) {
         fail("WRONG_STAGE", "마지막 거점이다.");
+      }
       game.siteIndex++;
       game.phase = "travel";
       game.siteStartedAt = now;

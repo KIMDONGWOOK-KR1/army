@@ -1,0 +1,128 @@
+.root {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+  text-align: left;
+}
+.card,
+.clue,
+.note {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+.card {
+  padding: 18px 0;
+  border-bottom: 1px solid #d9d3c6;
+}
+.card:first-child {
+  padding-top: 0;
+}
+.card h3,
+.clue h3,
+.note h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.5;
+}
+.root p {
+  margin: 0;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+.note,
+.clue {
+  padding: 16px;
+  border-radius: 12px;
+  background: #eeeadd;
+  color: #343b33;
+}
+.clue {
+  border-left: 3px solid #49664c;
+}
+.note h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+.fields {
+  display: grid;
+  gap: 14px;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.fields:disabled {
+  opacity: .65;
+}
+.legend {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  clip-path: inset(50%);
+  overflow: hidden;
+}
+.root :global(.verify-field),
+.root :global(.verify-stack) {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.root :global(.verify-field) {
+  font-size: 14px;
+  font-weight: 600;
+}
+.root input:not([type=checkbox]),
+.root select,
+.root textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid #b4baaa;
+  border-radius: 8px;
+  background: #fffdf6;
+  color: #252e24;
+  font: inherit;
+  font-size: 16px;
+}
+.root textarea {
+  min-height: 88px;
+  resize: vertical;
+}
+.root input[type=checkbox] {
+  width: 22px;
+  height: 22px;
+  vertical-align: middle;
+  margin: 11px 8px 11px 0;
+  accent-color: #49664c;
+}
+.root input:focus-visible,
+.root select:focus-visible,
+.root textarea:focus-visible {
+  outline: 2px solid #49664c;
+  outline-offset: 2px;
+}
+.root :global(.lock-digits) input {
+  text-align: center;
+  font-size: 28px;
+  padding: 8px;
+}
+.hint {
+  display: grid;
+  gap: 8px;
+  padding-top: 6px;
+}
+.confirmations {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+  font-size: 14px;
+  line-height: 1.6;
+}

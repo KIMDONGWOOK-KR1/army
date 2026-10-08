@@ -8,6 +8,8 @@
 
 | 문서 | 확인할 내용 |
 |---|---|
+| [FE 인수인계 — 정문 v2](docs/fe/README.md) | 현재 서버 구현·배포 구분, API 계약·mock 12개, v1 화면에서 바꿀 부분, FE/BE 연결 순서 |
+| [메인 UI 통합 안내](docs/fe/UI_INTEGRATION.md) | PR #8 디자인과 PR #9 정문 API 연결, 실행·시험 방법과 dev 적용 조건 |
 | [MVP 개발 기획서](codex-handoff-v2/MVP_PLAN.md) | 필수 기능, 분업, 일정, 검수 기준, 회의 결정표 |
 | [PRD](codex-handoff-v2/PRD.md) | 화면 흐름, 기능 규칙, 서버 상태, FE·BE·GPS 공통 계약 |
 | [개발 지침](codex-handoff-v2/AGENTS.md) | 기술 스택, 정답 보호, 장소 원칙, 개발·PR 규칙 |

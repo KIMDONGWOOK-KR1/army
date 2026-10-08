@@ -2,6 +2,7 @@ import { defineConfig } from "@playwright/test";
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3000";
 export default defineConfig({
   testDir: "./tests/e2e",
+  testIgnore: ["**/verify-v2.spec.ts", "**/integrated-v2*.spec.ts"],
   workers: 1,
   timeout: 120000,
   use: {
@@ -24,7 +25,7 @@ export default defineConfig({
     },
   },
   webServer: {
-    command: "npm run dev -- --port " + (new URL(baseURL).port || "3000"),
+    command: "npm run dev -- --webpack --port " + (new URL(baseURL).port || "3000"),
     url: baseURL,
     reuseExistingServer: true,
     timeout: 120000,

@@ -17,7 +17,7 @@ const ARRIVAL = ["mission", "report", "lock", "waiting"];
 
 // 서버 판정이 돌아온 순간의 소리(무슨 소리를 낼지는 lib/judge-cue.ts가 정한다).
 // send를 감싸기만 하므로 미션·자물쇠 화면을 고치지 않아도 된다.
-export function useCueSend(send: (c: Command) => Promise<Snapshot | null>) {
+export function useCueSend<S extends Snapshot>(send: (c: Command) => Promise<S | null>) {
   return useCallback(
     async (c: Command) => {
       const next = await send(c);

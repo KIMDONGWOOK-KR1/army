@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -22,7 +22,7 @@ import {
   Users,
   WifiOff,
 } from "lucide-react";
-import { useGame } from "./use-game";
+import { useGameAny } from "./use-game";
 import { useLocation } from "./use-location";
 import { useLockDraft } from "./use-lock-draft";
 import {
@@ -32,6 +32,8 @@ import {
   type Handoff,
 } from "./view-handoff";
 import { Mission, LockPanel } from "./mission";
+import { MissionV2, LockPanelV2 } from "./mission-v2";
+import { isV2Response, type GameResponse } from "@/lib/game-snapshot";
 import { SceneArt } from "./scene-art";
 import { GameDialog } from "./game-dialog";
 import { DevControls } from "./dev-controls";
@@ -60,8 +62,8 @@ import {
 import {
   ROLES,
   ROLE_NAMES,
+  type Command,
   type Role,
-  type Snapshot,
 } from "@/supabase/functions/_shared/types";
 import type { FieldStatus } from "./field-3d";
 import type { GatherMember, RevealStep } from "./gather-stage";
@@ -112,13 +114,13 @@ function RoleBadge({ role }: { role: Role }) {
     </span>
   );
 }
-function Team({ snapshot: s }: { snapshot: Snapshot }) {
+function Team({ snapshot: s }: { snapshot: GameResponse }) {
   return (
     <div className="team-list">
       {Array.from({ length: 4 }, (_, i) => {
         const member = s.game.members[i],
           index = member?.role
-            ? s.current_site.lockOrder.indexOf(member.role)
+            ? (isV2Response(s) ? ROLES : s.current_site.lockOrder).indexOf(member.role)
             : -1;
         return (
           <div
@@ -196,13 +198,55 @@ export default function GameApp({
       restoring,
       now,
       send: rawSend,
-      retry,
+      retry: rawRetry,
       reset,
-    } = useGame(),
+    } = useGameAny(),
     // 단서 보고·자물쇠 판정이 돌아오면 소리를 낸다
-    send = useCueSend(rawSend),
-    location = useLocation(s, send),
-    lockDraft = useLockDraft(s);
+    cueSend = useCueSend(rawSend);
+  const v2 = s && isV2Response(s) ? s : null;
+  const soloDemo = !!s?.game.demo && !v2;
+  const simulatedArrival = !!v2 && v2.course.demo &&
+    v2.course.id.startsWith("jnu-demo-dev-");
+  const ownArrival = !!v2?.self.role &&
+    v2.game.arrival_mask[ROLES.indexOf(v2.self.role)];
+  // Keep the completion receipt visible across polling while this view is mounted.
+  // get-stage does not expose the completion method; never infer it from read flags.
+  const [completionNotice, setCompletionNotice] = useState<{
+    gameId: string; stageId: string; label: string;
+  } | null>(null);
+  const activeScope = useRef({ gameId: s?.game.id, stageId: v2?.stage.id });
+  activeScope.current = { gameId: s?.game.id, stageId: v2?.stage.id };
+  const rememberCompletion = useCallback((next: GameResponse | null) => {
+    // A newer poll may win snapshot reconciliation before this receipt arrives.
+    // Read the receipt itself, but never display a late result from another room/stage.
+    if (next && isV2Response(next) && next.game.site_phase === "cleared" &&
+      typeof next.result?.label === "string" &&
+      activeScope.current.gameId === next.game.id && activeScope.current.stageId === next.stage.id) {
+      setCompletionNotice({ gameId: next.game.id, stageId: next.stage.id, label: next.result.label });
+    }
+  }, []);
+  const send = useCallback(async (command: Command) => {
+    const next = await cueSend(command);
+    rememberCompletion(next);
+    return next;
+  }, [cueSend, rememberCompletion]);
+  const retry = useCallback(async () => {
+    const next = await rawRetry();
+    rememberCompletion(next);
+    return next;
+  }, [rawRetry, rememberCompletion]);
+  const location = useLocation(s, send), lockDraft = useLockDraft(s);
+  useEffect(() => {
+    if (!v2 || v2.game.site_phase !== "cleared") {
+      setCompletionNotice(null);
+      return;
+    }
+    if (typeof v2.result?.label === "string") {
+      setCompletionNotice({ gameId: v2.game.id, stageId: v2.stage.id, label: v2.result.label });
+    }
+  }, [v2?.game.id, v2?.stage.id, v2?.game.site_phase, v2?.result?.label]);
+  const completionLabel = v2 && completionNotice?.gameId === v2.game.id &&
+    completionNotice.stageId === v2.stage.id ? completionNotice.label : null;
   const [entry, setEntry] = useState<"create" | "join" | null>(
       joinCode ? "join" : null,
     ),
@@ -232,7 +276,6 @@ export default function GameApp({
       setRehearsedFor(h.rehearsed);
       setRehearsal(h.rehearsal);
       setAuto(h.auto);
-      if (h.lock) lockDraft.restore(h.lock);
     } else if (backend === "local" && params.get("auto") === "1") startAuto();
   }, []);
   // 시연 장면 고르기로 자물쇠 장면에 오면 보고 화면을 건너뛰고 지휘관의 자물쇠를 바로 연다
@@ -247,19 +290,25 @@ export default function GameApp({
           role: s.self.role ?? null,
         })
       : null;
-    if (s && handoff.current) handoff.current = null;
+    if (s && handoff.current) {
+      // A v2 room recovers only the server verdict, never a saved private input.
+      if (!isV2Response(s) && handoff.current.lock)
+        lockDraft.restore(handoff.current.lock);
+      handoff.current = null;
+    }
     setPane(
       jumpLock.current && s?.self.role === "commander"
         ? "lock"
         : (back ?? "report"),
     );
-  }, [s?.current_site.id, s?.self.role]);
+  }, [s?.game.id, s?.current_site.id, s?.self.role]);
   // 다른 장면이나 다음 거점으로 넘어가면 지난 이동 화면의 지도 상태를 버린다
   useEffect(() => {
     setField(null);
   }, [s?.current_site.id, s?.game.site_phase]);
   useEffect(() => {
-    if (s && s.game.code === joinCode) setEntry(null);
+    // Retry may finish a create/join request after its original handler returned.
+    if (s && (!joinCode || s.game.code === joinCode)) setEntry(null);
   }, [s?.game.id, joinCode]);
   const create = async (demo = false) => {
     const next = await send({
@@ -315,7 +364,8 @@ export default function GameApp({
     [rehearsedFor, setRehearsedFor] = useState<string | null>(null);
   if (
     auto &&
-    s?.game.demo &&
+    soloDemo &&
+    s &&
     s.game.status === "playing" &&
     s.game.id !== rehearsedFor
   ) {
@@ -324,9 +374,9 @@ export default function GameApp({
     setRevealSkip(false);
   }
   const rehearsing =
-    rehearsal && s && rehearsal.game === s.game.id ? rehearsal : null;
+    !v2 && rehearsal && s && rehearsal.game === s.game.id ? rehearsal : null;
   // 목업을 켜고 끌 수 있을 때만 지금 화면 상태를 적어 둔다(보기를 바꾸면 새 문서의 GameApp이 이어 간다)
-  const lockKey = s
+  const lockKey = s && !v2
     ? lockDraft.draft.scope + lockDraft.draft.digits.join()
     : "";
   useEffect(() => {
@@ -335,7 +385,7 @@ export default function GameApp({
       game: s?.game.id ?? null,
       site: s?.current_site.id ?? null,
       role: s?.self.role ?? null,
-      auto,
+      auto: !v2 && auto,
       rehearsed: rehearsedFor,
       rehearsal: rehearsal && {
         game: rehearsal.game,
@@ -343,7 +393,7 @@ export default function GameApp({
         count: rehearsal.count,
       },
       pane,
-      lock: s ? lockDraft.draft : null,
+      lock: s && !v2 ? lockDraft.draft : null,
     });
   }, [
     !!mockup,
@@ -357,6 +407,7 @@ export default function GameApp({
     rehearsal?.count,
     pane,
     lockKey,
+    !!v2,
   ]);
   const scene = !s
     ? entry
@@ -379,6 +430,10 @@ export default function GameApp({
                   ? "travel"
                   : s.game.site_phase === "cleared"
                     ? "sacho"
+                    : v2
+                      ? pane === "lock" && s.self.role === "commander"
+                        ? "lock"
+                        : "mission"
                     : s.self.reported
                       ? pane === "lock" && s.self.role !== "commander"
                         ? "report"
@@ -439,20 +494,27 @@ export default function GameApp({
         : ["briefing", "equip", "travel"].includes(scene)
           ? "intro"
           : null;
+  const narrationTrigger = scene === "sacho" ? "stage-complete" :
+    scene === "briefing" ? "role-reveal" : scene === "equip" ? "ready" :
+    ARRIVAL_SCENES.includes(scene) ? "enter" : null;
+  const stageNarration = v2?.stage.narration.filter((line) =>
+    line.trigger === narrationTrigger
+  ).map((line) => line.text) ?? [];
   const [narration, setNarration] = useState<string | null>(null);
   useEffect(() => {
     if (!gameId) return setNarration(null);
     setNarration((open) => {
       if (open && open !== narrationKey) markNarrationSeen(gameId, open);
+      if (v2 && stageNarration.length === 0) return null;
       if (open === narrationKey) return open;
       return narrationKey &&
         !stop &&
-        narrationEnabled() &&
+        narrationEnabled() && (!v2 || stageNarration.length > 0) &&
         !narrationSeen(gameId, narrationKey)
         ? narrationKey
         : null;
     });
-  }, [gameId, narrationKey, stop]);
+  }, [gameId, narrationKey, stop, !!v2, stageNarration.join("\n")]);
   // 이동 중 5·18 조용한 구역 안인가(배경음을 추모 숨결로). 지도가 아직 위치를 알리기 전에는
   // 이 다리가 시작하는 자리(앞 거점)가 추모 거점이었는지로 어림한다(정문을 막 떠나는 길).
   const leavingReverent = !!s?.course.sites.find(
@@ -471,7 +533,7 @@ export default function GameApp({
     digits: lockDraft.digits,
   });
   useAutoplay({
-    active: auto,
+    active: auto && !v2,
     paused: !!narration || restoring || !!stop,
     s,
     scene,
@@ -560,7 +622,7 @@ export default function GameApp({
         {s?.game.report_mask.filter(Boolean).length ?? 0} / 4 보직 보고 완료
       </span>
       <div>
-        {(s?.current_site.lockOrder ?? ROLES).map((r, i) => {
+        {(v2 ? ROLES : s?.current_site.lockOrder ?? ROLES).map((r, i) => {
           const Icon = icons[r];
           return (
             <span
@@ -610,7 +672,7 @@ export default function GameApp({
             )}
           </div>
           <div className="hud-right">
-            {backend === "local" && (
+            {backend === "local" && !v2 && (
               <button
                 className={`hud-auto ${auto ? "on" : ""}`}
                 aria-label={auto ? "시연 정지" : "자동 시연"}
@@ -645,7 +707,7 @@ export default function GameApp({
             </button>
           </div>
         </header>
-        {auto && (
+        {auto && !v2 && (
           <div className="autoplay-caption" role="status">
             <span>자동 시연</span>
             <p>{autoCaption(scene, s)}</p>
@@ -1040,10 +1102,12 @@ export default function GameApp({
                 role={role ?? null}
                 look={s!.self.id}
                 fallback={<SceneArt site={site!.seq - 1} />}
-                fast={auto}
+                fast={auto && !v2}
                 onStatus={setField}
                 onMarkerTap={() => {
-                  if (s!.game.demo && !busy)
+                  if (simulatedArrival && !ownArrival && !busy)
+                    void send({ action: "report-arrival", stage_id: v2!.stage.id, method: "simulated" });
+                  else if (soloDemo && !busy)
                     void send({ action: "demo-arrival", site_id: site!.id });
                 }}
               />
@@ -1056,17 +1120,20 @@ export default function GameApp({
                 role={role ?? null}
                 field={field}
                 location={location}
-                demo={s!.game.demo}
+                demo={soloDemo}
+                v2Arrival={v2 ? { simulated: simulatedArrival, arrived: ownArrival,
+                  count: v2.game.arrival_mask.filter(Boolean).length } : undefined}
                 busy={busy}
                 remaining={remaining}
-                onDemoArrival={() =>
-                  void send({ action: "demo-arrival", site_id: site!.id })
-                }
+                onDemoArrival={() => void send(simulatedArrival
+                  ? { action: "report-arrival", stage_id: v2!.stage.id, method: "simulated" }
+                  : { action: "demo-arrival", site_id: site!.id })}
                 onManualArrival={() =>
                   void send({
                     action: "report-arrival",
-                    site_id: site!.id,
-                    manual: true,
+                    ...(v2
+                      ? { stage_id: v2.stage.id, method: "manual" as const }
+                      : { site_id: site!.id, manual: true }),
                   })
                 }
                 onMenu={() => setModal("menu")}
@@ -1090,13 +1157,21 @@ export default function GameApp({
                 </span>
               </div>
               <div className="mission-stage game-window">
-                <Mission
+                {v2 ? <MissionV2 snapshot={v2} busy={busy} now={now} send={send} /> : <Mission
                   snapshot={s!}
                   busy={busy}
                   send={send}
                   auto={auto && !narration && !stop ? autoAnswer(s) : undefined}
-                />
+                />}
               </div>
+              {v2 && role === "commander" && (
+                <section className="game-console slim">
+                  {reports}
+                  <button className="button primary" disabled={busy} onClick={() => setPane("lock")}>
+                    팀 자물쇠로 <ArrowRight size={18} />
+                  </button>
+                </section>
+              )}
             </>
           ) : scene === "report" ? (
             <>
@@ -1142,7 +1217,7 @@ export default function GameApp({
                 </span>
               </div>
               <div className="lock-stage game-window">
-                <LockPanel
+                {v2 ? <LockPanelV2 snapshot={v2} busy={busy} now={now} send={send} /> : <LockPanel
                   snapshot={s!}
                   busy={busy}
                   send={send}
@@ -1150,7 +1225,7 @@ export default function GameApp({
                   digits={lockDraft.digits}
                   setDigits={lockDraft.setDigits}
                   auto={auto && !narration && !stop ? autoDigits(s) : undefined}
-                />
+                />}
                 {reports}
               </div>
               <section className="game-console slim">
@@ -1159,9 +1234,10 @@ export default function GameApp({
                 </p>
                 <button
                   className="button secondary"
+                  disabled={!!v2 && busy}
                   onClick={() => setPane("report")}
                 >
-                  내 숫자 확인
+                  {v2 ? "내 조사와 해설 확인" : "내 숫자 확인"}
                   <ScrollText size={17} />
                 </button>
               </section>
@@ -1195,22 +1271,27 @@ export default function GameApp({
             </>
           ) : scene === "sacho" ? (
             <>
-              <div className="sacho-scene">
+              <div className="sacho-scene" data-testid={v2 ? "stage-v2-completed" : undefined}>
                 <span className="eyebrow">기억 복원 · {site!.name}</span>
-                <div className="sacho-character">{site!.sacho.char}</div>
+                <div className="sacho-character">{site!.sacho.char || (v2 ? "記" : "")}</div>
                 <h1 data-scene-heading tabIndex={-1}>
                   {site!.sacho.name}
                 </h1>
-                <p>{site!.sacho.body}</p>
+                <p>{v2 ? "정문 단계 확인 완료" : site!.sacho.body}</p>
+                {v2 && completionLabel && <p>{completionLabel}</p>}
                 <div className="sacho-reward">
                   <Check size={17} /> 사초를 기록첩에 보관했다.
                 </div>
               </div>
               <section className="game-console">
                 <p className="dialogue-line">
-                  다음 거점에 또 하나의 기억이 기다린다.
+                  {v2 ? "함께 복원한 정문 기록을 보관했다." : "다음 거점에 또 하나의 기억이 기다린다."}
                 </p>
-                {role === "commander" ? (
+                {v2 ? (
+                  <button className="button secondary" onClick={() => setModal("records")}>
+                    수집한 기록 읽기 <BookOpen size={18} />
+                  </button>
+                ) : role === "commander" ? (
                   <button
                     className="button primary"
                     disabled={busy}
@@ -1288,22 +1369,23 @@ export default function GameApp({
             key={`${gameId}:${stop}`}
             site={site}
             total={s!.course.sites.length}
-            auto={auto}
+            auto={auto && !v2}
+            description={v2 ? "주변을 안전하게 살피고, 각자의 기록을 확인하라." : undefined}
             onClose={closeStop}
           />
         )}
         {narration && !stop && (
           <Narration
             key={narration}
-            lines={narrationLines(
+            lines={v2 ? stageNarration : narrationLines(
               narration.split(":")[0] as "intro" | "arrive" | "sacho",
               site,
             )}
             onClose={closeNarration}
-            auto={auto}
+            auto={auto && !v2}
           />
         )}
-        {s?.game.demo && s.game.status !== "done" && (
+        {soloDemo && s!.game.status !== "done" && (
           <div className="demo-role-bar" aria-label="시연 보직 전환">
             <span>체험 보직</span>
             {ROLES.map((r) => (
@@ -1364,7 +1446,7 @@ export default function GameApp({
                 게임으로 돌아가기
                 <ArrowRight size={18} />
               </button>
-              {s?.game.demo && (
+              {soloDemo && (
                 <button
                   className="button secondary full"
                   onClick={() => setModal("scenes")}
@@ -1424,11 +1506,11 @@ export default function GameApp({
                 </button>
               )}
               <SoundToggle variant="menu" />
-              {dev && s?.game.demo && (
+              {dev && soloDemo && s && (
                 <DevControls snapshot={s} busy={busy} send={send} />
               )}
             </div>
-          ) : modal === "scenes" && s ? (
+          ) : modal === "scenes" && s && !v2 ? (
             <DemoScenes
               snapshot={s}
               busy={busy}
@@ -1468,12 +1550,12 @@ export default function GameApp({
                   >
                     <span className="eyebrow">{p.name}</span>
                     <span className="record-char">
-                      {got ? p.sacho.char : "封"}
+                      {got ? p.sacho.char || (v2 ? "記" : "") : "封"}
                     </span>
                     <h3>{p.sacho.name}</h3>
                     <p>
                       {got
-                        ? p.sacho.body
+                        ? p.sacho.body || (v2 ? "이 단계의 기록을 복원했다." : "")
                         : "동료들과 단서를 모아 이 기록을 복원하라."}
                     </p>
                   </article>
@@ -1510,8 +1592,10 @@ export default function GameApp({
                 더 시도할 수 있다.
               </p>
               <p>
-                위치 확인이 어려우면 이동 시작 30초 후 지휘관이 수동 도착할 수
-                있다. 좌표는 기기에서만 계산한다.
+                {v2
+                  ? "각자가 본인의 도착을 확인한다. 합성 코스는 본인 모의 도착 버튼으로 확인한다."
+                  : "위치 확인이 어려우면 이동 시작 30초 후 지휘관이 수동 도착할 수 있다."}
+                {" "}좌표는 기기에서만 계산한다.
               </p>
               <p>
                 <Shield size={16} /> 추모 공간을 존중하며 안전하게 이동하라.

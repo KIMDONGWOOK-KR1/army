@@ -58,12 +58,14 @@ export function StopScreen({
   site,
   total,
   auto = false,
+  description,
   onClose,
 }: {
   site: Pick<SiteInfo, "id" | "seq" | "name" | "reverent">;
   total: number;
   // 발표용 자동 시연: 스스로 원판을 돌리고 잠시 뒤 닫는다
   auto?: boolean;
+  description?: string;
   onClose: () => void;
 }) {
   const root = useRef<HTMLDivElement>(null),
@@ -73,7 +75,7 @@ export function StopScreen({
   close.current = onClose;
   const calm = site.reverent,
     t = calm ? TIMING.calm : TIMING.lively,
-    line = LINES[site.id],
+    line = description ?? LINES[site.id],
     id = useId(),
     [phase, setPhase] = useState<"idle" | "spin" | "open">("idle"),
     [dir, setDir] = useState(1),
