@@ -1,6 +1,6 @@
 // Synthetic demonstration content only. This module is never imported by client components.
 import { answerHash } from "./engine.ts";
-import { ROLES, type Course, type Clue, type Role } from "./types.ts";
+import { type Clue, type Course, type Role, ROLES } from "./types.ts";
 const clue = (
   type: Clue["type"],
   title: string,
@@ -15,7 +15,10 @@ const clue = (
   ...(choices ? { choices } : {}),
   ...(type === "frequency" ? { min: 10, max: 100 } : {}),
 });
-export async function demoCourse(): Promise<Course> {
+// The default is for the existing local-only demo. Cloud seeding must supply ANSWER_SALT.
+export async function demoCourse(
+  salt = "hoguk-synthetic-demo-only",
+): Promise<Course> {
   const course: Course = {
     id: "jnu-demo",
     name: "전남대, 기억을 잇는 길",
@@ -139,12 +142,12 @@ export async function demoCourse(): Promise<Course> {
       cipher: ["8", 8],
     },
   };
-  for (const s of course.sites)
+  for (const s of course.sites) {
     for (const role of ROLES) {
       const [answer, digit] = synthetic[s.id][role];
       s.answers[role] = {
         answerHash: await answerHash(
-          "hoguk-synthetic-demo-only",
+          salt,
           s.id,
           role,
           s.clues[role],
@@ -153,5 +156,6 @@ export async function demoCourse(): Promise<Course> {
         digit,
       };
     }
+  }
   return course;
 }

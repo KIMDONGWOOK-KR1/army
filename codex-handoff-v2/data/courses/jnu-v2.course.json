@@ -1,0 +1,613 @@
+{
+  "schemaVersion": 2,
+  "id": "jnu-v2",
+  "name": "민주기록 작전: 전남대편",
+  "confirmed": false,
+  "demo": false,
+  "note": "시연용 문구 — 현장 검증 필요. TODO(확인필요): 좌표·현장 문구·사진 사용 권한·근거 선택지·점수 확정 후 새 코스 ID로 등록한다. 이 초안은 운영 시드에서 거절한다.",
+  "sources": [
+    {
+      "id": "S1",
+      "title": "전남대학교 민주길 — 정문",
+      "url": "https://518trail.jnu.ac.kr/SubPage.aspx?PageCode=K20200"
+    }
+  ],
+  "settings": {
+    "teamSize": 4,
+    "roleSwapEnabled": true,
+    "roleSwapSeconds": 30,
+    "note": "기본값 적용 — 확정 필요(D7). 네 명 고정, 역할 공개 후 30초 안에 상대 동의로 팀당 1회 교환."
+  },
+  "stages": [
+    {
+      "id": "prologue",
+      "seq": 1,
+      "kind": "prologue",
+      "name": "용봉탑 — 준비와 출발",
+      "confirmed": false,
+      "arrival": {
+        "mode": "none",
+        "confirmed": true,
+        "require": "all",
+        "lat": null,
+        "lng": null
+      },
+      "quiet": false,
+      "scoring": {
+        "enabled": false,
+        "confirmed": true,
+        "hintPenalty": {
+          "1": 0,
+          "2": 0,
+          "3": 0
+        },
+        "noHintBonus": 0
+      },
+      "narration": [
+        {
+          "id": "P-01.narration",
+          "channel": "narration",
+          "text": "용봉탑 앞에 네 사람이 모였다. 휴대전화 속 기록철을 열자, 부서진 무전기가 지지직거린다. 끊어진 신호 사이로 짧은 안내가 들려온다.",
+          "trigger": "enter"
+        },
+        {
+          "id": "P-01.guide",
+          "channel": "guide",
+          "text": "기록지원실입니다. 오늘 조사할 기록은 세 부분입니다. 사건의 시작, 기록의 근거, 그리고 그 안에 남은 사람들의 삶. 네 사람이 서로 다른 정보를 확인하고 함께 한 장씩 완성해 주십시오.",
+          "trigger": "enter"
+        },
+        {
+          "id": "P-01.screen",
+          "channel": "screen",
+          "text": "방 만들기 / 참가 코드로 입장. 안전한 집결 지점에서 네 명의 접속을 확인한 뒤 역할 배정을 시작합니다.",
+          "trigger": "enter"
+        },
+        {
+          "id": "P-01.notice",
+          "channel": "screen",
+          "text": "기록지원실과 무전기는 현재의 탐방을 안내하는 가상 장치입니다. 사초는 팀이 작성하는 역사 기록 카드입니다.",
+          "trigger": "enter"
+        },
+        {
+          "id": "P-02.narration",
+          "channel": "narration",
+          "text": "네 사람의 화면에 서로 다른 임무가 도착했다. 누구도 혼자서는 모든 기록을 볼 수 없다. 각자가 확인한 것을 말하고, 다른 사람의 근거를 듣는 순간 조사가 시작된다.",
+          "trigger": "role-reveal"
+        },
+        {
+          "id": "P-02.screen",
+          "channel": "screen",
+          "text": "3 → 2 → 1. 역할 공개 후 30초 안에 상대 동의를 받아 팀 전체 1회 역할을 교환할 수 있습니다.",
+          "trigger": "role-reveal"
+        },
+        {
+          "id": "P-03.narration",
+          "channel": "narration",
+          "text": "기록을 찾는 데 필요한 준비를 확인한다. 사용할 수 없는 기능은 다른 방법으로 이어갈 수 있다. 준비가 끝났다면 첫 번째 장소, 정문으로 향하자.",
+          "trigger": "ready"
+        },
+        {
+          "id": "P-03.screen",
+          "channel": "screen",
+          "text": "위치·카메라·소리·화면 유지 점검. 기본값 적용 — 확정 필요(D6): 사진 업로드는 비활성화하고 관찰 메모로 진행합니다.",
+          "trigger": "ready"
+        },
+        {
+          "id": "P-03.depart",
+          "channel": "screen",
+          "text": "네 명 준비 완료 후 지휘관: 정문으로 출발. 이동 중에는 화면을 내려놓으세요. 멈춘 뒤 방향과 거리를 확인하세요.",
+          "trigger": "stage-complete"
+        }
+      ],
+      "roles": {
+        "commander": {
+          "intro": {
+            "id": "P-02.commander",
+            "channel": "narration",
+            "text": "당신은 보고를 모으는 사람입니다. 가장 먼저 답을 고르기보다, 누가 무엇을 근거로 말하는지 확인하십시오.",
+            "trigger": "role-reveal"
+          },
+          "scenes": [],
+          "digit": false,
+          "steps": [
+            {
+              "id": "P-03.commander",
+              "confirmed": true,
+              "type": "confirm",
+              "prompt": "팀원의 준비 상태를 확인했습니다",
+              "grading": "confirm"
+            }
+          ]
+        },
+        "scout": {
+          "intro": {
+            "id": "P-02.scout",
+            "channel": "narration",
+            "text": "당신은 화면과 장소를 잇는 사람입니다. 사진의 일부를 실제 모습과 비교하고, 이름과 설명을 직접 확인하십시오.",
+            "trigger": "role-reveal"
+          },
+          "scenes": [],
+          "digit": false,
+          "steps": [
+            {
+              "id": "P-03.scout",
+              "confirmed": true,
+              "type": "confirm",
+              "prompt": "이동 경로와 안전 안내를 확인했습니다",
+              "grading": "confirm"
+            }
+          ]
+        },
+        "signal": {
+          "intro": {
+            "id": "P-02.signal",
+            "channel": "narration",
+            "text": "당신은 끊어진 정보를 잇는 사람입니다. 들린 단어를 확인하고, 의미가 달라지지 않도록 전달하십시오.",
+            "trigger": "role-reveal"
+          },
+          "scenes": [],
+          "digit": false,
+          "steps": [
+            {
+              "id": "P-03.signal",
+              "confirmed": true,
+              "type": "confirm",
+              "prompt": "소리 또는 자막을 확인했습니다",
+              "grading": "confirm"
+            }
+          ]
+        },
+        "cipher": {
+          "intro": {
+            "id": "P-02.cipher",
+            "channel": "narration",
+            "text": "당신은 기록 사이의 차이를 살피는 사람입니다. 낯선 표현을 의심하고, 고칠 때에는 근거를 함께 남기십시오.",
+            "trigger": "role-reveal"
+          },
+          "scenes": [],
+          "digit": false,
+          "steps": [
+            {
+              "id": "P-03.cipher",
+              "confirmed": true,
+              "type": "confirm",
+              "prompt": "출처를 함께 기록하는 방법을 확인했습니다",
+              "grading": "confirm"
+            }
+          ]
+        }
+      },
+      "completion": {
+        "type": "confirm",
+        "labels": {
+          "commander": "팀원의 준비 상태를 확인했습니다",
+          "scout": "이동 경로와 안전 안내를 확인했습니다",
+          "signal": "소리 또는 자막을 확인했습니다",
+          "cipher": "출처를 함께 기록하는 방법을 확인했습니다"
+        }
+      }
+    },
+    {
+      "id": "gate",
+      "seq": 2,
+      "kind": "mission",
+      "name": "정문·민주공원 — 시작의 기록",
+      "confirmed": false,
+      "arrival": {
+        "mode": "gps",
+        "confirmed": false,
+        "require": "all",
+        "lat": null,
+        "lng": null,
+        "radiusM": 15,
+        "noticeM": 20,
+        "dwellSec": 5,
+        "note": "TODO(확인필요): 현장 기준점. 기본값 적용 — 확정 필요(D2·D3): 전원 도착, GPS → QR → 지휘관 수동(30초), 진행자 기능 제외."
+      },
+      "quiet": false,
+      "scoring": {
+        "enabled": true,
+        "confirmed": false,
+        "hintPenalty": {
+          "1": 0,
+          "2": null,
+          "3": null
+        },
+        "noHintBonus": null,
+        "note": "TODO(확인필요): 기본값 적용 — 확정 필요(D5). 수치 미정, 임의 감점·보너스 없음."
+      },
+      "narration": [
+        {
+          "id": "G-00.narration",
+          "channel": "narration",
+          "text": "정문에 도착하자 무전기에서 다시 신호가 잡힌다. 도착한 보고서에는 시간과 장소가 적혀 있다. 하지만 문장을 그대로 믿기에는 서로 맞지 않는 부분이 보인다.",
+          "trigger": "enter"
+        },
+        {
+          "id": "G-00.guide",
+          "channel": "guide",
+          "text": "첫 번째 기록을 전송합니다. 이 보고서에는 학습을 위해 바꿔 놓은 표현이 있습니다. 현장의 안내와 공식 기록을 조사해 오류를 찾아주십시오. 지휘관에게는 통신 주파수, 다른 대원에게는 서로 다른 조사 항목을 보냈습니다.",
+          "trigger": "enter"
+        },
+        {
+          "id": "G-00.screen",
+          "channel": "screen",
+          "text": "시작의 기록을 복원하라. 무엇을 확인했고, 어디에서 확인했는지 함께 보고하세요.",
+          "trigger": "enter"
+        },
+        {
+          "id": "G-05.narration",
+          "channel": "narration",
+          "text": "네 사람의 기록이 모였다. 직접 본 모습, 복원한 단어, 수정한 문장, 사건의 순서가 한 장의 기록을 이룬다. 각자가 받은 확인 숫자를 지휘관에게 전하자.",
+          "trigger": "reports-ready"
+        },
+        {
+          "id": "G-05.screen",
+          "channel": "screen",
+          "text": "역할 순서와 전달받은 숫자를 다시 확인하세요. 지휘관→정찰원→통신원→암호해독관 순서입니다.",
+          "trigger": "reports-ready"
+        },
+        {
+          "id": "G-06.narration",
+          "channel": "narration",
+          "text": "첫 번째 사초가 완성되었다. 하지만 한 장의 보고서를 바로잡았다고 모든 기록을 판단할 수 있는 것은 아니다. 다음 장소에서는 자료마다 무엇을 말해주고 무엇을 말해주지 않는지 살펴보자.",
+          "trigger": "stage-complete"
+        },
+        {
+          "id": "G-06.guide",
+          "channel": "guide",
+          "text": "다음 조사 장소는 용봉관입니다. 도착하면 기록의 출처와 쓰임을 확인하십시오.",
+          "trigger": "stage-complete"
+        },
+        {
+          "id": "G-06.screen",
+          "channel": "screen",
+          "text": "용봉관으로 이동. 이동 중에는 화면을 내려놓으세요. 멈춘 뒤 방향과 거리를 확인하세요.",
+          "trigger": "stage-complete"
+        }
+      ],
+      "roles": {
+        "commander": {
+          "intro": {
+            "id": "G-01.intro",
+            "channel": "narration",
+            "text": "보고서 한 장과 수신 주파수가 도착했다. 문장의 빈틈을 채울 정보는 세 동료에게 나뉘어 있다. 먼저 통신을 연결하고, 각자가 확인할 내용을 요청하자.",
+            "trigger": "enter"
+          },
+          "scenes": [
+            {
+              "id": "G-01.retry",
+              "channel": "narration",
+              "text": "보고 사이에 아직 맞지 않는 부분이 남아 있다. 마지막으로 고른 문장과 그 근거를 다시 나란히 놓아보자.",
+              "trigger": "retry"
+            },
+            {
+              "id": "G-01.done",
+              "channel": "narration",
+              "text": "세 사람의 보고가 한 흐름으로 이어졌다. 이제 각자의 확인 결과를 마지막으로 모을 차례다.",
+              "trigger": "role-complete"
+            }
+          ],
+          "steps": [
+            {
+              "id": "G-01.verdict",
+              "confirmed": true,
+              "type": "truefalse",
+              "prompt": "통신원에게 주파수를 말로 전달하십시오. 팀원의 보고를 들은 뒤 네 문장의 진위를 판단하십시오.",
+              "grading": "hash",
+              "statements": [
+                "학생들은 5월 18일 오후에 정문에 모였다.",
+                "학생들은 사전에 나눈 약속에 따라 모였다.",
+                "정문 충돌 이후 학생들은 중앙도서관으로 이동했다.",
+                "‘피어나다’의 세 꽃잎은 민주·인권·평화를 표현한다."
+              ],
+              "requiresReports": [
+                "scout",
+                "signal",
+                "cipher"
+              ],
+              "sourceIds": [
+                "S1"
+              ]
+            },
+            {
+              "id": "G-01.order",
+              "confirmed": true,
+              "type": "order",
+              "prompt": "사건 카드 네 장을 시간 순서대로 배열하십시오.",
+              "grading": "order-hash",
+              "choices": [
+                "출입을 막는 계엄군과 대치·충돌",
+                "금남로 방향 이동",
+                "약속에 따른 정문 집결",
+                "계엄 확대와 대학 통제"
+              ],
+              "requires": [
+                {
+                  "role": "commander",
+                  "stepId": "G-01.verdict"
+                }
+              ],
+              "sourceIds": [
+                "S1"
+              ]
+            },
+            {
+              "id": "G-01.evidence",
+              "confirmed": false,
+              "type": "match",
+              "prompt": "사건 카드와 관련 근거를 연결하십시오.",
+              "grading": "map-hash",
+              "fields": [
+                {
+                  "id": "event-a",
+                  "label": "출입을 막는 계엄군과 대치·충돌",
+                  "required": true,
+                  "maxLen": 300
+                },
+                {
+                  "id": "event-b",
+                  "label": "금남로 방향 이동",
+                  "required": true,
+                  "maxLen": 300
+                },
+                {
+                  "id": "event-c",
+                  "label": "약속에 따른 정문 집결",
+                  "required": true,
+                  "maxLen": 300
+                },
+                {
+                  "id": "event-d",
+                  "label": "계엄 확대와 대학 통제",
+                  "required": true,
+                  "maxLen": 300
+                }
+              ],
+              "choices": [],
+              "requires": [
+                {
+                  "role": "commander",
+                  "stepId": "G-01.order"
+                }
+              ],
+              "sourceRequired": true,
+              "sourceIds": [
+                "S1"
+              ],
+              "note": "TODO(확인필요): 원문에 근거 선택지·정답 짝 없음. 연결 유형·필드만 정의하며 운영 시드 차단."
+            }
+          ],
+          "digit": true
+        },
+        "scout": {
+          "intro": {
+            "id": "G-02.intro",
+            "channel": "narration",
+            "text": "사진의 일부가 도착했다. 이름도 전체 모습도 보이지 않는다. 곧 통신원이 전해줄 형태 단서와 눈앞의 장소를 함께 살펴보자.",
+            "trigger": "enter"
+          },
+          "scenes": [
+            {
+              "id": "G-02.found",
+              "channel": "narration",
+              "text": "화면에서 잘려 있던 모습이 눈앞에서 이어진다. 닮은 모양을 찾았다면, 이제 이름이 맞는지 설명을 확인하자.",
+              "trigger": "role-complete"
+            },
+            {
+              "id": "G-02.done",
+              "channel": "narration",
+              "text": "장소에서 확인한 첫 번째 증거가 기록철에 들어왔다. 찾은 이름과 설명의 위치를 동료에게 전하자.",
+              "trigger": "role-complete"
+            }
+          ],
+          "steps": [
+            {
+              "id": "G-02.name",
+              "confirmed": true,
+              "type": "observation",
+              "prompt": "부분 사진과 통신원의 단서를 이용해 조형물을 찾으십시오. 작품 이름을 입력하십시오.",
+              "grading": "hash",
+              "sourceIds": [
+                "S1"
+              ]
+            },
+            {
+              "id": "G-02.record",
+              "confirmed": true,
+              "type": "record-form",
+              "prompt": "작품의 형태·꽃잎 수·이름을 확인한 출처와 관찰 메모를 기록하십시오.",
+              "grading": "record",
+              "fields": [
+                {
+                  "id": "shape",
+                  "label": "형태와 꽃잎 수",
+                  "required": true,
+                  "maxLen": 300
+                },
+                {
+                  "id": "source",
+                  "label": "이름을 확인한 출처",
+                  "required": true,
+                  "maxLen": 300
+                },
+                {
+                  "id": "memo",
+                  "label": "관찰 메모",
+                  "required": true,
+                  "maxLen": 300
+                }
+              ],
+              "requires": [
+                {
+                  "role": "scout",
+                  "stepId": "G-02.name"
+                }
+              ],
+              "sourceRequired": true,
+              "sourceIds": [
+                "S1"
+              ]
+            }
+          ],
+          "digit": true,
+          "asset": {
+            "url": null,
+            "alt": "현장 사용 허가를 확인한 부분 사진 — 준비 중",
+            "confirmed": false
+          }
+        },
+        "signal": {
+          "intro": {
+            "id": "G-03.intro",
+            "channel": "narration",
+            "text": "무전기의 다이얼을 움직일 때마다 잡음이 달라진다. 주파수 정보는 지휘관에게 도착했다. 정확한 숫자를 전달받아 신호를 맞추자.",
+            "trigger": "enter"
+          },
+          "scenes": [
+            {
+              "id": "G-03.after-scout",
+              "channel": "narration",
+              "text": "정찰원이 조형물을 찾았다. 이제 들린 단서를 작품의 설명과 연결할 차례다. 작품이 무엇을 표현하는지 확인하자.",
+              "trigger": "scout-reported"
+            },
+            {
+              "id": "G-03.done",
+              "channel": "narration",
+              "text": "잡음 속 단어가 장소의 설명과 만났다. 들은 내용과 확인한 내용을 함께 전달하자.",
+              "trigger": "role-complete"
+            }
+          ],
+          "steps": [
+            {
+              "id": "G-03.freq",
+              "confirmed": true,
+              "type": "frequency",
+              "prompt": "지휘관에게 전달받은 게임용 가상 주파수를 입력하십시오.",
+              "grading": "hash"
+            },
+            {
+              "id": "G-03.words",
+              "confirmed": true,
+              "type": "words",
+              "prompt": "이 작품이 표현하는 세 가지 가치는 ______, ______, ______이다. 현장 안내 또는 공식 자료에서 확인하고 세 단어를 입력하십시오.",
+              "grading": "set-hash",
+              "answerCount": 3,
+              "requires": [
+                {
+                  "role": "signal",
+                  "stepId": "G-03.freq"
+                }
+              ],
+              "sourceRequired": true,
+              "sourceIds": [
+                "S1"
+              ]
+            }
+          ],
+          "digit": true
+        },
+        "cipher": {
+          "intro": {
+            "id": "G-04.intro",
+            "channel": "narration",
+            "text": "짧은 보고서는 매끄럽게 읽힌다. 그러나 자연스러운 문장이 사실을 보장하지는 않는다. 시간, 이유, 이동 장소를 하나씩 나누어 확인하자.",
+            "trigger": "enter"
+          },
+          "scenes": [
+            {
+              "id": "G-04.done",
+              "channel": "narration",
+              "text": "수정한 문장 옆에 확인한 출처가 남았다. 이제 왜 고쳤는지 설명할 수 있다.",
+              "trigger": "role-complete"
+            }
+          ],
+          "steps": [
+            {
+              "id": "G-04.spots",
+              "confirmed": true,
+              "type": "spot-correct",
+              "prompt": "교육용 변조 보고서: 1980년 5월 18일 오후 2시, 학생들은 예정된 교내 행사에 참여하려고 정문에 모였다. 충돌 이후에는 중앙도서관으로 이동했다. 의심되는 표현 세 곳을 선택하십시오.",
+              "grading": "set-hash",
+              "choices": [
+                "1980년 5월 18일",
+                "오후 2시",
+                "학생들은",
+                "예정된 교내 행사",
+                "정문",
+                "중앙도서관"
+              ],
+              "answerCount": 3,
+              "sourceIds": [
+                "S1"
+              ]
+            },
+            {
+              "id": "G-04.corrections",
+              "confirmed": true,
+              "type": "record-form",
+              "prompt": "현장 안내 또는 공식 자료를 이용해 시간·집결 이유·이동 장소를 수정하고 근거를 남기십시오.",
+              "grading": "record",
+              "fields": [
+                {
+                  "id": "time",
+                  "label": "시간 수정",
+                  "required": true,
+                  "maxLen": 300
+                },
+                {
+                  "id": "reason",
+                  "label": "집결 이유 수정",
+                  "required": true,
+                  "maxLen": 300
+                },
+                {
+                  "id": "destination",
+                  "label": "이동 장소 수정",
+                  "required": true,
+                  "maxLen": 300
+                },
+                {
+                  "id": "source",
+                  "label": "확인한 출처",
+                  "required": true,
+                  "maxLen": 300
+                }
+              ],
+              "requires": [
+                {
+                  "role": "cipher",
+                  "stepId": "G-04.spots"
+                }
+              ],
+              "sourceRequired": true,
+              "sourceIds": [
+                "S1"
+              ]
+            }
+          ],
+          "digit": true
+        }
+      },
+      "completion": {
+        "type": "lock",
+        "order": [
+          "commander",
+          "scout",
+          "signal",
+          "cipher"
+        ]
+      },
+      "sacho": {
+        "id": "start-record",
+        "name": "사초① — 시작의 기록",
+        "sections": [
+          "1980년 사건 기록",
+          "현대 조형물 관찰",
+          "사용한 출처",
+          "확인 방식"
+        ]
+      }
+    }
+  ]
+}
