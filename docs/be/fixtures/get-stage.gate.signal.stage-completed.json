@@ -1,0 +1,334 @@
+{
+  "server_now": 1791418200000,
+  "version": 30,
+  "course": {
+    "id": "mock-course-v2",
+    "name": "[합성] 정문 화면 연습 코스",
+    "confirmed": false,
+    "demo": true,
+    "sites": [
+      {
+        "id": "gate",
+        "seq": 2,
+        "name": "[합성] 정문",
+        "lat": null,
+        "lng": null,
+        "radiusM": 15,
+        "reverent": false,
+        "lockOrder": [
+          "commander",
+          "scout",
+          "signal",
+          "cipher"
+        ],
+        "sacho": {
+          "char": "①",
+          "name": "[합성] 정문 기록",
+          "body": ""
+        }
+      },
+      {
+        "id": "mock-next",
+        "seq": 3,
+        "name": "[합성] 다음 거점",
+        "lat": null,
+        "lng": null,
+        "radiusM": 15,
+        "reverent": false,
+        "lockOrder": [
+          "commander",
+          "scout",
+          "signal",
+          "cipher"
+        ],
+        "sacho": {
+          "char": "②",
+          "name": "[합성] 다음 기록",
+          "body": ""
+        }
+      }
+    ]
+  },
+  "current_site": {
+    "id": "gate",
+    "seq": 2,
+    "name": "[합성] 정문",
+    "lat": null,
+    "lng": null,
+    "radiusM": 15,
+    "reverent": false,
+    "lockOrder": [
+      "commander",
+      "scout",
+      "signal",
+      "cipher"
+    ],
+    "sacho": {
+      "char": "①",
+      "name": "[합성] 정문 기록",
+      "body": ""
+    }
+  },
+  "game": {
+    "id": "mock-game-gate",
+    "code": "TEST",
+    "status": "playing",
+    "site_phase": "cleared",
+    "version": 30,
+    "score": 100,
+    "current_site_seq": 2,
+    "host_member_id": "mock-member-scout",
+    "reveal_at": 1791417480000,
+    "site_started_at": 1791417540000,
+    "started_at": 1791417510000,
+    "ended_at": null,
+    "report_mask": [
+      true,
+      true,
+      true,
+      true
+    ],
+    "locked_mask": [
+      true,
+      true,
+      true,
+      true
+    ],
+    "attempts_left": 2,
+    "next_attempt_at": null,
+    "acquired_sites": [
+      {
+        "id": "gate",
+        "seq": 2,
+        "name": "[합성] 정문",
+        "lat": null,
+        "lng": null,
+        "radiusM": 15,
+        "reverent": false,
+        "lockOrder": [
+          "commander",
+          "scout",
+          "signal",
+          "cipher"
+        ],
+        "sacho": {
+          "char": "①",
+          "name": "[합성] 정문 기록",
+          "body": "[합성] 완료 화면의 기록 표시 영역입니다."
+        }
+      }
+    ],
+    "members": [
+      {
+        "id": "mock-member-commander",
+        "nickname": "연습1",
+        "role": "commander",
+        "ready": true,
+        "online": true
+      },
+      {
+        "id": "mock-member-scout",
+        "nickname": "연습2",
+        "role": "scout",
+        "ready": true,
+        "online": true
+      },
+      {
+        "id": "mock-member-signal",
+        "nickname": "연습3",
+        "role": "signal",
+        "ready": true,
+        "online": true
+      },
+      {
+        "id": "mock-member-cipher",
+        "nickname": "연습4",
+        "role": "cipher",
+        "ready": true,
+        "online": true
+      }
+    ],
+    "demo": true,
+    "stage_id": "gate",
+    "stage_kind": "mission",
+    "stage_phase": "done",
+    "quiet": false,
+    "step_done_count": {
+      "commander": 3,
+      "scout": 2,
+      "signal": 2,
+      "cipher": 2
+    },
+    "hint_level": {
+      "commander": 0,
+      "scout": 0,
+      "signal": 1,
+      "cipher": 0
+    },
+    "arrival_mask": [
+      true,
+      true,
+      true,
+      true
+    ],
+    "confirm_mask": [
+      false,
+      false,
+      false,
+      false
+    ],
+    "swap": {
+      "window_ends_at": 1791417510000,
+      "used": false,
+      "pending": null
+    }
+  },
+  "self": {
+    "id": "mock-member-signal",
+    "nickname": "연습3",
+    "role": "signal",
+    "is_host": false,
+    "ready": true,
+    "reported": true,
+    "digit": null,
+    "clue": null,
+    "lock": null,
+    "mission": {
+      "intro": {
+        "id": "MOCK-signal.intro",
+        "channel": "screen",
+        "text": "[합성] 통신원 개인 화면의 안내입니다.",
+        "trigger": "enter"
+      },
+      "scenes": [
+        {
+          "id": "MOCK-signal.complete",
+          "channel": "screen",
+          "text": "[합성] 통신원 완료 표시 영역입니다.",
+          "trigger": "role-complete"
+        }
+      ],
+      "digit": true,
+      "steps": [
+        {
+          "id": "G-03.freq",
+          "confirmed": false,
+          "type": "frequency",
+          "prompt": "[합성] 전달받은 값을 입력하는 화면입니다. 이 예시에는 목표값이 없습니다.",
+          "grading": "hash",
+          "sourceRequired": true,
+          "sourceIds": [
+            "MOCK-S1"
+          ],
+          "maxLen": 300
+        },
+        {
+          "id": "G-03.words",
+          "confirmed": false,
+          "type": "words",
+          "prompt": "[합성] 낱말 입력란 세 개를 표시하십시오. 이 예시에는 낱말 정답이 없습니다.",
+          "grading": "set-hash",
+          "sourceRequired": true,
+          "sourceIds": [
+            "MOCK-S1"
+          ],
+          "maxLen": 300,
+          "answerCount": 3,
+          "requires": [
+            {
+              "role": "signal",
+              "stepId": "G-03.freq"
+            }
+          ]
+        }
+      ]
+    },
+    "step_progress": {
+      "G-03.freq": {
+        "status": "done",
+        "attempts": 1,
+        "method": "simulated"
+      },
+      "G-03.words": {
+        "status": "done",
+        "attempts": 1,
+        "method": "simulated"
+      }
+    },
+    "hint_level": 1,
+    "hints": [
+      "[합성] 통신원에게만 보이는 1단계 힌트 표시 영역입니다. 문제의 정답이나 풀이 내용은 없습니다."
+    ],
+    "explanations": {},
+    "rewards": {
+      "G-03.freq": "[합성] 통신원 완료 보상 표시 영역입니다. 원문 내용은 없습니다."
+    }
+  },
+  "stage": {
+    "schema_version": 2,
+    "id": "gate",
+    "seq": 2,
+    "name": "[합성] 정문",
+    "kind": "mission",
+    "quiet": false,
+    "arrival": {
+      "mode": "gps",
+      "confirmed": false,
+      "require": "all",
+      "lat": null,
+      "lng": null,
+      "radiusM": 15,
+      "noticeM": 20,
+      "dwellSec": 5
+    },
+    "scoring": {
+      "enabled": true,
+      "confirmed": false,
+      "hintPenalty": {
+        "1": 0,
+        "2": null,
+        "3": null
+      },
+      "noHintBonus": null
+    },
+    "narration": [
+      {
+        "id": "MOCK-GATE.enter",
+        "channel": "screen",
+        "text": "[합성] 정문 화면의 공통 안내입니다.",
+        "trigger": "enter"
+      },
+      {
+        "id": "MOCK-GATE.complete",
+        "channel": "screen",
+        "text": "[합성] 정문 완료 화면의 안내입니다.",
+        "trigger": "stage-complete"
+      }
+    ],
+    "completion": {
+      "type": "lock",
+      "order": [
+        "commander",
+        "scout",
+        "signal",
+        "cipher"
+      ]
+    },
+    "sources": [
+      {
+        "id": "MOCK-S1",
+        "title": "[합성] 화면 연습 자료",
+        "url": "https://example.com/mock-source"
+      }
+    ],
+    "sacho": {
+      "id": "mock-sacho-gate",
+      "name": "[합성] 정문 기록",
+      "sections": [
+        "[합성] 순서 기록",
+        "[합성] 관찰 기록",
+        "[합성] 확인 자료"
+      ]
+    }
+  }
+}

@@ -60,6 +60,56 @@ v2 데이터의 저장 버전은 `schemaVersion: 2`, 응답 버전 표시는 `sc
 {"action":"get-stage","game_id":"game-example","stage_id":"gate"}
 ```
 
+### 3.1 FE용 전체 Snapshot mock
+
+아래 12개 JSON은 **서버 구현 전의 응답 계약 초안**이며, FE가 `get-stage` 응답을 대체하는 mock으로 사용할 수 있다. 실제 API에서 수집한 응답이나 실행 가능한 코스 seed가 아니다. 각 파일 자체가 하나의 전체 Snapshot 객체다. 공통 파일 병합이나 별도 `snapshot` wrapper 없이 JSON을 그대로 응답 본문으로 사용한다.
+
+| 역할 | 힌트 사용 전 | 힌트 사용 후 | 정문 단계 완료 후 |
+|---|---|---|---|
+| commander | [before-hint](fixtures/get-stage.gate.commander.before-hint.json) | [after-hint](fixtures/get-stage.gate.commander.after-hint.json) | [stage-completed](fixtures/get-stage.gate.commander.stage-completed.json) |
+| scout | [before-hint](fixtures/get-stage.gate.scout.before-hint.json) | [after-hint](fixtures/get-stage.gate.scout.after-hint.json) | [stage-completed](fixtures/get-stage.gate.scout.stage-completed.json) |
+| signal | [before-hint](fixtures/get-stage.gate.signal.before-hint.json) | [after-hint](fixtures/get-stage.gate.signal.after-hint.json) | [stage-completed](fixtures/get-stage.gate.signal.stage-completed.json) |
+| cipher | [before-hint](fixtures/get-stage.gate.cipher.before-hint.json) | [after-hint](fixtures/get-stage.gate.cipher.after-hint.json) | [stage-completed](fixtures/get-stage.gate.cipher.stage-completed.json) |
+
+같은 상태의 파일 4개는 동일한 팀을 각 역할에서 조회한 응답이다.
+
+- `before-hint`: 전원 도착했고 보고·완료 문제는 없으며 힌트를 사용하지 않았다. 지휘관 첫 단계는 다른 세 역할의 보고를 기다리며 잠겨 있다.
+- `after-hint`: 지휘관이 **통신원에게만 1단계 힌트**를 해제한 직후다. 모든 역할의 `game.hint_level.signal`은 1이지만, 힌트 표시 문구는 통신원의 `self.hints`에만 있다. 다른 세 역할의 `self.hint_level`은 0, `self.hints`는 빈 배열이다. 힌트 사용만으로 단계가 완료되거나 보고되지 않는다.
+- `stage-completed`: 전원 단계 완료·보고·일반 자물쇠 개방을 마치고 다음 거점으로 출발하기 전이다. `game.status`는 `playing`, `site_phase`는 `cleared`, `stage_phase`는 `done`이며 현재 거점은 여전히 `gate`다. 통신원 힌트 1단계 사용 이력도 유지한다. 전체 게임 종료나 해설 개방 경로의 예시는 아니다. PR-2에서 현재 거점 완료 후에도 `get-stage`로 이 화면을 재조회할 수 있게 연결할 목표다.
+
+최상위에는 기존 필수 필드 `server_now`, `version`, `course`, `current_site`, `game`, `self`와 신규 `stage`를 넣었다. `version`과 `game.version`은 같으며 조회 응답의 `result`는 생략했다. `stage.schema_version`은 2다. `self.clue`는 v2에서 `null`로 유지하고 본인 단계는 `self.mission`으로 표시한다. 기존 `SiteInfo`의 `sacho.body`는 미해제 위치에서 빈 문자열로 남기고, 완료 후 `game.acquired_sites`에만 합성 표시 문구를 넣었다. `course.sites`의 다음 거점은 호환용 기본 정보뿐이며 미래 미션을 포함하지 않는다.
+
+추가 필드의 mock 구조는 다음과 같다. 역할 마스크는 `commander, scout, signal, cipher` 순서의 boolean 배열이고, 역할별 수치는 역할 이름을 키로 하는 객체다. 방장은 정찰원으로 설정해 `is_host`와 지휘관 권한을 구분한다.
+
+| 필드 | mock 구조 / 의미 |
+|---|---|
+| `game.step_done_count`, `game.hint_level` | `Record<Role, number>` / 완료한 문제 수, 역할별 해제한 힌트 단계 |
+| `game.arrival_mask`, `game.confirm_mask` | boolean 4개 / 도착 여부, 단계 확인 여부. 일반 자물쇠 경로인 정문 예시에서는 확인 마스크가 모두 false |
+| `game.swap` | `{window_ends_at:number\|null, used:boolean, pending:null}` / 교환 창이 닫힌 예시. pending 요청 구조는 PR-3에서 확정 |
+| `self.step_progress` | 본인 step ID만 키로 사용. 필수 `status`, `attempts`; 완료 시 `method`, 자유 기록 단계만 `record`를 추가 |
+| `self.hints` | 해제된 본인 힌트의 문자열 배열. 아직 해제되지 않은 단계의 placeholder도 넣지 않음 |
+| `self.explanations`, `self.rewards` | 해설은 빈 객체. 보상은 완료 후 통신원에게만 `G-03.freq` 키의 합성 표시 문구를 넣고 나머지는 빈 객체. 미해제 항목의 키는 생략 |
+
+**값을 가린 범위:** 정답·정답 해시·rubric·QR 토큰·salt·서비스 키·비공개 원본·실제 시나리오 문구를 넣지 않았다. 문제·선택지·안내·자유 기록·힌트 표시 문구는 모두 새로 만든 합성 문구다. 단계 ID·필드 이름·역할 enum만 계약과 맞췄다. `grading`의 `hash` 등은 채점 방식 이름이며 해시 값이 아니다.
+
+- `self.digit`와 지휘관의 `self.lock.digits`는 **완료 후 파일에서도 전부 null로 가렸다.** 실제 서버의 보고 후 본인 숫자 공개 및 지휘관이 직접 제출해 잠근 숫자 복구 규칙을 바꾸는 결정이 아니다. 이 fixture만으로 숫자 획득·숫자 재접속 복구를 시험할 수는 없다. 완료 UI는 공개 상태의 `locked_mask`·`site_phase`·`acquired_sites`로 확인한다.
+- 지휘관 `self.transfer_clue.value`는 주파수 대신 합성 표시 문자열이다. 입력 정답으로 사용할 수 없다. 다른 역할 파일과 공통 상태에는 이 필드가 없다.
+- `confirmed:false`, null 좌표·D5 미정 수치를 유지한다. 점수 100·고정 시각·호출명·자료 URL·완료 상태는 화면 연습용이다. G-01 근거 선택지는 빈 배열이며 완료 예시를 만들었다고 운영 자료가 확정되거나 seed 검증을 통과하는 것은 아니다.
+
+FE의 테스트/Storybook/mock 핸들러에서는 예를 들어 다음과 같이 사용할 수 있다. 이는 `web/` 기준 경로이며 실제 앱에 mock 라우트를 추가한 것은 아니다. 역할은 mock 시나리오 선택에만 쓰고 실제 요청의 권한 입력으로 보내지 않는다.
+
+```ts
+import signalAfterHint from "../docs/be/fixtures/get-stage.gate.signal.after-hint.json";
+
+// get-stage mock 핸들러의 응답 본문. 변경할 때는 원본 fixture를 복제한다.
+const snapshot = structuredClone(signalAfterHint);
+// 핸들러 안에서: return Response.json(snapshot);
+```
+
+`server_now` 등은 고정된 Unix 밀리초이므로 화면 시간도 fixture의 서버 시각을 기준으로 모의한다. 실제 서버가 연결되기 전까지 구조는 초안이다. **PR-2에서 실제 `get-stage` 응답과 fixture의 필수 필드·타입·역할별 공개 범위·상태 구조를 대조하는 계약 테스트를 추가할 예정**이다. 가린 숫자와 합성 문구를 실제 값과 일치시키는 테스트가 아니며, 지금 서버 응답 일치 검증을 마쳤다는 뜻도 아니다. [결정 기록](DECISIONS.md)에 후속 검증을 남겼다.
+
+### 3.2 개인 필드 발췌
+
 아래는 응답의 **신규 개인 필드 부분 예시**다. 실제 응답에는 기존 Snapshot과 위 표의 stage 메타데이터가 함께 들어간다. 이 예시는 지휘관에게만 제공된다.
 
 ```json
