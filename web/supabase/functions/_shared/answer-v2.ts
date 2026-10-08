@@ -17,6 +17,15 @@ function plainMap(value: unknown): value is Record<string, unknown> {
 /** Frozen v2 wire format: strings, arrays, and sorted [key,value] pairs as JSON. */
 export function serializeAnswerV2(step: Step, answer: unknown): string {
   const scalar = (v: unknown) => normalizeTextV2(v, step.maxLen ?? 300);
+  const text = (v: unknown) => {
+    let s = scalar(v);
+    // Opt-in applies only to hashed text/words, never choices, frequency or records.
+    if (["text", "observation", "words"].includes(step.type)) {
+      if (step.normalize?.caseInsensitive) s = s.toLowerCase();
+      if (step.normalize?.ignoreSpaces) s = s.replace(/\s/gu, "");
+    }
+    return s;
+  };
   const choice = (v: unknown) => {
     const s = scalar(v);
     if (!/^[1-9]\d*$/.test(s) || Number(s) > (step.choices?.length ?? 0)) {
@@ -49,11 +58,11 @@ export function serializeAnswerV2(step: Step, answer: unknown): string {
       return JSON.stringify(values);
     }
     return JSON.stringify(
-      step.type === "choice" ? choice(answer) : scalar(answer),
+      step.type === "choice" ? choice(answer) : text(answer),
     );
   }
   if (step.grading === "set-hash" || step.grading === "order-hash") {
-    const values = list(step.choices ? choice : scalar);
+    const values = list(step.choices ? choice : text);
     // A repeated selection/word is not silently discarded.
     if (new Set(values).size !== values.length) return invalid();
     if (

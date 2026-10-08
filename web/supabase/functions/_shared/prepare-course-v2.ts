@@ -181,6 +181,7 @@ function step(value: unknown, production: boolean, sourceIds: string[]): Step {
     "sourceIds",
     "answerCount",
     "maxLen",
+    "normalize",
     "note",
   ], "step");
   const s: Step = {
@@ -204,6 +205,23 @@ function step(value: unknown, production: boolean, sourceIds: string[]): Step {
   }
   if (!compatible[s.type].includes(s.grading)) {
     fail(s.id, "유형과 채점 방식이 맞지 않는다.");
+  }
+  if (o.normalize !== undefined) {
+    if (
+      !(["text", "observation"].includes(s.type) && s.grading === "hash") &&
+      !(s.type === "words" && s.grading === "set-hash")
+    ) {
+      fail(s.id, "정규화 옵션은 텍스트·낱말 정답에만 허용한다.");
+    }
+    const rules = obj(o.normalize, s.id);
+    keys(rules, ["caseInsensitive", "ignoreSpaces"], s.id);
+    s.normalize = {};
+    if (rules.caseInsensitive !== undefined) {
+      s.normalize.caseInsensitive = bool(rules.caseInsensitive, s.id);
+    }
+    if (rules.ignoreSpaces !== undefined) {
+      s.normalize.ignoreSpaces = bool(rules.ignoreSpaces, s.id);
+    }
   }
   if (o.choices !== undefined) {
     s.choices = strings(o.choices, s.id, 1, 100);

@@ -6,7 +6,15 @@ import {
   project,
   sha256,
 } from "../_shared/engine.ts";
-import type { Command, Course, Game } from "../_shared/types.ts";
+import type {
+  Command,
+  Course,
+  CourseV2,
+  Game,
+  GameEvent,
+} from "../_shared/types.ts";
+import { isCourseV2 } from "../_shared/engine-v2.ts";
+import { domainHttpStatus } from "../_shared/game-core.ts";
 import {
   assertEdgeCourseAllowed,
   corsForRequest,
@@ -104,7 +112,7 @@ Deno.serve(async (req) => {
           "운영 코스가 등록되지 않았다.",
         );
       }
-      const course = c.state as Course;
+      const course = c.state as Course | CourseV2;
       assertEdgeCourseAllowed(course, devOptIn);
       const hash = await sha256(JSON.stringify(cmd));
       for (let attempt = 0; attempt < 5; attempt++) {
@@ -186,18 +194,26 @@ Deno.serve(async (req) => {
           .eq("id", game.courseId)
           .single();
         if (ce) throw ce;
-        const course = c.state as Course;
+        const course = c.state as Course | CourseV2;
         assertEdgeCourseAllowed(course, devOptIn);
+        const events: GameEvent[] = [];
         const now = Date.now(),
-          result = await dispatch(game, course, userId, cmd, now, salt),
+          result = await dispatch(game, course, userId, cmd, now, salt, events),
           snapshot = project(game, course, userId, now);
-        if (game.version === g.version) return json({ ...snapshot, result });
-        const { data: committed, error: e } = await service.rpc("commit_game", {
-          p_id: game.id,
-          p_expected: g.version,
-          p_state: game,
-          p_public: snapshot.game,
-        });
+        const response = cmd.action === "get-stage"
+          ? snapshot
+          : { ...snapshot, result };
+        if (game.version === g.version) return json(response);
+        const { data: committed, error: e } = await service.rpc(
+          isCourseV2(course) ? "commit_game_v2" : "commit_game",
+          {
+            p_id: game.id,
+            p_expected: g.version,
+            p_state: game,
+            p_public: snapshot.game,
+            ...(isCourseV2(course) ? { p_events: events } : {}),
+          },
+        );
         if (e) throw e;
         if (committed) {
           if (cmd.action === "join-game") {
@@ -206,7 +222,7 @@ Deno.serve(async (req) => {
               p_mode: "success",
             });
           }
-          return json({ ...snapshot, result });
+          return json(response);
         }
       }
       throw new DomainError(
@@ -227,13 +243,7 @@ Deno.serve(async (req) => {
     if (!(e instanceof DomainError)) console.error("game request failed");
     return json(
       { code: error.code, message: error.message, retry_at: error.retry_at },
-      error.code === "UNAUTHENTICATED"
-        ? 401
-        : error.code === "FORBIDDEN"
-        ? 403
-        : error.code === "SERVER_ERROR"
-        ? 500
-        : 400,
+      domainHttpStatus(error.code),
     );
   }
 });
