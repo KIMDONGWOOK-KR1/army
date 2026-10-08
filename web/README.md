@@ -20,6 +20,8 @@ npm run dev
 
 ## 실제 데이터 연결
 
+10/9 네 기기 합성 코스 점검은 [Supabase dev·Vercel 배포 안내](../docs/be/DEPLOY.md)를 따른다. 실제 코스 seed와 분리된 dev 전용 등록 명령, 정확한 Preview 출처 설정, 비밀값 입력·현장 시험 체크리스트가 있다. 아래는 확정된 실제 코스의 연결 절차다.
+
 1. PM이 외부 클라우드 사용·계정 명의·보관 정책을 확인한다. 이 PR은 운영 배포를 수행하지 않는다.
 2. Supabase 프로젝트에서 `supabase/migrations/202610060001_game.sql`을 적용하고 익명 로그인을 활성화한다. Realtime의 private channel과 DB 변경 구독을 사용한다. 공개 Realtime 채널 접근을 허용하지 않는 설정으로 운영한다.
 3. `.env.example`을 `.env.local`로 복사한다. `NEXT_PUBLIC_BACKEND=supabase`, URL, anon key를 입력한다. **service role key와 ANSWER_SALT에는 NEXT_PUBLIC_ 접두사를 붙이지 않는다.** seed를 실행하는 로컬 환경에만 비밀키를 설정한다.

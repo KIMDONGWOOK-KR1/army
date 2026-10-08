@@ -1,6 +1,6 @@
 // Synthetic demonstration content only. This module is never imported by client components.
 import { answerHash } from "./engine.ts";
-import { ROLES, type Course, type Clue, type Role } from "./types.ts";
+import { type Clue, type Course, type Role, ROLES } from "./types.ts";
 const clue = (
   type: Clue["type"],
   title: string,
@@ -15,7 +15,10 @@ const clue = (
   ...(choices ? { choices } : {}),
   ...(type === "frequency" ? { min: 10, max: 100 } : {}),
 });
-export async function demoCourse(): Promise<Course> {
+// The default is for the existing local-only demo. Cloud seeding must supply ANSWER_SALT.
+export async function demoCourse(
+  salt = "hoguk-synthetic-demo-only",
+): Promise<Course> {
   const course: Course = {
     id: "jnu-demo",
     name: "전남대, 기억을 잇는 길",
@@ -34,7 +37,8 @@ export async function demoCourse(): Promise<Course> {
         sacho: {
           char: "證",
           name: "증언의 사초",
-          body: "기억은 한 사람의 목소리로 완성되지 않는다. 서로 다른 자리에서 찾은 단서를 모아, 이곳에 남은 이야기를 함께 기록했다.",
+          body:
+            "기억은 한 사람의 목소리로 완성되지 않는다. 서로 다른 자리에서 찾은 단서를 모아, 이곳에 남은 이야기를 함께 기록했다.",
         },
         clues: {
           commander: clue(
@@ -91,7 +95,8 @@ export async function demoCourse(): Promise<Course> {
         sacho: {
           char: "層",
           name: "겹친 시간의 사초",
-          body: "장소에는 여러 시대의 시간이 겹쳐 있다. 오늘의 우리는 이전의 기록을 읽고, 다음 사람이 이어 갈 기억을 남긴다.",
+          body:
+            "장소에는 여러 시대의 시간이 겹쳐 있다. 오늘의 우리는 이전의 기록을 읽고, 다음 사람이 이어 갈 기억을 남긴다.",
         },
         clues: {
           commander: clue(
@@ -139,12 +144,12 @@ export async function demoCourse(): Promise<Course> {
       cipher: ["8", 8],
     },
   };
-  for (const s of course.sites)
+  for (const s of course.sites) {
     for (const role of ROLES) {
       const [answer, digit] = synthetic[s.id][role];
       s.answers[role] = {
         answerHash: await answerHash(
-          "hoguk-synthetic-demo-only",
+          salt,
           s.id,
           role,
           s.clues[role],
@@ -153,5 +158,6 @@ export async function demoCourse(): Promise<Course> {
         digit,
       };
     }
+  }
   return course;
 }

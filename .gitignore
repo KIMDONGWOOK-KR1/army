@@ -5,6 +5,8 @@
 !**/.env.example
 **/supabase/.temp/
 **/*.answers.local.json
+**/*.private.local.json
+/private/
 **/data/fixtures/*.csv
 !**/data/fixtures/synthetic_*.csv
 **/결과_*

@@ -60,3 +60,24 @@ F01~F11의 방·QR·4인 보직·준비·도착·역할 미션·보고·자물�
 ![자물쇠 게임 장면](screenshots/lock-mobile.png)
 
 ![사초 획득 장면](screenshots/sacho-mobile.png)
+
+## PR-0: dev 배포 준비와 CI
+
+2026-10-08 한국시간, `infra/deploy-dev`. Node 24.19.0, npm 12.2.0, Deno 2.9.7, Next.js 16.3.8. 아래 결과는 로컬 Windows 환경과 합성 데이터의 검증이다.
+
+- `npm ci` 성공. 이 PC에 npm·Deno가 없어 Git에서 제외된 `private/tools`에 공식 도구를 받아 실행했다. npm 12가 esbuild 설치 스크립트를 기본 차단했으나 아래 테스트·빌드는 통과했다. 앱 의존성·lockfile은 변경하지 않았다.
+- `npm run typecheck` 통과.
+- `npm test`: 6개 파일, 41개 테스트 통과. CORS 단일·복수 출처 호환, 잘못된 출처 거절, dev opt-in 기본 차단, 실제 코스와 합성 코스 구분, seed 대상 ref·URL·salt 검사, seed salt를 사용하는 네 역할 두 거점 완주·개인 응답 분리·자물쇠 재전송/감점/대기를 포함한다.
+- `npm run build` 통과. 저장소 밖 사용자 홈의 lockfile을 무시한다는 Next 경고는 있었으며 빌드는 성공했다.
+- `deno check --no-lock supabase/functions/game/index.ts` 통과. 출력: `Check supabase/functions/game/index.ts`.
+- 빌드된 클라이언트 chunk에서 `answerHash`, 기존 로컬 전용 salt 표식, dev 허용 변수명이 발견되지 않았다. 이는 실제 프로젝트의 응답 검증을 대신하지 않는다.
+- `npm run seed:demo`에 인자를 주지 않으면 사용법을 출력하고 종료 코드 1로 거절함을 확인했다. 실제 Supabase에 seed하지 않았다.
+- Playwright: 기존 9개 시나리오 확인. API 1개(네 독립 세션의 두 거점 완주) 통과 후 필요한 Chromium 1243이 없어 UI 8개는 시작 전 실패했다. 해당 브라우저를 Git에서 제외된 도구 폴더에 설치하고 `npm run test:e2e -- --last-failed`로 UI 8개 모두 통과(1.8분)했다. 최초 시도에는 임시 npm launcher의 경로 문제도 있었으며 도구 경로를 보정했다. 샌드박스에서 시험 서버 종료가 지연되어 해당 시험의 서버만 종료했고, UI 재실행은 자식 프로세스 정리가 가능한 환경에서 수행했다. 앱·시험 코드를 바꾸어 실패를 회피하지 않았다.
+- 부록 A의 제목 수준 외 원문 일치, `private/` 및 `*.private.local.json` Git 제외를 확인했다. 공통 엔진·기존 마이그레이션·실제 코스 검증기와 seed는 수정하지 않았다.
+
+### 미수행과 후속 확인
+
+- GitHub PR 생성·Actions CI 실행: gh 미로그인으로 브랜치 push 후 사용자가 브라우저에서 PR을 만들어야 한다. 로컬 통과를 GitHub CI 통과로 표시하지 않는다.
+- Supabase dev 생성·설정·DB 적용·실제 seed·Edge 배포·익명 인증/Realtime/RLS 서비스 검증.
+- Vercel 배포·실제 Preview 출처·폰 4대 시험·현장 GPS 시험. 담당자가 [DEPLOY.md](../../docs/be/DEPLOY.md)의 체크리스트를 수행하고 PR에 별도로 기록한다.
+- PR-1 이후 v2 콘텐츠·엔진 기능과 D3·D6 확정 이후 PR-6은 이번 검증 범위에 포함하지 않는다.
