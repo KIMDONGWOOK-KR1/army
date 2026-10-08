@@ -1,0 +1,198 @@
+/* 폰 목업 보기(톤 A): 크림 바탕에 전단 노란 해, 남색 몸체의 폰. 폰 치수(--phone-w 등)는
+   phone-mockup.tsx가 mockup-view.ts 값으로 넣고, 배율(transform)로 창에 맞춘다. */
+.stage {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: radial-gradient(
+    ellipse at 50% 46%,
+    #fffaef 0%,
+    var(--paper) 46%,
+    #f6e4b8 100%
+  );
+}
+
+/* 폰 뒤의 해: 화면 높이에 맞춘 연한 노란 원 하나 */
+.sun {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: min(78vh, 92vw);
+  aspect-ratio: 1;
+  translate: -50% -52%;
+  border-radius: 50%;
+  background: radial-gradient(circle, #ffe08a 0%, #ffd766 58%, #ffcf55 100%);
+  box-shadow: 0 0 0 10px #ffe7a466;
+  opacity: 0.75;
+}
+
+/* 위 모서리: 상단 바와 같은 도장 + 제호, 그리고 목업 끄기 단추.
+   둘은 같은 높이(top 22px, 46px)에서 가운데를 맞춘다 */
+.brand {
+  position: absolute;
+  left: 26px;
+  top: 22px;
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--edge);
+}
+.brand b {
+  font: 400 21px var(--serif);
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+.exit {
+  position: absolute;
+  right: 26px;
+  top: 22px;
+  min-height: 46px;
+  padding: 8px 16px;
+  gap: 8px;
+  z-index: 1;
+}
+
+/* 폰 몸체: 화면 가운데에 두고 가운데 기준으로 줄이거나 키운다 */
+.phone {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--phone-w);
+  height: var(--phone-h);
+  margin: calc(var(--phone-h) / -2) 0 0 calc(var(--phone-w) / -2);
+  padding: var(--bezel);
+  transform-origin: 50% 50%;
+  border-radius: calc(46px + var(--bezel));
+  background: linear-gradient(
+    155deg,
+    #3a4b76 0%,
+    var(--edge) 38%,
+    #18203a 100%
+  );
+  box-shadow:
+    inset 0 0 0 2px #4a5d8f,
+    inset 0 0 0 4px #141b30,
+    0 4px 0 #141b30,
+    0 34px 60px -18px rgb(31 42 68 / 55%),
+    0 12px 26px rgb(31 42 68 / 22%);
+}
+/* 옆면 단추(꾸밈) */
+.key {
+  position: absolute;
+  width: 4px;
+  border-radius: 2px;
+  background: #2b3961;
+  box-shadow: inset 0 0 0 1px #141b30;
+}
+.action,
+.volUp,
+.volDown {
+  left: -3px;
+}
+.action {
+  top: 150px;
+  height: 30px;
+}
+.volUp {
+  top: 206px;
+  height: 58px;
+}
+.volDown {
+  top: 276px;
+  height: 58px;
+}
+.power {
+  right: -3px;
+  top: 232px;
+  height: 92px;
+}
+
+/* 화면: 위 상태 표시줄 · 앱(iframe) · 아래 홈 표시줄 */
+.screen {
+  position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 46px;
+  background: #253250;
+  box-shadow: 0 0 0 2px #0d1222;
+  isolation: isolate;
+}
+.status {
+  flex-shrink: 0;
+  height: var(--status);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 26px 0 34px;
+  /* 앱 상단 바와 같은 남색이라 한 화면처럼 이어진다 */
+  background: #253250;
+  color: #fdedc4;
+  position: relative;
+}
+.clock {
+  font: 600 15px/1 var(--sans);
+  letter-spacing: 0.01em;
+}
+.island {
+  position: absolute;
+  left: 50%;
+  top: 9px;
+  width: 96px;
+  height: 27px;
+  translate: -50% 0;
+  border-radius: 14px;
+  background: #0b0f1c;
+}
+.icons {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.icons svg {
+  display: block;
+}
+.frame {
+  display: block;
+  flex-shrink: 0;
+  border: 0;
+  background: var(--paper);
+}
+/* 홈 표시줄: 장면마다 바뀌는 앱 아래 색과 이어 보이지 않게, 위 상태 표시줄과 같은 남색 턱으로 둔다 */
+.home {
+  position: relative;
+  flex: 1;
+  display: grid;
+  place-items: center;
+  background: #253250;
+}
+.home span {
+  width: 134px;
+  height: 5px;
+  border-radius: 3px;
+  background: #fdedc4;
+  opacity: 0.85;
+}
+/* 틀 안 앱의 대화 상자 막(globals.css .game-dialog::backdrop)과 같은 막을 상태·홈 표시줄에도 덮는다 */
+.status::after,
+.home::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: #111829c9;
+  backdrop-filter: blur(3px);
+  opacity: 0;
+  pointer-events: none;
+}
+.screen[data-dim] .status::after,
+.screen[data-dim] .home::after {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .phone {
+    transition: transform 0.18s ease-out;
+  }
+}

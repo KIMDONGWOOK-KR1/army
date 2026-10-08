@@ -68,8 +68,8 @@ test("four browser windows complete the team flow and both sites", async ({
             .getByRole("button", {
               name:
                 site === "gate"
-                  ? /서로의 관찰과 기록을 나눈다/
-                  : /시대별 기록과 그곳의 사람들/,
+                  ? /학교 출입을 막는 계엄군에 항의하려고/
+                  : /대학의 역사와 오월의 기록/,
             })
             .click();
         if (role === "정찰원")

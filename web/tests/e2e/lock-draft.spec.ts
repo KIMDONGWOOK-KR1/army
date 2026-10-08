@@ -165,7 +165,7 @@ test("server attempts clear rejected drafts while locked digits and new edits su
   await page.getByRole("button", { name: "다음 거점으로 출발" }).click();
   await page.getByRole("button", { name: "시연 거점에 도착" }).click();
   await page
-    .getByRole("button", { name: /시대별 기록과 그곳의 사람들/ })
+    .getByRole("button", { name: /대학의 역사와 오월의 기록/ })
     .click();
   await page.getByRole("button", { name: "단서 확인하고 보고" }).click();
   await page.getByRole("button", { name: "팀 자물쇠로" }).click();

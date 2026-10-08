@@ -7,6 +7,7 @@ import {
   DomainError,
 } from "../supabase/functions/_shared/engine";
 import { demoCourse } from "../supabase/functions/_shared/course";
+import { ROLES } from "../supabase/functions/_shared/types";
 const setup = async () => {
   const course = await demoCourse();
   const game = createGame("host", "동욱", course, 0, "ABCD");
@@ -283,5 +284,127 @@ describe("server engine", () => {
       35000,
     );
     expect(project(game, course, commander.userId, 35000).self.digit).toBe(1);
+  });
+
+  it("jumps a demo game to a chosen scene without returning answers", async () => {
+    const course = await demoCourse();
+    const game = createGame("me", "기록자", course, 0, "DEMO");
+    game.demoOwner = "me";
+    ROLES.forEach((role, i) => {
+      if (i === 0) {
+        game.members[0].role = role;
+        game.members[0].ready = true;
+        return;
+      }
+      game.members.push({
+        id: `m${i}`,
+        userId: `demo-${i}`,
+        nickname: `n${i}`,
+        role,
+        ready: true,
+        lastSeen: 0,
+      });
+    });
+    Object.assign(game, {
+      status: "playing",
+      phase: "travel",
+      startedAt: 0,
+      siteStartedAt: 0,
+    });
+    const gate = course.sites[0];
+    const result = await dispatch(
+      game,
+      course,
+      "me",
+      {
+        action: "demo-jump",
+        site_id: gate.id,
+        stage: "lock",
+        request_id: "j1",
+      },
+      1000,
+    );
+    expect(JSON.stringify(result)).not.toMatch(/digit|answer/);
+    let view = project(game, course, "me", 1000);
+    expect(view.game.site_phase).toBe("mission");
+    expect(view.game.report_mask.every(Boolean)).toBe(true);
+    const digits = gate.lockOrder.map((r) => gate.answers[r].digit);
+    await dispatch(
+      game,
+      course,
+      "me",
+      { action: "open-lock", site_id: gate.id, digits, request_id: "o1" },
+      2000,
+    );
+    expect(game.phase).toBe("cleared");
+
+    await dispatch(
+      game,
+      course,
+      "me",
+      {
+        action: "demo-jump",
+        site_id: course.sites[1].id,
+        stage: "travel",
+        request_id: "j2",
+      },
+      3000,
+    );
+    view = project(game, course, "me", 3000);
+    expect(view.game.current_site_seq).toBe(2);
+    expect(view.game.site_phase).toBe("travel");
+    expect(game.locks[gate.id].openedAt).toBe(3000);
+    expect(game.reports[course.sites[1].id]).toBeUndefined();
+
+    await dispatch(
+      game,
+      course,
+      "me",
+      { action: "demo-jump", stage: "done", request_id: "j3" },
+      4000,
+    );
+    expect(game.status).toBe("done");
+    await expect(
+      dispatch(
+        game,
+        course,
+        "me",
+        {
+          action: "demo-jump",
+          stage: "travel",
+          site_id: "nowhere",
+          request_id: "j4",
+        },
+        5000,
+      ),
+    ).rejects.toMatchObject({ code: "STALE_SITE" });
+    // 끝난 시연 작전도 다시 앞 장면으로 돌아갈 수 있다
+    await dispatch(
+      game,
+      course,
+      "me",
+      {
+        action: "demo-jump",
+        site_id: gate.id,
+        stage: "mission",
+        request_id: "j5",
+      },
+      6000,
+    );
+    expect(game.status).toBe("playing");
+    expect(game.siteIndex).toBe(0);
+    expect(game.reports[gate.id]).toBeUndefined();
+  });
+  it("refuses scene jumps outside demo games", async () => {
+    const { game, course, commander } = await setup();
+    await expect(
+      dispatch(
+        game,
+        course,
+        commander.userId,
+        { action: "demo-jump", stage: "done", request_id: "j" },
+        5000,
+      ),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 });

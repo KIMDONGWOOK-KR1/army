@@ -5,6 +5,7 @@ import {
   type Game,
   type Command,
   type Snapshot,
+  type Site,
   type SiteInfo,
   type Clue,
 } from "./types.ts";
@@ -198,6 +199,7 @@ const writes = new Set([
   "demo-role",
   "demo-arrival",
   "demo-time",
+  "demo-jump",
 ]);
 export async function dispatch(
   game: Game,
@@ -266,7 +268,8 @@ export async function dispatch(
     return {};
   }
   if (cmd.action === "get-game") return {};
-  if (game.status === "done")
+  // 끝난 작전은 바꿀 수 없다(시연 작전의 장면 건너뛰기만 예외)
+  if (game.status === "done" && cmd.action !== "demo-jump")
     fail("WRONG_STAGE", "작전은 종료되었다. 수집한 기록을 확인하라.");
   if (Object.keys(game.receipts).length >= 2000)
     fail("RATE_LIMITED", "작전 요청 한도를 초과했다.");
@@ -334,6 +337,71 @@ export async function dispatch(
       if (game.phase === "travel") game.siteStartedAt = now - 30000;
       const lock = game.locks[site.id];
       if (lock?.nextAttemptAt) lock.nextAttemptAt = now;
+      break;
+    }
+    case "demo-jump": {
+      // 발표용 시연에서 원하는 장면으로 바로 건너뛴다. 앞 거점의 보고·자물쇠는 서버가
+      // 아는 숫자로 채우고, 정답·숫자는 응답에 넣지 않는다.
+      if (game.demoOwner !== userId || !course.demo)
+        fail("FORBIDDEN", "시연 작전에서만 장면을 건너뛸 수 있다.");
+      const stage = cmd.stage;
+      if (!stage || !["travel", "mission", "lock", "done"].includes(stage))
+        fail("INVALID_REQUEST", "알 수 없는 시연 장면이다.");
+      const target =
+        stage === "done"
+          ? course.sites.length - 1
+          : course.sites.findIndex((x) => x.id === cmd.site_id);
+      if (target < 0) fail("STALE_SITE", "시연 코스에 없는 거점이다.");
+      const holder = (r: Role) =>
+        game.members.find((m) => m.role === r) ?? member;
+      const fill = (s: Site) => {
+        game.reports[s.id] = {};
+        for (const r of ROLES)
+          game.reports[s.id][r] = {
+            userId: holder(r).userId,
+            at: now,
+            digit: s.answers[r].digit,
+          };
+      };
+      const arrive = (s: Site) =>
+        game.arrivals.push({
+          siteId: s.id,
+          memberId: member.id,
+          manual: false,
+          simulated: true,
+          at: now,
+        });
+      game.reports = {};
+      game.locks = {};
+      game.arrivals = [];
+      game.reportTimes = {};
+      course.sites.forEach((s, i) => {
+        if (i >= target && stage !== "done") return;
+        fill(s);
+        arrive(s);
+        game.locks[s.id] = {
+          digits: s.lockOrder.map((r) => s.answers[r].digit),
+          attempts: 1,
+          nextAttemptAt: null,
+          openedAt: now,
+        };
+      });
+      game.status = "playing";
+      game.siteIndex = target;
+      game.score = 100;
+      game.startedAt ??= now;
+      game.siteStartedAt = now;
+      game.endedAt = null;
+      if (stage === "done") {
+        game.status = "done";
+        game.phase = "cleared";
+        game.endedAt = now;
+      } else if (stage === "travel") game.phase = "travel";
+      else {
+        arrive(course.sites[target]);
+        game.phase = "mission";
+        if (stage === "lock") fill(course.sites[target]);
+      }
       break;
     }
     case "demo-arrival":

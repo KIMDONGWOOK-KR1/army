@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiError, getSupabase, requestGame, backend } from "@/lib/client";
 import type { Snapshot, Command } from "@/supabase/functions/_shared/types";
+import { requestId } from "@/lib/request-id";
 export function useGame() {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null),
     [busy, setBusy] = useState(false),
@@ -193,7 +194,7 @@ export function useGame() {
       cmd.request_id =
         previous && equal(previous, cmd)
           ? previous.request_id
-          : crypto.randomUUID();
+          : requestId();
       pending.current = cmd;
       sessionStorage.setItem("hoguk-pending", JSON.stringify(cmd));
       try {

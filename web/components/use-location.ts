@@ -8,7 +8,11 @@ export function useLocation(
 ) {
   const [status, setStatus] = useState("위치 신호 대기"),
     [distance, setDistance] = useState<number | null>(null),
-    [dwell, setDwell] = useState(0);
+    [dwell, setDwell] = useState(0),
+    // 지도에 내 자리를 그리는 데 쓰는 마지막 위치(시연 코스에서도 받는다)
+    [fix, setFix] = useState<Pick<Fix, "lat" | "lng" | "accuracy"> | null>(
+      null,
+    );
   const watch = useRef<number | null>(null),
     fixes = useRef<Fix[]>([]),
     sent = useRef(false),
@@ -49,6 +53,7 @@ export function useLocation(
         };
         fixes.current.push(fix);
         fixes.current = fixes.current.slice(-60);
+        setFix({ lat: fix.lat, lng: fix.lng, accuracy: fix.accuracy });
         if (s.current_site.lat === null || s.current_site.lng === null) {
           setStatus("시연 코스 · 실제 좌표 미확정");
           return;
@@ -90,5 +95,5 @@ export function useLocation(
       { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 },
     );
   };
-  return { status, distance, dwell, start, stop };
+  return { status, distance, dwell, fix, start, stop };
 }

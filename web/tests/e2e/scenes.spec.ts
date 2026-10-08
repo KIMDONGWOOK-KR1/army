@@ -16,7 +16,7 @@ test("one game scene fills the viewport and progresses from mission to reward to
   await page.getByRole("button", { name: "시연 거점에 도착" }).click();
   await expect(page.locator('[data-scene="mission"]')).toBeVisible();
   await page
-    .getByRole("button", { name: /서로의 관찰과 기록을 나눈다/ })
+    .getByRole("button", { name: /학교 출입을 막는 계엄군에 항의하려고/ })
     .click();
   await page.getByRole("button", { name: "단서 확인하고 보고" }).click();
   await expect(page.locator('[data-scene="report"]')).toBeVisible();

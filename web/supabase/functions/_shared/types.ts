@@ -99,6 +99,8 @@ export type Command = {
   demo_role?: Role;
   simulated?: boolean;
   seconds?: number;
+  // 시연 장면 건너뛰기: site_id 거점의 이동·단서·자물쇠 단계, 또는 작전 완료
+  stage?: "travel" | "mission" | "lock" | "done";
 };
 export type PublicGame = {
   id: string;

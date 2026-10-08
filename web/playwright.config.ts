@@ -8,6 +8,20 @@ export default defineConfig({
     baseURL,
     trace: "retain-on-failure",
     actionTimeout: 10000,
+    // 타자 나레이션은 narration.spec.ts에서만, 거점 원판 화면은
+    // narration.spec.ts와 stop-screen.spec.ts에서만 켠다.
+    storageState: {
+      cookies: [],
+      origins: [
+        {
+          origin: new URL(baseURL).origin,
+          localStorage: [
+            { name: "hoguk:narration", value: "off" },
+            { name: "hoguk:stop", value: "off" },
+          ],
+        },
+      ],
+    },
   },
   webServer: {
     command: "npm run dev -- --port " + (new URL(baseURL).port || "3000"),
