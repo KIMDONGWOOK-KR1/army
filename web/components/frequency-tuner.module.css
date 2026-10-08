@@ -65,6 +65,22 @@
   outline-offset: 2px;
   border-bottom-color: transparent;
 }
+.readout .lcd[aria-invalid="true"] {
+  border-bottom-color: #ffae98;
+}
+.validation {
+  grid-column: 1 / -1;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #d0d9ef;
+}
+.validation p {
+  margin: 0;
+}
+.validation .error {
+  margin-top: 4px;
+  color: #ffae98;
+}
 .unit {
   font: 600 13px var(--sans);
   color: #d5ddf2;
@@ -206,6 +222,11 @@
 }
 .dial[data-dragging] {
   cursor: grabbing;
+}
+.dial[aria-disabled="true"] {
+  cursor: not-allowed;
+  touch-action: auto;
+  opacity: 0.55;
 }
 .dial:focus-visible {
   outline: 3px solid var(--sun);

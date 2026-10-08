@@ -24,11 +24,16 @@ PR #8의 메인 디자인과 PR #9의 정문 v2 API를 연결하는 브랜치다
 |---|---|
 | [game-app.tsx](../../web/components/game-app.tsx) | 기존 장면을 유지하며 v1/v2 미션·도착·완료 흐름 분기 |
 | [mission-v2.tsx](../../web/components/mission-v2.tsx) | 역할별 문제·보고·힌트·읽음 확인과 별도 자물쇠 화면 |
+| [legacy-mission-input.tsx](../../web/components/legacy-mission-input.tsx) | dev `v1-gate`의 기존 선택 버튼·관찰 입력·무전기·달력 표시. 판정과 보고는 v2 사용 |
 | [verify-input.tsx](../../web/components/verify-input.tsx) | 두 UI가 공유하는 타입별 입력. 주파수는 한 자리 이하 소수 문자열 |
 | [use-game.ts](../../web/components/use-game.ts) | 메인 `useGameAny`, 확인 UI `useGameV2`, 기존 `useGame`. 상태 재조회·Realtime·재시도 |
 | [client.ts](../../web/lib/client.ts), [game-snapshot.ts](../../web/lib/game-snapshot.ts) | 인증·HTTP 공통 전송과 실제 응답의 버전 판별 |
 
 `game.demo`만으로 v1 혼자 체험 기능을 켜지 않는다. v2 합성 코스도 `demo:true`지만 네 참가자 각각의 동작이 필요하다. v1 자동 시연·보직 전환은 v1에서만 유지한다.
+
+기존 UI 재사용은 `course.demo`인 정문의 역할별 `G-01.legacy`~`G-04.legacy` ID·유형·채점 방식이 맞을 때만 적용한다. 다른 v2 문항과 `/verify`는 일반 입력을 유지한다. 달력은 기존 공개 표시 컴포넌트를 공유하고 답은 선택 번호로 전송한다. 무전기는 v2에서 직접 입력을 반올림하지 않으며 제출 대기·잠긴 상태에는 다이얼의 포인터·휠·키보드 조작도 막는다. UI 적용에는 웹 재배포만 필요하며 기존 코스 등록과 Edge 배포를 반복하지 않는다.
+
+달력은 기존 v1 문제에 맞춘 고정 표시다. 해당 문제의 날짜를 수정할 때는 `mission-calendar.tsx`도 함께 확인한다.
 
 답안·개인 단서·숫자를 새 브라우저 저장 항목이나 로그로 복사하지 않는다. v2 미확인 요청은 메모리에만 보관하고 응답 유실 재시도에는 동일 `request_id`와 본문을 사용한다. 새로고침 뒤에는 서버 상태를 조회한다. 입력 중인 답안·잠기지 않은 자물쇠 초안은 다시 입력해야 한다. 폰 목업 전환에서도 이 원칙을 지킨다. 기존 익명 인증과 게임 ID·보기 설정은 계속 저장한다.
 

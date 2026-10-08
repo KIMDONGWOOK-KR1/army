@@ -32,6 +32,122 @@ async function privateInput(operation: () => Promise<unknown>) {
   }
 }
 
+async function fitsPhoneWidths(page: Page, form: Locator, role: Role) {
+  for (const width of [360, 390, 430]) {
+    await page.setViewportSize({ width, height: 844 });
+    const fits = await form.evaluate((element) => {
+      const controls = element.querySelectorAll(
+        "input, button, select, textarea, .choices, .calendar, [role=slider]",
+      );
+      return document.documentElement.scrollWidth <= innerWidth + 1 &&
+        Array.from(controls).every((control) => {
+          const box = control.getBoundingClientRect();
+          return !box.width || (box.left >= -1 && box.right <= innerWidth + 1);
+        });
+    });
+    expect(fits, `${role} controls fit ${width}px`).toBe(true);
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+}
+
+async function checkFrequencyControls(page: Page, form: Locator, answer: string) {
+  const lcd = form.getByLabel("주파수 직접 입력", { exact: true });
+  const slider = form.getByRole("slider", { name: "주파수 조절", exact: true });
+  const plus = form.getByRole("button", { name: "주파수 0.1 높이기", exact: true });
+  const minus = form.getByRole("button", { name: "주파수 0.1 낮추기", exact: true });
+  const min = Number(await slider.getAttribute("aria-valuemin"));
+  const max = Number(await slider.getAttribute("aria-valuemax"));
+  const middle = Math.round((min + max) * 5);
+  await privateInput(() => lcd.fill((middle / 10).toFixed(1)));
+  await plus.click({ noWaitAfter: true });
+  expect(Math.round(Number(await lcd.inputValue()) * 10) === middle + 1).toBe(true);
+  await minus.click({ noWaitAfter: true });
+  expect(Math.round(Number(await lcd.inputValue()) * 10) === middle).toBe(true);
+  await slider.focus();
+  await slider.press("ArrowRight");
+  expect(Math.round(Number(await lcd.inputValue()) * 10) === middle + 1).toBe(true);
+  await slider.press("ArrowLeft");
+  expect(Math.round(Number(await lcd.inputValue()) * 10) === middle).toBe(true);
+
+  // Preserve the invalid raw input; the UI must never round it into an answer.
+  const invalid = Number(answer).toFixed(2);
+  await privateInput(() => lcd.fill(invalid));
+  await form.getByLabel("확인 방식", { exact: true }).focus();
+  expect((await lcd.inputValue()) === invalid).toBe(true);
+  expect(await lcd.evaluate((element) => !(element as HTMLInputElement).validity.valid)).toBe(true);
+  await expect(lcd).toHaveAttribute("aria-invalid", "true");
+  let submitted = false;
+  const observe = (request: import("@playwright/test").Request) => {
+    if (request.url().endsWith("/api/game") && request.method() === "POST" &&
+      request.postDataJSON()?.action === "submit-step") submitted = true;
+  };
+  page.on("request", observe);
+  try {
+    await form.getByRole("button", { name: "문제 제출", exact: true }).click({ noWaitAfter: true });
+    await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+    expect(submitted, "invalid frequency does not dispatch a submission").toBe(false);
+  } finally {
+    page.off("request", observe);
+  }
+  await privateInput(() => lcd.fill(answer));
+}
+
+async function submitFrequencyWhileCheckingBusy(page: Page, form: Locator, stepId: string) {
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => { release = resolve; });
+  let began!: () => void;
+  const started = new Promise<void>((resolve) => { began = resolve; });
+  const routeHandler = async (route: import("@playwright/test").Route) => {
+    const request = route.request();
+    const body = request.method() === "POST" ? request.postDataJSON() : null;
+    if (body?.action === "submit-step" && body.step_id === stepId) {
+      began();
+      // Hold before the commit, so polling cannot remove the form during checks.
+      await held;
+    }
+    await route.continue();
+  };
+  await page.route("**/api/game", routeHandler);
+  const pending = clickAction(page, form.getByRole("button", {
+    name: "문제 제출", exact: true,
+  }), "submit-step").then(
+    (reply) => ({ reply, error: null }),
+    (error: unknown) => ({ reply: null, error }),
+  );
+  try {
+    await Promise.race([
+      started,
+      pending.then(() => { throw new Error("주파수 제출 요청을 보류하지 못했다."); }),
+    ]);
+    const lcd = form.getByLabel("주파수 직접 입력", { exact: true });
+    const slider = form.getByRole("slider", { name: "주파수 조절", exact: true });
+    await expect(lcd).toBeDisabled();
+    await expect(form.getByRole("button", { name: "주파수 0.1 높이기", exact: true })).toBeDisabled();
+    await expect(form.getByRole("button", { name: "주파수 0.1 낮추기", exact: true })).toBeDisabled();
+    await expect(slider).toHaveAttribute("aria-disabled", "true");
+    await expect(slider).toHaveAttribute("tabindex", "-1");
+    const before = await lcd.inputValue();
+    // A custom slider must guard its handlers as well as declare aria-disabled.
+    await slider.dispatchEvent("keydown", { key: "ArrowRight", bubbles: true });
+    await slider.dispatchEvent("wheel", { deltaY: 100, bubbles: true });
+    await slider.dispatchEvent("pointerdown", {
+      pointerId: 1, pointerType: "mouse", button: 0, clientX: 10, clientY: 10,
+    });
+    await slider.dispatchEvent("pointermove", {
+      pointerId: 1, pointerType: "mouse", clientX: 100, clientY: 100,
+    });
+    expect((await lcd.inputValue()) === before, "busy frequency controls preserve input").toBe(true);
+    release();
+    const result = await pending;
+    if (result.error || !result.reply) throw new Error("주파수 제출 응답을 받지 못했다.");
+    return result.reply;
+  } finally {
+    release();
+    await pending;
+    await page.unroute("**/api/game", routeHandler);
+  }
+}
+
 test("four sessions complete the migrated v1 gate through v2 solve, separate report and lock", async ({ browser, baseURL }) => {
   const contexts = await Promise.all(ROLES.map(() => browser.newContext({
     baseURL,
@@ -135,16 +251,30 @@ test("four sessions complete the migrated v1 gate through v2 solve, separate rep
       await expect(form).toBeVisible();
       await expect(page.locator('[data-testid^="mission-v2-step-"]')).toHaveCount(1);
       await expect(page.getByTestId("mission-v2-transfer-clue")).toHaveCount(role === "commander" ? 1 : 0);
+      await fitsPhoneWidths(page, form, role);
       const answer = input.privateInput.stages[gate.id].steps[step.id].answer;
       expect(typeof answer === "string").toBe(true);
-      await privateInput(() => step.type === "choice"
-        ? form.getByRole("combobox", { name: "선택 항목", exact: true }).selectOption(answer as string)
-        : form.getByLabel(step.type === "frequency"
-          ? "주파수 (소수점 한 자리 이하)" : "답안 또는 기록", { exact: true }).fill(answer as string));
       await form.getByLabel("확인 방식", { exact: true }).selectOption("simulated");
-      const solved = await clickAction(page, form.getByRole("button", {
-        name: "문제 제출", exact: true,
-      }), "submit-step");
+      if (step.type === "choice") {
+        const choices = form.locator(".choices button");
+        await expect(choices).toHaveCount(step.choices?.length ?? 0);
+        if (role === "cipher") {
+          await expect(form.locator(".calendar")).toBeVisible();
+          await expect(form.locator(".calendar-grid")).toBeVisible();
+        }
+        await privateInput(() => choices.nth(Number(answer) - 1).click({ noWaitAfter: true }));
+        expect(await choices.evaluateAll((buttons) => buttons.filter((button) =>
+          button.getAttribute("aria-pressed") === "true").length === 1)).toBe(true);
+      } else if (step.type === "frequency") {
+        await checkFrequencyControls(page, form, answer as string);
+      } else {
+        await privateInput(() => form.getByLabel("찾은 단서의 답", { exact: true }).fill(answer as string));
+      }
+      const solved = step.type === "frequency"
+        ? await submitFrequencyWhileCheckingBusy(page, form, step.id)
+        : await clickAction(page, form.getByRole("button", {
+          name: "문제 제출", exact: true,
+        }), "submit-step");
       expect(solved.result?.accepted === true).toBe(true);
       expect(solved.self.step_progress[step.id]?.status === "done").toBe(true);
       expect(solved.self.reported === false && solved.self.digit === null).toBe(true);

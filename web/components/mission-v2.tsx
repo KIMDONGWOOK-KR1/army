@@ -15,6 +15,7 @@ import {
   type StepAnswer,
 } from "@/supabase/functions/_shared/types";
 import { emptyStepAnswer, VerifyInput } from "./verify-input";
+import { isLegacyMissionStep, LegacyMissionInput } from "./legacy-mission-input";
 import { useLockDraft } from "./use-lock-draft";
 import styles from "./mission-v2.module.css";
 
@@ -34,7 +35,10 @@ const labels = {
 function StepCard(
   { step, snapshot, busy, send }: Omit<Props, "now"> & { step: Step },
 ) {
-  const [answer, setAnswer] = useState<StepAnswer>(() => emptyStepAnswer(step));
+  const legacyInput = snapshot.course.demo &&
+    isLegacyMissionStep(snapshot.stage.id, snapshot.self.role, step);
+  const [answer, setAnswer] = useState<StepAnswer>(() =>
+    legacyInput && step.type === "frequency" ? "50.0" : emptyStepAnswer(step));
   const [method, setMethod] = useState<
     "" | "field" | "official_digital" | "simulated"
   >("");
@@ -43,12 +47,18 @@ function StepCard(
   const [feedback, setFeedback] = useState("");
   const progress = snapshot.self.step_progress[step.id];
   const done = progress?.status === "done" || progress?.status === "explained";
+  const disabled = busy || progress?.status !== "open";
   const sources = snapshot.stage.sources.filter((source) =>
     !step.sourceIds || step.sourceIds.includes(source.id)
   );
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    if (!method) return;
+    if (!method || disabled) return;
+    if (legacyInput && step.type === "choice" &&
+      (typeof answer !== "string" || !/^[1-9]\d*$/.test(answer))) {
+      setFeedback("답안을 하나 선택하라.");
+      return;
+    }
     setFeedback("");
     const next = await send({
       action: "submit-step",
@@ -101,10 +111,14 @@ function StepCard(
       {!done && (
         <fieldset
           className={styles.fields}
-          disabled={busy || progress?.status !== "open"}
+          disabled={disabled}
         >
           <legend className={styles.legend}>문제 입력</legend>
-          <VerifyInput step={step} value={answer} onChange={setAnswer} />
+          {legacyInput && snapshot.self.role
+            ? <LegacyMissionInput step={step} role={snapshot.self.role}
+                value={typeof answer === "string" ? answer : ""}
+                onChange={setAnswer} disabled={disabled} />
+            : <VerifyInput step={step} value={answer} onChange={setAnswer} />}
           <label className="verify-field">
             <span>확인 방식</span>
             <select
@@ -147,7 +161,8 @@ function StepCard(
               </select>
             </label>
           )}
-          <button className="button primary full" type="submit">
+          <button className="button primary full" type="submit"
+            disabled={legacyInput && step.type === "choice" && !answer}>
             문제 제출 <Check size={17} />
           </button>
         </fieldset>

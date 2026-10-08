@@ -4,6 +4,7 @@ import { expect, type FrameLocator, type Page, test } from "@playwright/test";
 import type { V2Response } from "../../lib/game-snapshot";
 import {
   type Role,
+  type Step,
   ROLE_NAMES,
   ROLES,
 } from "../../supabase/functions/_shared/types";
@@ -18,6 +19,44 @@ function publicFixture(role: Role): V2Response {
     ),
     "utf8",
   )) as V2Response;
+}
+
+function legacyPublicFixture(role: Role): V2Response {
+  const fixture = publicFixture(role);
+  const mission = fixture.self.mission!;
+  const types: Record<Role, Step["type"]> = {
+    commander: "choice",
+    scout: "observation",
+    signal: "frequency",
+    cipher: "choice",
+  };
+  const step: (typeof mission.steps)[number] = {
+    id: `G-0${ROLES.indexOf(role) + 1}.legacy`,
+    type: types[role],
+    grading: "hash",
+    confirmed: false,
+    prompt: mission.steps[0].prompt,
+    sourceRequired: false,
+    maxLen: 300,
+    ...(types[role] === "choice"
+      ? {
+        choices: Array.from(
+          { length: role === "cipher" ? 7 : 3 },
+          (_, index) => `[합성] 화면 연습 선택지 ${index + 1}`,
+        ),
+      }
+      : {}),
+  };
+  fixture.course.demo = true;
+  fixture.game.demo = true;
+  mission.steps = [step];
+  fixture.self.step_progress = { [step.id]: { status: "open", attempts: 0 } };
+  fixture.self.clue = null;
+  delete fixture.self.transfer_clue;
+  fixture.self.hints = [];
+  fixture.self.explanations = {};
+  fixture.self.rewards = {};
+  return fixture;
 }
 
 type Surface = Page | FrameLocator;
@@ -168,6 +207,96 @@ for (const role of ROLES) {
       actions.every((action) =>
         action === "get-game" || action === "get-stage"
       ),
+    ).toBe(true);
+  });
+}
+
+for (const role of ROLES) {
+  test(`공개 legacy ${role} 입력 UI는 360·390·430px에서 넘치지 않는다`, async ({ page }) => {
+    const fixture = legacyPublicFixture(role);
+    const step = fixture.self.mission!.steps[0];
+    expect(fixture.self.digit).toBeNull();
+    expect(fixture.self.transfer_clue).toBeUndefined();
+    await page.setViewportSize({ width: 360, height: 844 });
+    const actions = await renderFixture(page, fixture);
+    const card = page.getByTestId(`mission-v2-step-${step.id}`);
+
+    for (const width of [360, 390, 430]) {
+      await test.step(`${width}px`, async () => {
+        await page.setViewportSize({ width, height: 844 });
+        const input = role === "signal"
+          ? card.locator(".radio-panel")
+          : role === "scout"
+          ? card.locator(".field-label input")
+          : card.locator(".choices");
+        await input.scrollIntoViewIfNeeded();
+        await expect(input).toBeVisible();
+        await expect(input).toBeInViewport();
+        await expect(card.locator(".calendar")).toHaveCount(
+          role === "cipher" ? 1 : 0,
+        );
+        await expect(card.locator(".radio-panel")).toHaveCount(
+          role === "signal" ? 1 : 0,
+        );
+        if (role === "commander" || role === "cipher") {
+          const choices = card.locator(".choices button");
+          await expect(choices).toHaveCount(step.choices!.length);
+          for (const choice of await choices.all()) {
+            await expect(choice).toHaveAttribute("type", "button");
+          }
+          await choices.first().click();
+          await expect(choices.first()).toHaveAttribute("aria-pressed", "true");
+        }
+        if (role === "signal") {
+          await expect(card.getByRole("slider")).toBeVisible();
+          await expect(card.getByRole("textbox", {
+            name: "주파수 직접 입력",
+            exact: true,
+          })).toBeVisible();
+        }
+        if (role === "cipher") {
+          await card.locator(".calendar").scrollIntoViewIfNeeded();
+          await expect(card.locator(".calendar")).toBeInViewport();
+        }
+        await expectNoHorizontalOverflow(page);
+        await expect(page.getByTestId("mission-v2-private-digit")).toHaveCount(0);
+        await expect(page.getByTestId("mission-v2-transfer-clue")).toHaveCount(0);
+
+        if (
+          process.env.CAPTURE_PUBLIC_FIXTURE === "1" && width === 390 &&
+          (role === "signal" || role === "cipher")
+        ) {
+          const folder = new URL("../../.demo-data/", import.meta.url);
+          mkdirSync(folder, { recursive: true });
+          await page.screenshot({
+            path: fileURLToPath(new URL(
+              role === "signal"
+                ? "legacy-radio-public.png"
+                : "legacy-calendar-public.png",
+              folder,
+            )),
+            animations: "disabled",
+          });
+        }
+
+        const submit = card.getByRole("button", {
+          name: "문제 제출",
+          exact: true,
+        });
+        await submit.scrollIntoViewIfNeeded();
+        await expect(submit).toBeInViewport();
+        const report = page.getByRole("button", {
+          name: "조사 결과 보고",
+          exact: true,
+        });
+        await report.scrollIntoViewIfNeeded();
+        await expect(report).toBeInViewport();
+        await expectNoHorizontalOverflow(page);
+      });
+    }
+    expect(actions).toContain("get-stage");
+    expect(
+      actions.every((action) => action === "get-game" || action === "get-stage"),
     ).toBe(true);
   });
 }

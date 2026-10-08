@@ -1,6 +1,7 @@
 "use client";
 import {
   useEffect,
+  useId,
   useLayoutEffect,
   useRef,
   type CSSProperties,
@@ -70,6 +71,19 @@ const reducedMotion = () =>
   typeof matchMedia === "function" &&
   matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+const FREQUENCY_PATTERN = "\\d{1,3}(\\.\\d)?";
+const strictFrequency = new RegExp(`^(?:${FREQUENCY_PATTERN})$`);
+
+function frequencyError(value: string, min: number, max: number) {
+  if (!value) return "주파수를 입력하라.";
+  if (!strictFrequency.test(value))
+    return "숫자로 입력하고 소수점은 한 자리까지만 사용하라.";
+  const frequency = Number(value);
+  return frequency < min || frequency > max
+    ? `${min}~${max} MHz 범위로 입력하라.`
+    : "";
+}
+
 /**
  * 통신원 주파수 조절 장치: 큰 회전 다이얼(주 조작) + ±0.1 버튼 + 직접 입력.
  * 화면 반응(파형 흔들림·바늘·불빛)은 사용자의 조작에만 반응한다. 정답과 무관하다.
@@ -79,19 +93,34 @@ export function FrequencyTuner({
   onChange,
   min,
   max,
+  strictInput = false,
+  disabled = false,
 }: {
   /** 입력 칸의 글자 그대로("51.8"). 다이얼이 바꿀 때는 항상 소수 첫째 자리. */
   value: string;
   onChange: (text: string) => void;
   min: number;
   max: number;
+  /** v2: 입력한 글자를 그대로 보존하고 형식·범위를 검사한다. */
+  strictInput?: boolean;
+  disabled?: boolean;
 }) {
+  const id = useId();
+  const labelId = `${id}-label`,
+    helpId = `${id}-help`,
+    errorId = `${id}-error`;
   const minT = toTenths(min),
     maxT = toTenths(max);
-  // 직접 입력 중인 글자가 범위 안의 숫자가 아니면("5", "120", "") 다이얼은
-  // 마지막으로 맞춘 값에 머문다. 칸을 벗어날 때 범위 안으로 정리한다.
-  const lastValid = useRef(parseTenths(value, minT, maxT) ?? minT);
-  const t = tenthsInRange(value, minT, maxT) ?? lastValid.current;
+  const error = strictInput ? frequencyError(value, min, max) : "";
+  const validTenths = strictInput
+    ? error ? null : toTenths(Number(value))
+    : tenthsInRange(value, minT, maxT);
+  // 유효하지 않은 직접 입력 중에는 다이얼이 마지막 값에 머문다.
+  // v1만 blur에서 보정하며, strict 모드는 원문을 바꾸지 않는다.
+  const lastValid = useRef(strictInput
+    ? validTenths ?? minT
+    : parseTenths(value, minT, maxT) ?? minT);
+  const t = validTenths ?? lastValid.current;
   const cur = useRef(t);
   useLayoutEffect(() => {
     lastValid.current = t;
@@ -100,16 +129,25 @@ export function FrequencyTuner({
 
   const root = useRef<HTMLDivElement>(null),
     dial = useRef<HTMLDivElement>(null),
+    input = useRef<HTMLInputElement>(null),
     trace = useRef<SVGPathElement>(null);
   const scope = useScope(t, minT, maxT, root, trace);
+  useLayoutEffect(() => {
+    input.current?.setCustomValidity(error);
+  }, [error]);
 
   /** 사용자가 바꾼 값: 칸이 바뀌면 소리·진동을 한 번 낸다. */
   const set = (next: number) => {
-    if (next === cur.current) return;
+    if (disabled) return;
+    const moved = next !== cur.current;
+    const formatted = formatTenths(next);
+    if (!moved && (!strictInput || value === formatted)) return;
     cur.current = next;
-    onChange(formatTenths(next));
-    sound.tick();
-    buzz();
+    onChange(formatted);
+    if (moved) {
+      sound.tick();
+      buzz();
+    }
   };
 
   // ── 손가락·마우스로 돌리기 ──
@@ -121,6 +159,18 @@ export function FrequencyTuner({
     angle: number;
     last: number | null;
   } | null>(null);
+  useLayoutEffect(() => {
+    if (!disabled) return;
+    const el = dial.current,
+      active = drag.current;
+    drag.current = null;
+    if (el) {
+      delete el.dataset.dragging;
+      if (active && el.hasPointerCapture(active.id))
+        el.releasePointerCapture(active.id);
+    }
+    sound.quiet();
+  }, [disabled]);
   const where = (e: { clientX: number; clientY: number }) => {
     const d = drag.current!;
     const dx = e.clientX - d.cx,
@@ -129,6 +179,7 @@ export function FrequencyTuner({
     return Math.hypot(dx, dy) < d.dead ? null : pointerAngle(dx, dy);
   };
   const onPointerDown = (e: PointerEvent<HTMLDivElement>) => {
+    if (disabled) return;
     if (e.pointerType === "mouse" && e.button !== 0) return;
     const el = e.currentTarget,
       box = el.getBoundingClientRect();
@@ -148,6 +199,7 @@ export function FrequencyTuner({
     sound.tuning(true);
   };
   const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
+    if (disabled) return;
     const d = drag.current;
     if (!d || d.id !== e.pointerId) return;
     const a = where(e);
@@ -163,7 +215,8 @@ export function FrequencyTuner({
     if (drag.current?.id !== e.pointerId) return;
     drag.current = null;
     delete e.currentTarget.dataset.dragging;
-    sound.tuning(false);
+    if (disabled) sound.quiet();
+    else sound.tuning(false);
   };
 
   // ── 마우스 휠: React의 onWheel은 passive라 기본 스크롤을 막지 못해 직접 붙인다 ──
@@ -176,6 +229,7 @@ export function FrequencyTuner({
     if (!el) return;
     let rest = 0;
     const onWheel = (e: WheelEvent) => {
+      if (disabled) return;
       e.preventDefault();
       const delta =
         Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
@@ -188,12 +242,13 @@ export function FrequencyTuner({
     };
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => el.removeEventListener("wheel", onWheel);
-  }, [minT, maxT]);
+  }, [minT, maxT, disabled]);
 
   // 돌리던 중에 화면이 바뀌어도 잡음이 남지 않게 한다.
   useEffect(() => () => sound.quiet(), []);
 
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (disabled) return;
     const next = keyStep(e.key, cur.current, minT, maxT);
     if (next === null) return;
     e.preventDefault();
@@ -215,17 +270,31 @@ export function FrequencyTuner({
           <Radio size={20} />
         </span>
         <input
+          ref={input}
           className={s.lcd}
+          data-frequency-input=""
           aria-label="주파수 직접 입력"
-          type="number"
+          aria-describedby={strictInput ? helpId : undefined}
+          aria-invalid={strictInput ? !!error : undefined}
+          aria-errormessage={error ? errorId : undefined}
+          type={strictInput ? "text" : "number"}
           inputMode="decimal"
+          required={strictInput}
+          pattern={strictInput ? FREQUENCY_PATTERN : undefined}
+          disabled={disabled}
           min={min}
           max={max}
           step="0.1"
           value={value}
-          onChange={(e) => onChange(e.target.value)}
-          // 직접 입력은 칸을 벗어날 때 범위 안 소수 첫째 자리로 정리한다.
-          onBlur={() => {
+          onChange={(e) => {
+            if (disabled) return;
+            e.currentTarget.setCustomValidity(strictInput
+              ? frequencyError(e.target.value, min, max) : "");
+            onChange(e.target.value);
+          }}
+          // 기존 v1만 칸을 벗어날 때 범위 안 소수 첫째 자리로 정리한다.
+          onBlur={strictInput ? undefined : () => {
+            if (disabled) return;
             const next = formatTenths(
               parseTenths(value, minT, maxT) ?? lastValid.current,
             );
@@ -257,7 +326,7 @@ export function FrequencyTuner({
       </div>
 
       <div className={s.head}>
-        <span id="frequency-label">주파수 조절</span>
+        <span id={labelId}>주파수 조절</span>
         <small>돌려서 맞추기 · 한 바퀴 {MHZ_PER_TURN} MHz</small>
       </div>
       <div className={s.row}>
@@ -266,16 +335,18 @@ export function FrequencyTuner({
           className={`button secondary ${s.nudge}`}
           aria-label="주파수 0.1 낮추기"
           data-sound="none"
+          disabled={disabled}
           onClick={() => set(Math.max(minT, cur.current - 1))}
         >
           <Minus size={20} aria-hidden="true" />
         </button>
         <div
           ref={dial}
-          id="frequency"
+          id={`${id}-dial`}
           role="slider"
-          tabIndex={0}
-          aria-labelledby="frequency-label"
+          tabIndex={disabled ? -1 : 0}
+          aria-labelledby={labelId}
+          aria-disabled={disabled}
           aria-valuemin={min}
           aria-valuemax={max}
           aria-valuenow={t / 10}
@@ -303,11 +374,18 @@ export function FrequencyTuner({
           className={`button secondary ${s.nudge}`}
           aria-label="주파수 0.1 높이기"
           data-sound="none"
+          disabled={disabled}
           onClick={() => set(Math.min(maxT, cur.current + 1))}
         >
           <Plus size={20} aria-hidden="true" />
         </button>
       </div>
+      {strictInput && (
+        <div className={s.validation}>
+          <p id={helpId}>{min}~{max} MHz 범위에서 숫자를 0.1 단위로 입력하라. 소수점은 한 자리까지 허용한다.</p>
+          {error && <p id={errorId} className={s.error}>{error}</p>}
+        </div>
+      )}
     </div>
   );
 }

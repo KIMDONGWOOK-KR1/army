@@ -1,12 +1,13 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Check, LockKeyhole, ArrowRight, CalendarDays } from "lucide-react";
+import { Check, LockKeyhole, ArrowRight } from "lucide-react";
 import {
   ROLE_NAMES,
   type Snapshot,
   type Command,
 } from "@/supabase/functions/_shared/types";
 import { FrequencyTuner } from "./frequency-tuner";
+import { MissionCalendar } from "./mission-calendar";
 import { formatTenths, glide, toTenths } from "./dial-math";
 export function Mission({
   snapshot,
@@ -82,26 +83,7 @@ export function Mission({
       <h3>{clue.title}</h3>
       <p className="question">{clue.question}</p>
       <div className="clue-hint">{clue.hint}</div>
-      {clue.type === "calendar" && (
-        <div className="calendar">
-          <div>
-            <CalendarDays size={17} /> 1980년 5월
-          </div>
-          <div className="calendar-grid">
-            {["일", "월", "화", "수", "목", "금", "토"].map((d) => (
-              <b key={d}>{d}</b>
-            ))}
-            {Array.from({ length: 4 }, (_, i) => (
-              <span key={`blank${i}`} />
-            ))}
-            {Array.from({ length: 31 }, (_, i) => (
-              <span key={i} className={i === 17 ? "marked" : ""}>
-                {i + 1}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
+      {clue.type === "calendar" && <MissionCalendar />}
       {clue.type === "frequency" ? (
         <FrequencyTuner
           value={frequency}

@@ -76,7 +76,7 @@
   font-size: 14px;
   font-weight: 600;
 }
-.root input:not([type=checkbox]),
+.root input:not([type=checkbox]):not([data-frequency-input]),
 .root select,
 .root textarea {
   width: 100%;
@@ -101,7 +101,7 @@
   margin: 11px 8px 11px 0;
   accent-color: #49664c;
 }
-.root input:focus-visible,
+.root input:not([data-frequency-input]):focus-visible,
 .root select:focus-visible,
 .root textarea:focus-visible {
   outline: 2px solid #49664c;
