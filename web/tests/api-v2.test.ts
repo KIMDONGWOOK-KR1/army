@@ -82,6 +82,26 @@ function contract(actual: unknown, fixture: unknown, path = "") {
   if (path === ".game.swap.window_ends_at" && actual === null) return;
   expect(typeof actual, path).toBe(typeof fixture);
 }
+it("keeps solo v1 rehearsal separate from four-person rooms on a v2 dev server", async () => {
+  const session = crypto.randomUUID();
+  const demo = await request(session, { action: "create-demo", nickname: "시연1" });
+  expect(demo.status).toBe(200);
+  expect("stage" in demo.body).toBe(false);
+  const id = demo.body.game.id;
+  const changed = await request(session, { action: "demo-role", game_id: id, demo_role: "cipher" });
+  expect(changed.status).toBe(200);
+  expect(changed.body.self.role).toBe("cipher");
+  const jumped = await request(session, { action: "demo-jump", game_id: id, stage: "lock", site_id: "gate" });
+  expect(jumped.status).toBe(200);
+  expect(jumped.body.game.report_mask.every(Boolean)).toBe(true);
+  const normal = await request(session, { action: "create-game", nickname: "연습1" });
+  expect(normal.status).toBe(200);
+  expect("stage" in normal.body).toBe(true);
+  expect(normal.body.game.members.length).toBe(1);
+  const forbidden = await request(session, { action: "demo-jump", game_id: normal.body.game.id, stage: "lock", site_id: "gate" });
+  expect(forbidden.status).not.toBe(200);
+});
+
 it("compares real POST/get-stage Snapshots with all 12 FE fixtures and persists four-device progress", async () => {
   const sessions = Array.from({ length: 4 }, () => crypto.randomUUID());
   const created = await request(sessions[0], {

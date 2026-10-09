@@ -1,0 +1,56 @@
+import type { CourseV2, GameV2State, Role } from "./types.ts";
+
+/** Completed public rewards plus the authenticated role's records only. */
+export function projectJournalV2(
+  course: CourseV2,
+  state: GameV2State,
+  role: Role | null,
+) {
+  if (!role) return [];
+  return course.stages.flatMap((stage) => {
+    const completed = state.completed[stage.id];
+    if (!completed) return [];
+    const progress = state.progress[stage.id]?.[role];
+    const secret = course.private.stages[stage.id];
+    return [{
+      stage_id: stage.id,
+      name: stage.sacho?.name ?? stage.name,
+      completed_at: completed.at,
+      method: completed.method,
+      sections: [...(stage.sacho?.sections ?? [])],
+      entries: (stage.roles[role]?.steps ?? []).flatMap((step) => {
+        const p = progress?.steps[step.id];
+        if (!p || !["done", "explained"].includes(p.status)) return [];
+        const fields = step.fields?.map((f) => f.id) ?? ["text"];
+        return [{
+          step_id: step.id,
+          prompt: step.prompt,
+          verified: p.status === "done",
+          method: p.method ?? "explained",
+          ...(p.record
+            ? {
+              record: Object.fromEntries(
+                Object.entries(p.record)
+                  .filter(([key]) => fields.includes(key)),
+              ),
+            }
+            : {}),
+          ...(p.source
+            ? {
+              source: {
+                text: p.source.text,
+                ...(p.source.source_id
+                  ? { source_id: p.source.source_id }
+                  : {}),
+              },
+            }
+            : {}),
+          explanation: secret?.steps[step.id]?.explanation ?? "",
+          ...(p.status === "done" && secret?.steps[step.id]?.reward
+            ? { reward: secret.steps[step.id].reward }
+            : {}),
+        }];
+      }),
+    }];
+  });
+}

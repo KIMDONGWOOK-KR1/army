@@ -32,7 +32,13 @@ type Team = {
 async function clickAction(page: Page, button: Locator, action: string) {
   return test.step(action, async () => {
     await page.bringToFront();
-    const [result] = await Promise.all([
+    let dispatched = false;
+    const observe = (r: import("@playwright/test").Request) => {
+      if (r.url().endsWith("/api/game") && r.method() === "POST" &&
+        r.postDataJSON()?.action === action) dispatched = true;
+    };
+    page.on("request", observe);
+    const [result, clicked] = await Promise.allSettled([
       page.waitForResponse((res) => {
         if (!res.url().endsWith("/api/game") || res.request().method() !== "POST") {
           return false;
@@ -41,10 +47,26 @@ async function clickAction(page: Page, button: Locator, action: string) {
       }),
       // These SPA buttons do not navigate. Wait for their actual API response
       // instead of Chromium's unrelated scheduled-navigation signal.
-      button.click({ noWaitAfter: true }),
+      button.click({ noWaitAfter: true, timeout: 10000 }),
     ]);
-    expect(result.status(), `${action} HTTP status`).toBe(200);
-    return (await result.json()) as Reply;
+    page.off("request", observe);
+    if (result.status !== "fulfilled" || clicked.status !== "fulfilled") {
+      const state = await page.evaluate(() => ({
+        scene: document.querySelector("[data-scene]")?.getAttribute("data-scene"),
+        focused: document.hasFocus(),
+        overlay: !!document.querySelector(".stop-screen, .narration, .game-dialog"),
+        alert: !!document.querySelector(".error-banner"),
+      }));
+      const clickFailure = clicked.status === "rejected"
+        ? ["not stable", "intercepts pointer", "not enabled", "not visible"].filter(s => String(clicked.reason).includes(s)).join(",")
+        : "none";
+      // The arrival locator contains only a fixed public button label, never an answer.
+      const arrivalDetails = action === "report-arrival" && clicked.status === "rejected"
+        ? String(clicked.reason) : "";
+      throw new Error(`${action}: dispatched=${dispatched}, clicked=${clicked.status}, clickFailure=${clickFailure}, state=${JSON.stringify(state)} ${arrivalDetails}`);
+    }
+    expect(result.value.status(), `${action} HTTP status`).toBe(200);
+    return (await result.value.json()) as Reply;
   });
 }
 
@@ -266,6 +288,9 @@ async function verifyPrivacy(team: Team) {
   for (const role of ROLES) {
     const page = team.roles[role];
     const view = await current(page, team.id);
+    if (view.self.reported) {
+      await page.getByRole("button", { name: "내 조사와 해설 확인", exact: true }).click({ noWaitAfter: true });
+    }
     const ownIds = gate.roles[role]!.steps.map((step) => step.id).sort();
     expect(Object.keys(view.self.step_progress).sort()).toEqual(ownIds);
     expect(view.self.mission!.steps.map((step) => step.id).sort()).toEqual(
@@ -288,6 +313,9 @@ async function verifyPrivacy(team: Team) {
       await expect(
         page.getByTestId(`mission-v2-step-${gate.roles[other]!.steps[0].id}`),
       ).toHaveCount(0);
+    }
+    if (view.self.reported) {
+      await page.getByRole("button", { name: "내 숫자 확인", exact: true }).click({ noWaitAfter: true });
     }
   }
   await verifyStorage(team);
@@ -517,6 +545,8 @@ test("main UI private role hints retry once and require all confirmations before
     });
     await expect(restore).toBeDisabled();
     await commander.getByRole("button", { name: "내 조사와 해설 확인", exact: true }).click();
+    for (const role of ["scout", "signal", "cipher"] as const)
+      await team.roles[role].getByRole("button", { name: "내 조사와 해설 확인", exact: true }).click();
     for (const role of ["commander", "scout", "signal"] as const) {
       await clickAction(
         team.roles[role],
@@ -568,6 +598,7 @@ test("main UI private role hints retry once and require all confirmations before
     await expect(commander.getByTestId("stage-v2-completed")).toContainText("해설 확인 후 복원");
     await commander.reload();
     await expect(commander.getByTestId("stage-v2-completed")).toBeVisible();
+    await expect(commander.getByTestId("stage-v2-completed")).toContainText("해설 확인 후 복원");
     expect((await current(commander, team.id)).game.confirm_mask.every(Boolean))
       .toBe(true);
     await verifyStorage(team);

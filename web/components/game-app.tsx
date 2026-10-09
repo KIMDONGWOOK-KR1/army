@@ -30,9 +30,11 @@ import {
   saveHandoff,
   takeHandoff,
   type Handoff,
+  type Pane,
 } from "./view-handoff";
 import { Mission, LockPanel } from "./mission";
 import { MissionV2, LockPanelV2 } from "./mission-v2";
+import { JournalV2 } from "./journal-v2";
 import { isV2Response, type GameResponse } from "@/lib/game-snapshot";
 import { SceneArt } from "./scene-art";
 import { GameDialog } from "./game-dialog";
@@ -210,7 +212,7 @@ export default function GameApp({
   const ownArrival = !!v2?.self.role &&
     v2.game.arrival_mask[ROLES.indexOf(v2.self.role)];
   // Keep the completion receipt visible across polling while this view is mounted.
-  // get-stage does not expose the completion method; never infer it from read flags.
+  // Older Edge responses lack game.completion; never infer it from read flags.
   const [completionNotice, setCompletionNotice] = useState<{
     gameId: string; stageId: string; label: string;
   } | null>(null);
@@ -228,6 +230,8 @@ export default function GameApp({
   const send = useCallback(async (command: Command) => {
     const next = await cueSend(command);
     rememberCompletion(next);
+    if (command.action === "submit-report" && next && isV2Response(next) && next.self.reported)
+      setPane("report");
     return next;
   }, [cueSend, rememberCompletion]);
   const retry = useCallback(async () => {
@@ -246,13 +250,13 @@ export default function GameApp({
     }
   }, [v2?.game.id, v2?.stage.id, v2?.game.site_phase, v2?.result?.label]);
   const completionLabel = v2 && completionNotice?.gameId === v2.game.id &&
-    completionNotice.stageId === v2.stage.id ? completionNotice.label : null;
+    completionNotice.stageId === v2.stage.id ? completionNotice.label : v2?.game.completion?.label ?? null;
   const [entry, setEntry] = useState<"create" | "join" | null>(
       joinCode ? "join" : null,
     ),
     [nickname, setNickname] = useState(""),
     [code, setCode] = useState(joinCode),
-    [pane, setPane] = useState<"report" | "lock" | "waiting">("report"),
+    [pane, setPane] = useState<Pane>("report"),
     [modal, setModal] = useState<
       "menu" | "team" | "records" | "guide" | "invite" | "scenes" | null
     >(null),
@@ -429,11 +433,13 @@ export default function GameApp({
                 : s.game.site_phase === "travel"
                   ? "travel"
                   : s.game.site_phase === "cleared"
-                    ? "sacho"
+                    ? v2 && pane === "summary" ? "done" : "sacho"
                     : v2
                       ? pane === "lock" && s.self.role === "commander"
                         ? "lock"
-                        : "mission"
+                        : !s.self.reported || pane === "mission"
+                          ? "mission"
+                          : pane === "waiting" ? "waiting" : "report"
                     : s.self.reported
                       ? pane === "lock" && s.self.role !== "commander"
                         ? "report"
@@ -449,7 +455,7 @@ export default function GameApp({
       : 0;
   const acquired = s?.game.acquired_sites.length ?? 0,
     elapsed = s?.game.started_at
-      ? Math.floor(((s.game.ended_at ?? now) - s.game.started_at) / 60000)
+      ? Math.floor(((s.game.ended_at ?? v2?.game.completion?.at ?? now) - s.game.started_at) / 60000)
       : 0;
   const sceneKey = `${scene}:${site?.id ?? ""}:${role ?? ""}`;
   const gameId = s?.game.id;
@@ -485,6 +491,8 @@ export default function GameApp({
   useEffect(() => {
     focusHeading();
   }, [sceneKey]);
+  const legacyGate = !!v2?.course.demo && v2.stage.id === "gate" &&
+    v2.stage.sacho?.id === "legacy-sacho-gate";
   const narrationKey = !s
     ? null
     : scene === "sacho"
@@ -492,12 +500,14 @@ export default function GameApp({
       : ["mission", "report", "lock", "waiting"].includes(scene)
         ? `arrive:${site!.id}`
         : ["briefing", "equip", "travel"].includes(scene)
-          ? "intro"
+          ? v2 && !legacyGate ? `intro:${scene}` : "intro"
           : null;
   const narrationTrigger = scene === "sacho" ? "stage-complete" :
     scene === "briefing" ? "role-reveal" : scene === "equip" ? "ready" :
     ARRIVAL_SCENES.includes(scene) ? "enter" : null;
-  const stageNarration = v2?.stage.narration.filter((line) =>
+  const stageNarration = legacyGate ? narrationLines(
+    scene === "sacho" ? "sacho" : ARRIVAL_SCENES.includes(scene) ? "arrive" : "intro", site,
+  ) : v2?.stage.narration.filter((line) =>
     line.trigger === narrationTrigger
   ).map((line) => line.text) ?? [];
   const [narration, setNarration] = useState<string | null>(null);
@@ -1157,7 +1167,7 @@ export default function GameApp({
                 </span>
               </div>
               <div className="mission-stage game-window">
-                {v2 ? <MissionV2 snapshot={v2} busy={busy} now={now} send={send} /> : <Mission
+                {v2 ? <MissionV2 snapshot={v2} busy={busy} now={now} send={send} onShowDigit={() => setPane("report")} /> : <Mission
                   snapshot={s!}
                   busy={busy}
                   send={send}
@@ -1181,7 +1191,7 @@ export default function GameApp({
                 <h1 data-scene-heading tabIndex={-1}>
                   기억의 숫자를 찾았다.
                 </h1>
-                <div className="private-digit">{s!.self.digit}</div>
+                <div className="private-digit" data-testid={v2 ? "mission-v2-private-digit" : undefined}>{s!.self.digit}</div>
                 {role && <RoleBadge role={role} />}
                 <p>이 숫자는 당신의 기기에만 보인다.</p>
               </div>
@@ -1203,6 +1213,9 @@ export default function GameApp({
                   {role === "commander" ? "팀 자물쇠로" : "팀원 기다리기"}
                   <ArrowRight size={18} />
                 </button>
+                {v2 && <button className="button secondary" onClick={() => setPane("mission")}>
+                  내 조사와 해설 확인 <BookOpen size={17} />
+                </button>}
               </section>
             </>
           ) : scene === "lock" ? (
@@ -1217,7 +1230,7 @@ export default function GameApp({
                 </span>
               </div>
               <div className="lock-stage game-window">
-                {v2 ? <LockPanelV2 snapshot={v2} busy={busy} now={now} send={send} /> : <LockPanel
+                {v2 ? <LockPanelV2 snapshot={v2} busy={busy} now={now} send={send} draft={lockDraft} /> : <LockPanel
                   snapshot={s!}
                   busy={busy}
                   send={send}
@@ -1235,7 +1248,7 @@ export default function GameApp({
                 <button
                   className="button secondary"
                   disabled={!!v2 && busy}
-                  onClick={() => setPane("report")}
+                  onClick={() => setPane(v2 ? "mission" : "report")}
                 >
                   {v2 ? "내 조사와 해설 확인" : "내 숫자 확인"}
                   <ScrollText size={17} />
@@ -1267,6 +1280,9 @@ export default function GameApp({
                 >
                   내 숫자 다시 보기
                 </button>
+                {v2 && <button className="button secondary" onClick={() => setPane("mission")}>
+                  내 조사와 해설 확인 <BookOpen size={17} />
+                </button>}
               </section>
             </>
           ) : scene === "sacho" ? (
@@ -1277,7 +1293,7 @@ export default function GameApp({
                 <h1 data-scene-heading tabIndex={-1}>
                   {site!.sacho.name}
                 </h1>
-                <p>{v2 ? "정문 단계 확인 완료" : site!.sacho.body}</p>
+                <p>{site!.sacho.body || (v2 ? "정문 단계 확인 완료" : "")}</p>
                 {v2 && completionLabel && <p>{completionLabel}</p>}
                 <div className="sacho-reward">
                   <Check size={17} /> 사초를 기록첩에 보관했다.
@@ -1288,9 +1304,11 @@ export default function GameApp({
                   {v2 ? "함께 복원한 정문 기록을 보관했다." : "다음 거점에 또 하나의 기억이 기다린다."}
                 </p>
                 {v2 ? (
-                  <button className="button secondary" onClick={() => setModal("records")}>
+                  <><button className="button primary" onClick={() => setPane("summary")}>
+                    정문 결과 보기 <ArrowRight size={18} />
+                  </button><button className="button secondary" onClick={() => setModal("records")}>
                     수집한 기록 읽기 <BookOpen size={18} />
-                  </button>
+                  </button></>
                 ) : role === "commander" ? (
                   <button
                     className="button primary"
@@ -1315,7 +1333,7 @@ export default function GameApp({
           ) : scene === "done" ? (
             <>
               <div className="completion">
-                <span className="eyebrow">작전 완료 · 전남대편</span>
+                <span className="eyebrow">{v2 ? "정문 확인 완료 · 전남대편" : "작전 완료 · 전남대편"}</span>
                 <h1 data-scene-heading tabIndex={-1}>
                   오늘의 실록 한 장을
                   <br />
@@ -1324,7 +1342,7 @@ export default function GameApp({
                 <div className="collected-seals">
                   {s!.game.acquired_sites.map((p) => (
                     <span key={p.id}>
-                      {p.sacho.char}
+                      {p.sacho.char || (v2 ? "記" : "")}
                       <small>{p.sacho.name}</small>
                     </span>
                   ))}
@@ -1334,9 +1352,10 @@ export default function GameApp({
                   <br />네 사람의 자리에서 다시 이었다.
                 </p>
                 <p className="completion-next">
-                  민주길의 기록은 여기서 끝나지 않는다. 박관현의 언덕, 윤상원의
-                  숲, 김남주의 뜰이 다음 사초를 기다린다.
+                  {v2 ? "정문의 사초를 복원했다. 다음 거점은 준비 중이며, 이번 확인은 여기까지다."
+                    : "민주길의 기록은 여기서 끝나지 않는다. 박관현의 언덕, 윤상원의 숲, 김남주의 뜰이 다음 사초를 기다린다."}
                 </p>
+                {v2 && completionLabel && <p>{completionLabel}</p>}
                 <div className="completion-score">
                   <span>
                     <b>{s!.game.score}</b> 기록 점수
@@ -1350,6 +1369,9 @@ export default function GameApp({
                 </div>
               </div>
               <section className="game-console">
+                {v2 && <button className="button secondary" onClick={() => setPane("report")}>
+                  사초로 돌아가기
+                </button>}
                 <button className="button secondary" onClick={home}>
                   새 작전 준비하기
                 </button>
@@ -1370,7 +1392,7 @@ export default function GameApp({
             site={site}
             total={s!.course.sites.length}
             auto={auto && !v2}
-            description={v2 ? "주변을 안전하게 살피고, 각자의 기록을 확인하라." : undefined}
+            description={v2 && !legacyGate ? "주변을 안전하게 살피고, 각자의 기록을 확인하라." : undefined}
             onClose={closeStop}
           />
         )}
@@ -1540,7 +1562,7 @@ export default function GameApp({
               <p>방장은 보직 공개를, 지휘관은 출발과 자물쇠를 담당한다.</p>
             </>
           ) : modal === "records" && s ? (
-            <div className="record-grid">
+            v2 ? <JournalV2 snapshot={v2} /> : <div className="record-grid">
               {s.course.sites.map((p) => {
                 const got = s.game.acquired_sites.some((a) => a.id === p.id);
                 return (

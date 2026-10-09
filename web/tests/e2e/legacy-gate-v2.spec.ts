@@ -11,16 +11,31 @@ type Reply = SnapshotV2 & { result?: Record<string, unknown> };
 
 async function clickAction(page: Page, button: Locator, action: string) {
   await page.bringToFront();
-  const [response] = await Promise.all([
+  let dispatched = false;
+  const observe = (request: import("@playwright/test").Request) => {
+    if (request.url().endsWith("/api/game") && request.method() === "POST" &&
+      request.postDataJSON()?.action === action) dispatched = true;
+  };
+  page.on("request", observe);
+  const [response, clicked] = await Promise.allSettled([
     page.waitForResponse((candidate) =>
       candidate.url().endsWith("/api/game") &&
       candidate.request().method() === "POST" &&
       candidate.request().postDataJSON()?.action === action
     ),
-    button.click({ noWaitAfter: true }),
+    button.click({ noWaitAfter: true, timeout: 10000 }),
   ]);
-  expect(response.status() === 200, `${action} succeeded`).toBe(true);
-  return await response.json() as Reply;
+  page.off("request", observe);
+  if (response.status !== "fulfilled" || clicked.status !== "fulfilled") {
+    const state = await page.evaluate(() => ({
+      scene: document.querySelector("[data-scene]")?.getAttribute("data-scene"),
+      overlay: !!document.querySelector(".stop-screen, .narration, .game-dialog"),
+      alert: !!document.querySelector(".error-banner"),
+    }));
+    throw new Error(`${action}: dispatched=${dispatched}, clicked=${clicked.status}, state=${JSON.stringify(state)}`);
+  }
+  expect(response.value.status() === 200, `${action} succeeded`).toBe(true);
+  return await response.value.json() as Reply;
 }
 
 async function privateInput(operation: () => Promise<unknown>) {
@@ -283,6 +298,11 @@ test("four sessions complete the migrated v1 gate through v2 solve, separate rep
       const reported = await clickAction(page, report, "submit-report");
       expect(reported.self.reported === true && Number.isInteger(reported.self.digit)).toBe(true);
       digits[role] = reported.self.digit!;
+      await expect(page.locator('[data-scene="report"]')).toBeVisible();
+      await expect(page.getByTestId("mission-v2-private-digit")).toBeVisible();
+      await page.getByRole("button", { name: "내 조사와 해설 확인", exact: true }).click({ noWaitAfter: true });
+      await expect(page.locator('[data-scene="mission"]')).toBeVisible();
+      await page.getByRole("button", { name: "내 숫자 확인", exact: true }).click({ noWaitAfter: true });
       const publicText = JSON.stringify({ game: reported.game, stage: reported.stage, course: reported.course });
       expect(/answerHash|transfer_clue|"digit"\s*:/.test(publicText)).toBe(false);
     }
@@ -297,6 +317,14 @@ test("four sessions complete the migrated v1 gate through v2 solve, separate rep
       }).fill(String(digits[role])));
     }
     const lock = commander.getByRole("button", { name: "자물쇠 확인", exact: true });
+    await commander.getByRole("button", { name: "내 조사와 해설 확인", exact: true }).click({ noWaitAfter: true });
+    await expect(commander.locator('[data-scene="mission"]')).toBeVisible();
+    await commander.getByRole("button", { name: "팀 자물쇠로", exact: true }).click({ noWaitAfter: true });
+    for (const role of order) {
+      expect((await commander.getByRole("textbox", {
+        name: `${ROLE_NAMES[role]} 잠금 숫자`, exact: true,
+      }).inputValue()) === String(digits[role]), "lock draft survives in-memory navigation").toBe(true);
+    }
     await expect(lock).toBeEnabled();
     const completed = await clickAction(commander, lock, "open-lock");
     expect(completed.result?.opened === true).toBe(true);
@@ -316,6 +344,12 @@ test("four sessions complete the migrated v1 gate through v2 solve, separate rep
     }
     await commander.reload();
     await expect(commander.getByTestId("stage-v2-completed")).toBeVisible();
+    expect((await commander.getByTestId("stage-v2-completed").textContent())?.includes(input.content.stages[0].sacho!.body!)).toBe(true);
+    await commander.getByRole("button", { name: "정문 결과 보기", exact: true }).click({ noWaitAfter: true });
+    await expect(commander.locator('[data-scene="done"]')).toContainText("정문 확인 완료");
+    await commander.getByRole("button", { name: "수집한 기록 읽기", exact: true }).click({ noWaitAfter: true });
+    await expect(commander.getByTestId("journal-v2")).toContainText("내 조사 기록");
+    expect((await commander.getByTestId("journal-v2").textContent())?.includes(input.content.stages[0].sacho!.body!)).toBe(true);
     expect(failedPage || privateLog).toBe(false);
   } finally {
     await Promise.all(contexts.map((context) => context.close()));

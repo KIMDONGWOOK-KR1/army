@@ -35,7 +35,7 @@ export default defineConfig({
     },
   },
   webServer: {
-    command: "npm run dev -- --webpack --port 3014",
+    command: "node node_modules/next/dist/bin/next dev --webpack --hostname 127.0.0.1 --port 3014",
     url: baseURL,
     reuseExistingServer: false,
     timeout: 120000,

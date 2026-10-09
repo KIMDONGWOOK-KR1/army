@@ -8,9 +8,14 @@ export function judgeCue(
   c: Pick<Command, "action">,
   next: Pick<Snapshot, "result" | "current_site"> | null,
 ): { name: SoundName; calm: boolean } | null {
-  if (!next?.result || !("ok" in next.result)) return null;
-  const ok = next.result.ok === true,
-    calm = !!next.current_site?.reverent;
+  if (!next?.result) return null;
+  const result = next.result, calm = !!next.current_site?.reverent;
+  if (c.action === "submit-step" && typeof result.accepted === "boolean")
+    return { name: result.accepted ? "clue-correct" : "clue-wrong", calm };
+  if (c.action === "open-after-explanation" && result.opened === true)
+    return { name: "lock-open", calm };
+  if (!("ok" in result)) return null;
+  const ok = result.ok === true;
   if (c.action === "submit-report")
     return { name: ok ? "clue-correct" : "clue-wrong", calm };
   if (c.action === "open-lock")

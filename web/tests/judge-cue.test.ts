@@ -8,6 +8,12 @@ const at = (reverent: boolean, ok: boolean) =>
   }) as unknown as Parameters<typeof judgeCue>[1];
 
 describe("판정 소리", () => {
+  it("v2 문제 판정과 해설 개방의 응답에 맞는 소리를 낸다", () => {
+    const response = (result: Record<string, unknown>) => ({ result, current_site: { reverent: true } }) as Parameters<typeof judgeCue>[1];
+    expect(judgeCue({ action: "submit-step" }, response({ accepted: true }))?.name).toBe("clue-correct");
+    expect(judgeCue({ action: "submit-step" }, response({ accepted: false }))?.name).toBe("clue-wrong");
+    expect(judgeCue({ action: "open-after-explanation" }, response({ opened: true }))).toEqual({ name: "lock-open", calm: true });
+  });
   it("추모 거점에서는 맞음·자물쇠 열림도 차분한 소리로 낸다", () => {
     expect(judgeCue({ action: "submit-report" }, at(true, true))).toEqual({
       name: "clue-correct",

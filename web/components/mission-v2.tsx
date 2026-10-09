@@ -195,7 +195,7 @@ function StepCard(
 }
 
 /** Only the caller's server-projected mission is rendered; no course/answer data is imported. */
-export function MissionV2({ snapshot, busy, send }: Props) {
+export function MissionV2({ snapshot, busy, send, onShowDigit }: Props & { onShowDigit?: () => void }) {
   const { self, game, stage } = snapshot;
   const { mission, role } = self;
   if (!mission || !role) return <p role="status">본인 조사를 불러오는 중…</p>;
@@ -261,7 +261,9 @@ export function MissionV2({ snapshot, busy, send }: Props) {
             <div className="digit-result">
               <span className="eyebrow">REPORT COMPLETE</span>
               <p>내 숫자를 지휘관에게 말로 전하라.</p>
-              {self.digit !== null && (
+              {onShowDigit ? <button type="button" className="button primary full" onClick={onShowDigit}>
+                내 숫자 확인 <Check size={17} />
+              </button> : self.digit !== null && (
                 <div
                   className="private-digit"
                   data-testid="mission-v2-private-digit"
@@ -362,8 +364,11 @@ export function MissionV2({ snapshot, busy, send }: Props) {
   );
 }
 
-export function LockPanelV2({ snapshot, busy, now, send }: Props) {
-  const { digits, setDigits } = useLockDraft(snapshot);
+export function LockPanelV2({ snapshot, busy, now, send, draft }: Props & {
+  draft?: Pick<ReturnType<typeof useLockDraft>, "digits" | "setDigits">;
+}) {
+  const localDraft = useLockDraft(snapshot);
+  const { digits, setDigits } = draft ?? localDraft;
   const [feedback, setFeedback] = useState("");
   const { game, stage, self } = snapshot;
   const lock = self.lock;

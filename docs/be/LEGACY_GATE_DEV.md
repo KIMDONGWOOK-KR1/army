@@ -18,15 +18,15 @@
 
 ## 현재 dev 적용 순서 (사용자 실행)
 
-PR-2 마이그레이션·Edge가 이미 적용된 환경 기준이다. 추가 마이그레이션이나 Edge 재배포는 필요 없다. **무전기·달력 등 기존 UI까지 표시하려면 이 UI 변경을 포함한 웹을 Vercel에 배포해야 한다.** 최초 콘텐츠 이관 커밋 `b5d6d5b`의 데이터 등록만으로 화면 디자인이 바뀌지는 않는다.
+PR-2 마이그레이션·Edge가 이미 적용된 환경 기준이다. 추가 마이그레이션·비밀값은 없다. 개인 기록첩·완료 방식 재조회를 위해 **이 브랜치의 Edge와 웹을 다시 배포한다.** 최초 콘텐츠 이관 커밋 `b5d6d5b`의 데이터 등록만으로 화면 디자인이 바뀌지는 않는다. 입력 UI만 바뀐 `1bea8bf` 이후 사초·기록첩 연결이 추가된 데 따른 절차다.
 
-`v1-gate` 코스를 이미 등록·활성화했다면 같은 코스를 계속 사용한다. UI 때문에 새로 seed하거나 salt를 변경하지 않는다. 아직 등록하지 않았다면 아래 절차로 새 데이터를 등록하고 활성 코스를 전환한다. 배포된 Edge는 저장된 v2 코스를 읽으며 변환 코드를 실행하지 않는다.
+기존 `v1-gate` 코스도 계속 읽을 수 있다. 기존 행에 없는 사초 본문·도장을 표시하려면 아래 절차로 **새 리비전**을 등록하고 활성 코스를 전환한다. 기존 행과 salt는 변경하지 않는다. 배포된 Edge는 저장된 v2 코스를 읽으며 변환 코드를 실행하지 않는다. 사초 본문은 기존 공개 보상만 옮기며 완료 전에 응답하지 않는다.
 
-아래 명령은 수정된 통합 작업 폴더의 `web`에서 PowerShell로 실행한다. `<DEV_PROJECT_REF>`는 기존 dev 프로젝트 ref로 바꾼다. 새 ID가 이미 있다면 r2 등 **새 리비전**을 사용한다. 키와 salt는 사용자가 마스킹 입력하고 공유하지 않는다.
+아래 명령은 수정된 통합 작업 폴더의 `web`에서 PowerShell로 실행한다. `<DEV_PROJECT_REF>`는 기존 dev 프로젝트 ref로 바꾼다. 예시 ID도 이미 있다면 r3 등 **새 리비전**을 사용한다. 키와 salt는 사용자가 마스킹 입력하고 공유하지 않는다.
 
 ```powershell
 $legacyDevRef = '<DEV_PROJECT_REF>'
-$legacyCourseId = 'jnu-demo-dev-v1gate-r1'
+$legacyCourseId = 'jnu-demo-dev-v1gate-r2'
 $env:NEXT_PUBLIC_SUPABASE_URL = "https://$legacyDevRef.supabase.co"
 try {
   $env:SUPABASE_SERVICE_ROLE_KEY = [System.Net.NetworkCredential]::new(
@@ -46,6 +46,7 @@ try {
 
 ```powershell
 npx.cmd supabase secrets set "ACTIVE_COURSE_ID=$legacyCourseId" --project-ref $legacyDevRef
+npx.cmd supabase functions deploy game --project-ref $legacyDevRef
 ```
 
 기존 ANSWER_SALT를 바꾸면 다른 코스의 검증도 실패할 수 있으므로 유지한다. 키·salt는 Vercel이나 공개 환경변수에 넣지 않는다.
@@ -66,7 +67,7 @@ npx.cmd supabase secrets set "ACTIVE_COURSE_ID=$legacyCourseId" --project-ref $l
 
 `NEXT_PUBLIC_BACKEND=local`, 새 `LOCAL_V2_COURSE_ID`, 임의의 32자 이상 로컬 `ANSWER_SALT`와 함께 **`LOCAL_V2_PRESET=v1-gate`**를 설정하고 기존 실행 절차대로 시작한다. 이 preset 변수는 로컬에서만 쓰며 Supabase/Vercel에는 추가하지 않는다. 저장된 리비전은 계속 같은 내용이므로 preset을 바꿀 때도 새 ID가 필요하다.
 
-로컬 브라우저 회귀 명령은 `npx.cmd playwright test --config playwright.legacy.config.ts`다. 네 독립 세션이 실제 메인 UI로 정문을 완료하며 개인 응답의 trace·캡처·동영상은 저장하지 않는다.
+로컬 브라우저 회귀 명령은 `npm.cmd run test:e2e:legacy`다. 네 독립 세션이 실제 메인 UI로 정문을 완료하며 개인 응답의 trace·캡처·동영상은 저장하지 않는다. 로컬 v2 설정에서도 **혼자 데모 체험**은 별도 v1 시연을 만들며 자동 시연·보직 전환·장면 건너뛰기를 사용할 수 있다. 실제 4인 v2 방에는 시연 우회를 적용하지 않는다.
 
 ## 확정 필요/결정 사항
 

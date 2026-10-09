@@ -271,7 +271,8 @@ export type Stage = {
     | { type: "lock"; order: Role[] }
     | { type: "confirm"; labels: Record<Role, string> }
     | { type: "joint-record" };
-  sacho?: { id: string; name: string; sections: string[] };
+  // Optional public reward text. Released only after this stage is completed.
+  sacho?: { id: string; name: string; sections: string[]; char?: string; body?: string };
   altModes?: { id: string; label: string }[];
 };
 export type CourseV2Content = {

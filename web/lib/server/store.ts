@@ -79,7 +79,9 @@ async function operation(session: string, cmd: Command): Promise<Snapshot> {
   const userId = await sha256(session);
   let game: Game | undefined;
   if (cmd.action === "create-game" || cmd.action === "create-demo") {
-    if (process.env.LOCAL_V2_COURSE_ID) {
+    // Solo rehearsal always uses its own v1 demo room, even on a v2 dev server.
+    // The public /api/game route remains disabled on Vercel/Supabase deployments.
+    if (cmd.action === "create-game" && process.env.LOCAL_V2_COURSE_ID) {
       if (!process.env.LOCAL_V2_COURSE_ID.startsWith("jnu-demo-dev-"))
         throw new DomainError("SERVER_ERROR", "로컬 v2 dev 코스 설정을 확인하라.");
       course = await courseFor(process.env.LOCAL_V2_COURSE_ID);

@@ -10,6 +10,8 @@
 
 ## 1. 전송·권한·재접속
 
+2026-10-09 UI 복원 추가: `game.completion`, `self.journal`, 완료된 장소의 선택형 공개 사초 보상을 추가했다. 아래 합성 fixtures 12개에도 반영했다. 로컬 구현과 별개로 기존 Supabase 응답에 적용하려면 Edge 재배포가 필요하다. [UI 복원 안내](../fe/UI_RESTORATION.md)를 참고한다.
+
 | 항목 | 계약 |
 |---|---|
 | 클라우드 | `POST /functions/v1/game`, Supabase 익명 로그인 Bearer JWT |
@@ -31,6 +33,9 @@ v2 데이터의 저장 버전은 `schemaVersion: 2`, 응답 버전 표시는 `st
 
 | 응답 필드 | 내용 |
 |---|---|
+| `game.completion` | 현재 단계 완료 전 `null`, 완료 후 `{at, method:"field"\|"explained", label}`. label은 `조사 후 복원` 또는 `해설 확인 후 복원`. 새로고침·다른 역할 조회에도 유지 |
+| `self.journal` | 완료 전 `[]`. 완료된 단계별 `{stage_id, name, completed_at, method, sections, entries}`. entries는 본인 역할만 포함하며 `{step_id, prompt, verified, method, record?, source?, explanation, reward?}`. source는 `{text, source_id?}`. 정답 배열·해시·숫자·전달 단서는 포함하지 않음 |
+| `current_site.sacho`, `course.sites[].sacho`, `game.acquired_sites[].sacho` | 이름·ID에 더해 완료된 장소에만 선택형 `char`, `body` 공개 보상 제공. 개인 자유 기록과 다른 공통 본문이며 미완료 장소에는 공개하지 않음 |
 | `stage` | 현재 단계의 ID·순서·이름·종류·도착 기준·quiet·scoring·공통 나레이션·completion·출처·사초 항목 이름 |
 | `self.mission` | 본인의 `intro`, `scenes`, `steps`, `digit`(완료 숫자를 사용하는지 여부인 boolean), `asset`(있을 때). null이면 해당 역할 문제 없음 |
 | `self.transfer_clue` | **지휘관 self만**. `{kind:"relay-frequency", label, value, target_step_id}`. 전달형 개인 단서이며 자동 공유하지 않는다 |
@@ -83,7 +88,7 @@ v2 데이터의 저장 버전은 `schemaVersion: 2`, 응답 버전 표시는 `st
 - `after-hint`: 지휘관이 **통신원에게만 1단계 힌트**를 해제한 직후다. 모든 역할의 `game.hint_level.signal`은 1이지만, 힌트 표시 문구는 통신원의 `self.hints`에만 있다. 다른 세 역할의 `self.hint_level`은 0, `self.hints`는 빈 배열이다. 힌트 사용만으로 단계가 완료되거나 보고되지 않는다.
 - `stage-completed`: 전원 단계 완료·보고·일반 자물쇠 개방을 마치고 다음 거점으로 출발하기 전이다. `game.status`는 `playing`, `site_phase`는 `cleared`, `stage_phase`는 `done`이며 현재 거점은 여전히 `gate`다. 통신원 힌트 1단계 사용 이력도 유지한다. 전체 게임 종료나 해설 개방 경로의 예시는 아니다. PR-2는 거점 완료 후에도 `get-stage`로 이 상태를 재조회한다.
 
-최상위에는 기존 필수 필드 `server_now`, `version`, `course`, `current_site`, `game`, `self`와 신규 `stage`를 넣었다. `version`과 `game.version`은 같으며 조회 응답의 `result`는 생략했다. `stage.schema_version`은 2다. `self.clue`는 v2에서 `null`로 유지하고 본인 단계는 `self.mission`으로 표시한다. 기존 `SiteInfo`의 `sacho.body`는 미해제 위치에서 빈 문자열로 남기고, 완료 후 `game.acquired_sites`에만 합성 표시 문구를 넣었다. `course.sites`의 다음 거점은 호환용 기본 정보뿐이며 미래 미션을 포함하지 않는다.
+최상위에는 기존 필수 필드 `server_now`, `version`, `course`, `current_site`, `game`, `self`와 신규 `stage`를 넣었다. `version`과 `game.version`은 같으며 조회 응답의 `result`는 생략했다. `stage.schema_version`은 2다. `self.clue`는 v2에서 `null`로 유지하고 본인 단계는 `self.mission`으로 표시한다. `SiteInfo`의 `sacho.char`·`body`는 미완료 위치에서 빈 문자열로 남긴다. 완료 후에는 `current_site`, `course.sites`, `game.acquired_sites`의 해당 장소에 같은 합성 공개 보상을 넣었다. 실제 코스에서 선택형 보상이 없으면 완료 후에도 빈 문자열이다. `course.sites`의 다음 거점은 호환용 기본 정보뿐이며 미래 미션을 포함하지 않는다.
 
 추가 필드의 mock 구조는 다음과 같다. 역할 마스크는 `commander, scout, signal, cipher` 순서의 boolean 배열이고, 역할별 수치는 역할 이름을 키로 하는 객체다. 방장은 정찰원으로 설정해 `is_host`와 지휘관 권한을 구분한다.
 
@@ -234,7 +239,7 @@ const snapshot = structuredClone(signalAfterHint);
 
 별도 개방 결과는 `{"opened":true,"method":"explained","label":"해설 확인 후 복원","sacho_id":"<현재 사초 ID>"}`다. 각 역할은 본인 모든 문제가 done/explained로 해설이 공개된 뒤 confirm-explanation을 호출한다. 서버는 읽음 버튼 확인 사실을 저장하며 실제 독해를 판별하지 않는다. 공개 game.confirm_mask는 commander/scout/signal/cipher 순이다. 개방에는 전원 조사·보고와 네 역할 확인이 모두 필요하다. 별도 개방은 자물쇠 시도·감점·무힌트 보너스를 추가하지 않는다. 일반 개방은 3회/오답 −10/소진 후 60초마다 1회를 그대로 적용한다.
 
-사초①은 `games_private.state.v2.sacho.gate`에 저장한다. `eventOrder`는 순서 검증 여부·확인 방식만 저장하고 정답 배열은 저장하지 않는다(사용자 확정). 정찰원의 조형물 관찰은 `observations`, 사건 기록은 `eventRecords`, 사용 자료·확인 방식은 `sources`로 분리한다. 기록 본문은 game_public·타 역할 self·game_events에 포함하지 않는다. 사초 통합 조회·최종 결과 화면은 PR-5 범위다.
+사초①은 `games_private.state.v2.sacho.gate`에 저장한다. `eventOrder`는 순서 검증 여부·확인 방식만 저장하고 정답 배열은 저장하지 않는다(사용자 확정). 정찰원의 조형물 관찰은 `observations`, 사건 기록은 `eventRecords`, 사용 자료·확인 방식은 `sources`로 분리한다. 개인 기록 본문은 game_public·타 역할 self·game_events에 포함하지 않는다. 정문 완료 후 `self.journal`은 본인 역할의 검증 결과·기록·출처·해설만 조회한다. 공통 사초 보상 본문은 별도의 공개 콘텐츠다. 여러 거점의 공동 기록·전체 코스 최종 결과는 후속 PR 범위다.
 
 ## 6. 후속 액션 계약 초안
 

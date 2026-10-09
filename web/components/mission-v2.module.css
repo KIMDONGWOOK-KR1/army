@@ -126,3 +126,13 @@
   font-size: 14px;
   line-height: 1.6;
 }
+.journal {
+  overflow-wrap: anywhere;
+}
+.journal .note {
+  text-align: left;
+}
+.journal h4, .journal h5 {
+  margin: 12px 0 8px;
+  font-size: 15px;
+}

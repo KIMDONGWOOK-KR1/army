@@ -1,6 +1,9 @@
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
-test.use({ storageState: { cookies: [], origins: [] } });
+test.use({
+  storageState: { cookies: [], origins: [] },
+  reducedMotion: "no-preference",
+});
 test("typewriter narration appears at start, arrival and reward only once", async ({
   page,
 }) => {

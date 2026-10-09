@@ -2,7 +2,7 @@ import { defineConfig } from "@playwright/test";
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3000";
 export default defineConfig({
   testDir: "./tests/e2e",
-  testIgnore: ["**/verify-v2.spec.ts", "**/integrated-v2*.spec.ts", "**/legacy-gate-v2.spec.ts"],
+  testIgnore: ["**/verify-v2.spec.ts", "**/integrated-v2*.spec.ts", "**/legacy-gate-v2.spec.ts", "**/restored-scenes-v2.spec.ts"],
   workers: 1,
   timeout: 120000,
   use: {

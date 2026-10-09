@@ -6,6 +6,7 @@ import {
   stagePrivateV2,
 } from "./project-course-v2.ts";
 import { ROLES } from "./types.ts";
+import { projectJournalV2 } from "./project-journal-v2.ts";
 import type {
   Command,
   Course,
@@ -127,7 +128,7 @@ function prepared(course: CourseV2, stage: Stage) {
   }
   return p;
 }
-export function siteInfoV2(stage: Stage): SiteInfo {
+export function siteInfoV2(stage: Stage, completed = false): SiteInfo {
   return {
     id: stage.id,
     seq: stage.seq,
@@ -139,7 +140,11 @@ export function siteInfoV2(stage: Stage): SiteInfo {
     lockOrder: stage.completion.type === "lock"
       ? [...stage.completion.order]
       : [...ROLES],
-    sacho: { char: "", name: stage.sacho?.name ?? stage.name, body: "" },
+    sacho: {
+      char: completed ? stage.sacho?.char ?? "" : "",
+      name: stage.sacho?.name ?? stage.name,
+      body: completed ? stage.sacho?.body ?? "" : "",
+    },
   };
 }
 export function projectGameV2(
@@ -191,7 +196,8 @@ export function projectGameV2(
     }
   }
   const lock = game.locks[stage.id] ?? blankLock();
-  const info = siteInfoV2(stage);
+  const completed = state.completed[stage.id];
+  const info = siteInfoV2(stage, !!completed);
   const publicGame: Snapshot["game"] = {
     id: game.id,
     code: game.code,
@@ -214,7 +220,7 @@ export function projectGameV2(
       : 0,
     next_attempt_at: lock.nextAttemptAt,
     acquired_sites: course.stages.filter((s) => state.completed[s.id]).map(
-      siteInfoV2,
+      (s) => siteInfoV2(s, true),
     ),
     members: game.members.map((m) => ({
       id: m.id,
@@ -233,7 +239,8 @@ export function projectGameV2(
       name: course.name,
       confirmed: course.confirmed,
       demo: course.demo,
-      sites: course.stages.filter((s) => s.kind !== "prologue").map(siteInfoV2),
+      sites: course.stages.filter((s) => s.kind !== "prologue")
+        .map((s) => siteInfoV2(s, !!state.completed[s.id])),
     },
     current_site: info,
     game: {
@@ -242,6 +249,11 @@ export function projectGameV2(
       stage_kind: stage.kind,
       stage_phase: state.stagePhase,
       quiet: stage.quiet,
+      completion: completed ? {
+        at: completed.at,
+        method: completed.method,
+        label: completed.method === "explained" ? "해설 확인 후 복원" : "조사 후 복원",
+      } : null,
       step_done_count: Object.fromEntries(
         ROLES.map(
           (r) => [r, Object.values(progress[r].steps).filter(done).length],
@@ -284,6 +296,7 @@ export function projectGameV2(
       hints,
       explanations,
       rewards,
+      journal: projectJournalV2(course, state, member.role),
     },
     stage: personal?.stage ?? projectPublicStageV2(course, stage.id),
   };

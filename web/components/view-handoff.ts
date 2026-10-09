@@ -3,7 +3,7 @@
 // 그래서 목업을 고를 수 있는 기기에서는 지금 값(자동 시연, 보고/자물쇠 화면, 입력 중인 자물쇠 숫자)을
 // sessionStorage(같은 출처 iframe과 함께 쓴다)에 늘 적어 두고, 보기를 바꾼 직후 새로 올라온 GameApp만 읽어 이어 간다.
 // 그냥 새로 고침할 때는 읽지 않는다(지금처럼 처음 화면에서 시작한다).
-export type Pane = "report" | "lock" | "waiting";
+export type Pane = "report" | "lock" | "waiting" | "mission" | "summary";
 export type Rehearsal = {
   game: string;
   step: "lobby" | "briefing";
@@ -49,7 +49,7 @@ export function markViewSwitch(now = Date.now(), store = session()) {
   } catch {}
 }
 
-const PANES: readonly string[] = ["report", "lock", "waiting"];
+const PANES: readonly string[] = ["report", "lock", "waiting", "mission", "summary"];
 function parse(raw: string | null): Handoff | null {
   if (!raw) return null;
   try {

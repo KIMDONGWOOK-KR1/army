@@ -510,11 +510,13 @@ export function validateCourseV2Content(input: unknown): CourseV2Content {
     ) fail(stageId, "추모 단계에는 점수·숫자·자물쇠를 둘 수 없다.");
     if (a.sacho !== undefined) {
       const s = obj(a.sacho, stageId);
-      exact(s, ["id", "name", "sections"], stageId);
+      keys(s, ["id", "name", "sections", "char", "body"], stageId);
       stage.sacho = {
         id: id(s.id, stageId),
         name: str(s.name, stageId),
         sections: strings(s.sections, stageId, 1),
+        ...(s.char !== undefined ? { char: str(s.char, stageId, 4) } : {}),
+        ...(s.body !== undefined ? { body: str(s.body, stageId, 3000) } : {}),
       };
     }
     if (a.altModes !== undefined) {

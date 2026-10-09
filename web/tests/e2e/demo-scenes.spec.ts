@@ -1,6 +1,24 @@
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
+test("automatic rehearsal creates a separate v1 room and can be stopped", async ({ page }) => {
+  await page.goto("/");
+  const [response] = await Promise.all([
+    page.waitForResponse((r) => r.url().endsWith("/api/game") &&
+      r.request().method() === "POST" && r.request().postDataJSON()?.action === "create-demo"),
+    page.getByRole("button", { name: "자동 시연", exact: true }).click(),
+  ]);
+  expect(response.status()).toBe(200);
+  const room = await response.json();
+  expect(room.game.demo).toBe(true);
+  expect(room.stage).toBeUndefined();
+  await expect(page.locator(".hud-auto")).toBeVisible();
+  const stop = page.getByRole("button", { name: "시연 정지", exact: true });
+  await expect(stop).toHaveAttribute("aria-pressed", "true");
+  await stop.click();
+  await expect(page.getByRole("button", { name: "자동 시연", exact: true })).toHaveAttribute("aria-pressed", "false");
+});
+
 // 발표용 시연 장면 고르기: 작전 메뉴에서 장면을 고르면 그 단계로 바로 넘어간다.
 test("demo scene picker jumps to the lock and to the finished operation", async ({
   page,

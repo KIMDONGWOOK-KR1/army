@@ -147,6 +147,8 @@ export function legacyDemoV2Input(id: string) {
     sacho: {
       id: "legacy-sacho-gate",
       name: oldGate.sacho.name,
+      char: oldGate.sacho.char,
+      body: oldGate.sacho.body,
       sections: ["관찰 기록", "출처 및 확인 방식"],
     },
   };
