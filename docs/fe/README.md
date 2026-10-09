@@ -9,6 +9,7 @@
 | 자료 | 용도 |
 |---|---|
 | [메인 UI 통합 안내](UI_INTEGRATION.md) | PR #8 디자인과 PR #9 API의 연결 범위·로컬 실행·dev 적용 조건 |
+| [GPS 적용·개발용 모드 전환](../be/GPS_APPLY.md) | 같은 Vercel 주소에서 실내 모의 도착/GPS 현장 시험, Supabase 코스 전환과 새 방 생성 |
 | [API_CONTRACT.md](../be/API_CONTRACT.md) | 요청·전체 Snapshot·역할별 공개 범위·입력 형식·오류의 기준 문서 |
 | [역할별 mock 12개](../be/API_CONTRACT.md#31-fe용-전체-snapshot-mock) | commander/scout/signal/cipher × 힌트 전/후/정문 완료 후 전체 JSON. FE 화면·Storybook·테스트에 사용 가능 |
 | [확정 사항·결정 대기](../be/DECISIONS.md) | 정규화·힌트 3단계·해설 개방·사초 저장 방식과 미확정 항목 |
@@ -24,15 +25,15 @@ PR-2 서버 기준 브랜치는 `feat/engine-v2-gate`이며 PR-0 #6·PR-1 #7을 
 
 | 구분 | 현재 상태 |
 |---|---|
-| dev 웹 | [hoguk-dev-web.vercel.app](https://hoguk-dev-web.vercel.app). 사용자가 v1 접속·방 생성·4인 합류·저장 확인 |
-| dev 백엔드 | Supabase 프로젝트 ref `vmadbgniurfzqygqidzw`, Edge Function `game`. 배포된 합성 `jnu-demo-dev-r1`은 v1 |
+| dev 웹 | [hoguk-dev-web.vercel.app](https://hoguk-dev-web.vercel.app). 2026-10-09 GPS 통합 코드 `76550a5` 배포, `/`·`/verify` HTTP 200 확인 |
+| dev 백엔드 | Supabase 프로젝트 ref `vmadbgniurfzqygqidzw`, Edge Function `game`. PR-2 적용 및 GPS 코스 등록·Edge 준비는 사용자 완료 보고 기준. 현재 활성 코스 ID는 담당자가 확인 |
 | PR-2 서버 | get-stage, submit-step, 역할별 힌트, 보고, 일반 자물쇠, 전원 해설 확인 후 별도 개방, 사초① 저장 구현 |
 | PR-2 검증 | 단위·DB·계약 테스트 94개, 타입 검사·빌드·Deno 검사/lint 통과. 기존 v1 E2E 9개 시나리오 통과 |
 | UI 연결 | `/verify`를 유지하고 통합 브랜치의 `/`에도 v2 문제·별도 보고·힌트·읽음 확인·두 개방 경로 연결. [통합 안내](UI_INTEGRATION.md) 참고 |
-| 별도 확인할 것 | PR-2 DB/Edge 클라우드 적용, 통합 웹 Vercel 배포, 실기기 시험. 공개 dev URL에서 v2가 동작한다고 가정하지 않는다 |
+| 별도 확인할 것 | 현재 활성 코스와 새 방의 모드, 클라우드 4인 정문 완주, 실기기 GPS 현장 시험. 웹 배포 성공과 전체 흐름 검증을 구분한다 |
 | 후속 범위 | 프롤로그 문구 연결의 잔여 부분, 후속 거점·추모·봉지·최종 결과, 시간 점수·랭킹. 역할 교환·QR·수동 도착은 사용자 결정으로 제외 |
 
-v2 FE와 API 시험 준비 후 BE 담당이 새 마이그레이션·Edge·새 불변 v2 합성 코스 리비전을 준비한다. 이후 ACTIVE_COURSE_ID를 전환해 **새 방**을 만든다. 기존 방은 기존 코스에 고정되며 r1을 덮어쓰지 않는다. FE가 임의로 DB·시드·Edge 비밀값을 바꿀 필요는 없다.
+처음 연결하는 환경은 [PR-2 적용 안내](../be/PR_2_APPLY.md)를 따른다. 기존 dev 환경은 [GPS 적용 안내](../be/GPS_APPLY.md)대로 등록된 개발용/GPS 코스 사이에서 `ACTIVE_COURSE_ID`를 전환하고 **새 방**을 만든다. 기존 방은 기존 코스에 고정되며 행을 덮어쓰지 않는다. FE가 임의로 DB·시드·Edge 비밀값을 바꿀 필요는 없다. 전환은 BE 담당과 맞추며 두 모드 모두 같은 Vercel 주소를 사용한다.
 
 ## 3. FE에서 바꿔야 하는 부분
 

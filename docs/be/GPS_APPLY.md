@@ -67,3 +67,54 @@ npx.cmd supabase functions deploy game --project-ref $devRef
 - 정확도·진입·스치기·경계 시험을 휴대폰 4대에서 시행한 뒤 10m 유지 여부를 판단한다. 시험 전에는 현장 검증 완료라고 표시하지 않는다.
 
 로컬 브라우저 검증: `npx playwright test --config playwright.gps.config.ts`. 브라우저 위치는 합성이며 실제 측위 시험과 구분한다. API·단위 검증은 `npm test`, 타입 검사는 `npm run typecheck`다. 기존 실내 시연은 `v1-gate` preset으로 유지한다.
+
+## 같은 Vercel 주소에서 개발용·GPS 모드 전환
+
+[dev 웹](https://hoguk-dev-web.vercel.app/)에서 두 코스를 번갈아 시험할 수 있다. **전환은 담당 개발자가 Supabase의 `ACTIVE_COURSE_ID`를 변경해서 한다.** 참가자용 웹 토글이나 Vercel 환경변수 전환 기능은 없다. `NEXT_PUBLIC_BACKEND=supabase`를 유지한다.
+
+| 시험 모드 | 등록할 때 사용한 preset | 도착 방식 |
+|---|---|---|
+| 개발용(실내·교외) | `v1-gate` | 각 참가자의 모의 도착 버튼. 전남대에 없어도 정문 문제를 시험할 수 있다. |
+| GPS(현장) | `v1-gate-gps` | 각자 위치 권한을 허용하고 정문 10m 안에서 5초 체류. 네 명 모두 도착해야 문제가 열린다. |
+
+두 모드 모두 정문 v2의 4인 방과 기존 시연 문항을 사용한다. 개발용에서도 다른 참가자의 역할로 바꾸거나 혼자 네 명의 도착을 대신할 수 없다. 자동 시연·보직 전환·장면 건너뛰기는 별도의 **로컬 v1 혼자 체험**에만 있다.
+
+### 최초 준비
+
+1. 개발용 코스는 [기존 정문 dev 코스 안내](LEGACY_GATE_DEV.md), GPS 코스는 이 문서의 dev 적용 절차로 각각 등록한다. 같은 기존 `ANSWER_SALT`를 사용하며 코스 ID는 서로 달라야 한다.
+2. `courses_private`에서 **ID만** 확인하고 두 코스 ID를 기록한다. 문서의 `jnu-demo-dev-v1gate-r2`, `jnu-demo-dev-v1gps-r1`은 예시다. 실제 등록한 리비전이 r1/r3 등이라면 그 ID를 사용한다. 등록 내용을 바꾸려면 새 리비전을 만든다.
+3. GPS 변경을 포함한 Edge와 웹을 한 번 배포한다. 웹은 2026-10-09 코드 `76550a5`를 위 dev 주소에 배포했고 `/`, `/verify` HTTP 200을 확인했다. Supabase 코스 등록·Edge 준비는 사용자 완료 보고 기준이며, 이 기록으로 현재 활성 코스나 실기기 4대 완주를 보장하지 않는다.
+
+### 준비 후 전환 명령
+
+이 변경을 포함한 저장소의 `web`에서 실행한다. 아래 ID는 실제 등록된 값으로 직접 입력한다. 기존 `ANSWER_SALT`·키와 Vercel 공개 환경변수는 바꾸지 않는다.
+
+```powershell
+$devRef = '<DEV_PROJECT_REF>'
+$indoorCourseId = Read-Host '등록된 개발용 v1-gate 코스 ID'
+$gpsCourseId = Read-Host '등록된 GPS v1-gate-gps 코스 ID'
+```
+
+GPS 모드로 전환:
+
+```powershell
+npx.cmd supabase secrets set "ACTIVE_COURSE_ID=$gpsCourseId" --project-ref $devRef
+if ($LASTEXITCODE -ne 0) { throw 'GPS 코스 전환 실패' }
+npx.cmd supabase functions deploy game --project-ref $devRef
+if ($LASTEXITCODE -ne 0) { throw 'Edge 재배포 실패: 새 방 시험 전에 배포 상태를 확인한다.' }
+```
+
+개발용 모드로 복귀(위 변수가 설정된 같은 터미널에서 실행):
+
+```powershell
+npx.cmd supabase secrets set "ACTIVE_COURSE_ID=$indoorCourseId" --project-ref $devRef
+if ($LASTEXITCODE -ne 0) { throw '개발용 코스 전환 실패' }
+npx.cmd supabase functions deploy game --project-ref $devRef
+if ($LASTEXITCODE -ne 0) { throw 'Edge 재배포 실패: 새 방 시험 전에 배포 상태를 확인한다.' }
+```
+
+전환 후 같은 Vercel 주소에서 **새 방**을 만들고 네 명이 합류한다. GPS 모드에는 모의 도착 버튼이 없어야 하고, 개발용 모드에는 있어야 한다. 코스 전환만 할 때는 Vercel을 다시 배포하거나 코스를 다시 등록할 필요가 없다.
+
+`ACTIVE_COURSE_ID` 변경은 해당 Supabase 프로젝트에서 이후 만드는 **모든 새 방**에 적용된다. 기존 방은 생성 당시 코스를 유지하므로 새로고침만으로 모드가 바뀌지 않는다. 두 모드의 방을 미리 만들어 입장 코드를 따로 보관하면 각각의 기존 방에 다시 합류해 비교할 수도 있다. 기존 방·코스 행을 삭제하지 않는다.
+
+GPS 캐릭터는 지도 범위 안에서 유효한 현재 위치가 잡히면 그 위치를 따라간다. 용봉관에서 접속해도 첫 미션 목표는 정문이다. 지도 밖이거나 위치를 얻지 못하면 캐릭터가 보이지 않을 수 있다. 후속 거점 미션은 아직 구현 범위가 아니다.
