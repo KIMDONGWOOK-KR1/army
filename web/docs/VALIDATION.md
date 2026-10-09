@@ -1,5 +1,13 @@
 # 웹앱 구현·검증 기록
 
+## 2026-10-09 GPS 통합본 dev 배포 후 확인
+
+- Vercel dev 별칭 `https://hoguk-dev-web.vercel.app/`에 코드 `76550a5` 배포 완료. 배포 ID는 `dpl_8t9gAhzRr3uc75L4dm7JSLGWP4qS`이며 Ready 상태와 별칭 연결을 확인했다. 아래 구현 당시의 미배포 기록 이후 수행한 작업이다.
+- `/`, `/verify` HTTP 200, 배포 JS의 새 GPS 화면 문구·예상 dev Supabase 호스트, 위치 권한 정책을 확인했다. 클라우드 `/api/game`의 로컬 게임 경로는 403 `LOCAL_DISABLED`로 차단됨을 확인했다.
+- 브라우저 자동화 도구의 Windows 초기화 오류로 배포 후 화면 시각 검사는 수행하지 못했다. HTTP·정적 자산 확인을 네 기기 현장 시험이나 클라우드 정문 완주로 보지 않는다.
+- GPS 코스 등록·Edge 최초 준비는 사용자 완료 보고 기준이다. 현재 `ACTIVE_COURSE_ID`를 읽거나 변경하지 않았다. 같은 웹에서 개발용/GPS 코스를 번갈아 확인하는 절차는 [GPS 적용 안내](../../docs/be/GPS_APPLY.md)에 기록했다.
+- PR 제출 전 문서 보완 후 `npm test` 31개 파일·311개, `npm run typecheck`, CI 대상 공유 모듈 11개의 Deno lint를 다시 통과했다. 수정 문서 5개의 로컬 링크, GPS 안내의 PowerShell 코드 블록 5개 문법, `git diff --check`도 확인했다. 웹·Edge 코드는 기존 GPS 검증 시점과 같다.
+
 ## 2026-10-09 GPS 필수 도착과 반경 10m
 
 - 세 목표 좌표를 `jnu-gps.ts`에 보관하고 정문 공개 코스 및 새 dev `v1-gate-gps` preset에 연결했다. 목표 지정은 사용자 승인이고 4대 실기기 현장 시험은 미수행이다. 후속 용봉관·봉지 미션은 아직 연결하지 않았다.
