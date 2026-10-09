@@ -1,14 +1,17 @@
-# FE 인수인계 — PR-2 정문 v2
+# FE 인수인계 — 정문·용봉관 v2
 
 2026-10-09 통합 브랜치 갱신 · FE 이환희 / BE·Infra 김종연 / 리뷰·머지 김동욱
 
-**이 통합 브랜치에서는 PR #8 디자인의 `/`와 `/verify` 모두 정문 v2를 지원한다.** 메인 화면은 서버 응답에 따라 v1/v2를 구분한다. [UI 통합 안내](UI_INTEGRATION.md)에서 실행 방법과 연결 범위를 확인한다. 아래 PR-2 서버 계약과 12개 mock은 계속 사용한다. 새 DB·Edge·합성 코스와 웹의 dev 적용 준비를 맞춘 뒤 활성 코스를 전환한다. 이 문서는 배포 완료를 의미하지 않는다.
+**`feat/stage-yongbong`에서는 `/`와 `/verify` 모두 정문→용봉관 v2를 지원한다.** 메인 화면은 서버 응답에 따라 v1/v2를 구분한다. 기존 [UI 통합 안내](UI_INTEGRATION.md)에 더해 [용봉관 계약](../be/API_CONTRACT.md#11-pr-4-용봉관)과 [적용 안내](../be/YONGBONG_APPLY.md)를 확인한다. 아래 정문 계약과 12개 mock은 계속 사용한다. 새 DB·Edge·합성 코스와 웹의 dev 적용을 맞춘 뒤 새 방을 만든다. 이 문서는 배포 완료를 의미하지 않는다.
 
 ## 1. 먼저 볼 자료
 
 | 자료 | 용도 |
 |---|---|
 | [메인 UI 통합 안내](UI_INTEGRATION.md) | PR #8 디자인과 PR #9 API의 연결 범위·로컬 실행·dev 적용 조건 |
+| [GPS 적용·개발용 모드 전환](../be/GPS_APPLY.md) | 같은 Vercel 주소에서 실내 모의 도착/GPS 현장 시험, Supabase 코스 전환과 새 방 생성 |
+| [용봉관 적용 안내](../be/YONGBONG_APPLY.md) | 두 거점 새 preset, DB 마이그레이션·재배포, 실제 콘텐츠 등록 준비와 미확정 항목 |
+| [용봉관 외부 모드 합성 화면](images/yongbong-outdoor-synthetic.png) | 로컬 4세션 시험에서 확인한 화면. 실제 자료·시나리오가 아님 |
 | [API_CONTRACT.md](../be/API_CONTRACT.md) | 요청·전체 Snapshot·역할별 공개 범위·입력 형식·오류의 기준 문서 |
 | [역할별 mock 12개](../be/API_CONTRACT.md#31-fe용-전체-snapshot-mock) | commander/scout/signal/cipher × 힌트 전/후/정문 완료 후 전체 JSON. FE 화면·Storybook·테스트에 사용 가능 |
 | [확정 사항·결정 대기](../be/DECISIONS.md) | 정규화·힌트 3단계·해설 개방·사초 저장 방식과 미확정 항목 |
@@ -24,15 +27,16 @@ PR-2 서버 기준 브랜치는 `feat/engine-v2-gate`이며 PR-0 #6·PR-1 #7을 
 
 | 구분 | 현재 상태 |
 |---|---|
-| dev 웹 | [hoguk-dev-web.vercel.app](https://hoguk-dev-web.vercel.app). 사용자가 v1 접속·방 생성·4인 합류·저장 확인 |
-| dev 백엔드 | Supabase 프로젝트 ref `vmadbgniurfzqygqidzw`, Edge Function `game`. 배포된 합성 `jnu-demo-dev-r1`은 v1 |
+| dev 웹 | [hoguk-dev-web.vercel.app](https://hoguk-dev-web.vercel.app). 2026-10-09 GPS 통합 코드 `76550a5` 배포, `/`·`/verify` HTTP 200 확인 |
+| dev 백엔드 | Supabase 프로젝트 ref `vmadbgniurfzqygqidzw`, Edge Function `game`. PR-2 적용 및 GPS 코스 등록·Edge 준비는 사용자 완료 보고 기준. 현재 활성 코스 ID는 담당자가 확인 |
 | PR-2 서버 | get-stage, submit-step, 역할별 힌트, 보고, 일반 자물쇠, 전원 해설 확인 후 별도 개방, 사초① 저장 구현 |
+| PR-4 용봉관 | 이동·전원 재도착, 11단계 조사, 통신원→암호해독관 자료 전달, 분류 입력, 외부 대체 모드, 사초② 구현. 새 마이그레이션·Edge·웹·새 코스 적용 필요 |
 | PR-2 검증 | 단위·DB·계약 테스트 94개, 타입 검사·빌드·Deno 검사/lint 통과. 기존 v1 E2E 9개 시나리오 통과 |
 | UI 연결 | `/verify`를 유지하고 통합 브랜치의 `/`에도 v2 문제·별도 보고·힌트·읽음 확인·두 개방 경로 연결. [통합 안내](UI_INTEGRATION.md) 참고 |
-| 별도 확인할 것 | PR-2 DB/Edge 클라우드 적용, 통합 웹 Vercel 배포, 실기기 시험. 공개 dev URL에서 v2가 동작한다고 가정하지 않는다 |
-| 후속 범위 | PR-3 프롤로그·역할 교환·QR·수동 대행, 후속 거점·추모·봉지·최종 결과, 시간 점수·랭킹 |
+| 별도 확인할 것 | 현재 활성 코스와 새 방의 모드, 클라우드 4인 정문 완주, 실기기 GPS 현장 시험. 웹 배포 성공과 전체 흐름 검증을 구분한다 |
+| 후속 범위 | 실제 콘텐츠 확정·등록, 프롤로그 문구 연결의 잔여 부분, 추모·봉지·최종 결과, 시간 점수·랭킹. 역할 교환·QR·수동 도착은 사용자 결정으로 제외 |
 
-v2 FE와 API 시험 준비 후 BE 담당이 새 마이그레이션·Edge·새 불변 v2 합성 코스 리비전을 준비한다. 이후 ACTIVE_COURSE_ID를 전환해 **새 방**을 만든다. 기존 방은 기존 코스에 고정되며 r1을 덮어쓰지 않는다. FE가 임의로 DB·시드·Edge 비밀값을 바꿀 필요는 없다.
+처음 연결하는 환경은 [PR-2 적용 안내](../be/PR_2_APPLY.md)를 따른다. 기존 dev 환경은 [GPS 적용 안내](../be/GPS_APPLY.md)대로 등록된 개발용/GPS 코스 사이에서 `ACTIVE_COURSE_ID`를 전환하고 **새 방**을 만든다. 기존 방은 기존 코스에 고정되며 행을 덮어쓰지 않는다. FE가 임의로 DB·시드·Edge 비밀값을 바꿀 필요는 없다. 전환은 BE 담당과 맞추며 두 모드 모두 같은 Vercel 주소를 사용한다.
 
 ## 3. FE에서 바꿔야 하는 부분
 
@@ -44,7 +48,7 @@ v2 FE와 API 시험 준비 후 BE 담당이 새 마이그레이션·Edge·새 �
 | submit-report에 answer/role/site_id 전달 | submit-step에 answer/step_id/stage_id 전달 → 전부 done/explained 후 submit-report. role·demo_role은 보내지 않는다 |
 | 문제 풀이와 숫자 보고를 한 번에 처리 | 문제 완료와 구두 보고 확인을 분리. 본인 self.digit은 보고 후 공개 |
 | game.demo를 보고 혼자 체험 도구 표시 | v2 합성 4인 코스도 demo=true다. 이 값만으로 solo 기능을 켜지 않는다. v2의 create-demo/demo-role/demo-arrival/demo-time은 지원하지 않는다 |
-| 거점 완료 시 다음 거점/전체 종료로 이동 | gate 완료는 playing + site_phase:cleared + stage_phase:done. 현재 dev v2에는 다음 거점이 없어 이동은 NO_STAGE. 정문 완료 화면을 유지한다 |
+| 거점 완료 시 다음 거점/전체 종료로 이동 | gate 완료는 playing + site_phase:cleared + stage_phase:done. 다음 site가 있으면 지휘관 depart-next-site로 이동. 새 gate-yongbong 계열은 용봉관까지, 기존 정문 전용 코스는 NO_STAGE |
 
 타입 참조 예시(확인용 UI의 공통 타입은 [game-snapshot.ts](../../web/lib/game-snapshot.ts) 참조):
 
@@ -62,7 +66,7 @@ type V2ActionResponse = SnapshotV2 & { result?: Record<string, unknown> };
 모든 게임 요청에는 game_id, 단계 요청에는 stage_id를 사용한다. 쓰기에는 request_id가 필수다. 새 사용자 동작에는 새 ID를 만들고, 응답 유실 재전송에는 **같은 ID와 같은 본문**을 유지한다.
 
 1. 기존 4인 로비→방장 start-game→각자 set-ready→지휘관 begin-operation으로 출발한다. 방장과 지휘관은 다를 수 있다.
-2. 본인 report-arrival 후 팀 도착 상태를 조회한다. PR-2 dev API 시험에서는 네 명이 각각 `method:"simulated"`로 도착한다. 이는 현장 GPS 검증을 뜻하지 않는다. QR·타인 수동 대행은 PR-3 전에는 호출하지 않는다.
+2. 본인 report-arrival 후 팀 도착 상태를 조회한다. 지정 GPS 코스는 반경 10m 안에서 5초 체류 후 `method:"gps"`를 보내며, 네 명 모두 도착해야 미션이 열린다. GPS 미확정 dev 시연에만 `method:"simulated"`를 사용한다. QR·수동 대행은 거절한다. 기존 시연 문항을 현장에서 시험하는 새 `v1-gate-gps` preset과 재배포 절차는 [GPS 적용 안내](../be/GPS_APPLY.md)를 따른다.
 3. get-game으로 현재 stage_id·site_phase를 확인한다. mission/cleared에서 get-stage를 호출해 본인의 미션·힌트·진행 상태를 받는다. travel에서 get-stage는 409 WRONG_PHASE다.
 4. self.step_progress[stepId].status가 open인 문제를 submit-step으로 제출한다. locked는 선행 문제/보고를 기다린다. HTTP 200이어도 result.accepted=false이면 채점 오답이다.
 5. 본인의 모든 문제가 done/explained이고 선행 보고 조건을 충족하면 submit-report를 보낸다. 본인 숫자를 표시하고 구두 전달을 안내한다. 타인 화면에는 보고 ✓만 표시한다.
@@ -91,7 +95,9 @@ type V2ActionResponse = SnapshotV2 & { result?: Record<string, unknown> };
 - confirm-explanation은 본인의 모든 문제가 done/explained일 때 허용한다. 별도 개방에는 전원 조사·보고·읽음 확인이 모두 필요하다. 일반 자물쇠의 3회/오답 −10/소진 후 60초 규칙은 그대로다.
 - 주파수는 소수점 한 자리 이하의 **문자열**이다. 두 자리 소수를 반올림해 보내지 않는다. 선택 번호도 `"1"`부터 시작하는 문자열이며 truefalse는 JSON boolean 대신 `"true"`/`"false"` 문자열 배열이다.
 - 정규화는 서버 step.normalize 옵션을 따른다. 기본은 대소문자·내부 공백을 구분한다. FE가 자유 기록이나 선택 번호·주파수에 텍스트 정규화를 일괄 적용하지 않는다.
-- map-hash는 1:1 연결이다. 실제 G-01 근거 선택지·짝은 미확정이며 빈 choices를 임의로 채우지 않는다. 합성 테스트용 근거는 실제 콘텐츠가 아니다.
+- match/map-hash는 1:1 연결이다. classification/map-hash는 같은 분류를 여러 필드에서 선택할 수 있다. 실제 G-01 근거 선택지·짝은 미확정이며 빈 choices를 임의로 채우지 않는다. 합성 테스트용 근거는 실제 콘텐츠가 아니다.
+- 용봉관 self.shared_records는 통신원 자료를 암호해독관에게만 전달하는 예외다. record:null과 explained_without_record는 자료 부재를 뜻한다. 임의 자료로 채우거나 팀 공통 화면에 복사하지 않는다.
+- game.visit·game.completion.visit·self.journal의 visit 표시를 유지한다. outdoor는 반드시 실내 관람이 아님을 알린다. 전원 도착 후 완료 전 지휘관이 선택하며 되돌리기·기록 초기화 기능은 없다.
 - 보고·도착·확인 마스크는 commander/scout/signal/cipher 순서다. 자물쇠 입력·locked_mask·correct_mask는 stage.completion.order 순서다.
 - game.score는 서버 값을 표시한다. 실제 시간 점수식·힌트 수치·랭킹 정책은 미확정이므로 FE에서 계산식을 하드코딩하지 않는다.
 

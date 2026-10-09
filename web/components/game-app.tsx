@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { useGameAny } from "./use-game";
 import { useLocation } from "./use-location";
+import { allowsSimulatedArrival } from "@/supabase/functions/_shared/arrival-policy";
 import { useLockDraft } from "./use-lock-draft";
 import {
   handoffPane,
@@ -35,6 +36,7 @@ import {
 import { Mission, LockPanel } from "./mission";
 import { MissionV2, LockPanelV2 } from "./mission-v2";
 import { JournalV2 } from "./journal-v2";
+import { NextStageAction } from "./yongbong-panel";
 import { isV2Response, type GameResponse } from "@/lib/game-snapshot";
 import { SceneArt } from "./scene-art";
 import { GameDialog } from "./game-dialog";
@@ -207,8 +209,7 @@ export default function GameApp({
     cueSend = useCueSend(rawSend);
   const v2 = s && isV2Response(s) ? s : null;
   const soloDemo = !!s?.game.demo && !v2;
-  const simulatedArrival = !!v2 && v2.course.demo &&
-    v2.course.id.startsWith("jnu-demo-dev-");
+  const simulatedArrival = !!v2 && allowsSimulatedArrival(v2.course, v2.stage.arrival);
   const ownArrival = !!v2?.self.role &&
     v2.game.arrival_mask[ROLES.indexOf(v2.self.role)];
   // Keep the completion receipt visible across polling while this view is mounted.
@@ -1058,7 +1059,7 @@ export default function GameApp({
                   <p>
                     {s!.self.ready
                       ? "장비 수령을 마쳤다. 동료들의 준비를 기다리라."
-                      : "현장에서 위치를 확인한다. 권한을 거부해도 참여할 수 있다."}
+                      : "장비 수령 후 GPS를 켜라. 네 명 모두 거점 반경 안에 도착해야 미션이 열린다."}
                   </p>
                 </div>
                 <div className="console-actions">
@@ -1069,7 +1070,7 @@ export default function GameApp({
                         disabled={busy}
                         onClick={() => void send({ action: "set-ready" })}
                       >
-                        위치 없이 준비 완료
+                        {v2 && !simulatedArrival ? "준비만 완료 · GPS는 이동 시 설정" : "위치 없이 준비 완료"}
                       </button>
                       <button
                         className="button primary"
@@ -1113,6 +1114,7 @@ export default function GameApp({
                 look={s!.self.id}
                 fallback={<SceneArt site={site!.seq - 1} />}
                 fast={auto && !v2}
+                simulateMovement={soloDemo || simulatedArrival}
                 onStatus={setField}
                 onMarkerTap={() => {
                   if (simulatedArrival && !ownArrival && !busy)
@@ -1293,19 +1295,21 @@ export default function GameApp({
                 <h1 data-scene-heading tabIndex={-1}>
                   {site!.sacho.name}
                 </h1>
-                <p>{site!.sacho.body || (v2 ? "정문 단계 확인 완료" : "")}</p>
+                <p>{site!.sacho.body || (v2 ? `${site!.name} 단계 확인 완료` : "")}</p>
                 {v2 && completionLabel && <p>{completionLabel}</p>}
+                {v2?.game.completion?.visit && <p>{v2.game.completion.visit.label}</p>}
                 <div className="sacho-reward">
                   <Check size={17} /> 사초를 기록첩에 보관했다.
                 </div>
               </div>
               <section className="game-console">
                 <p className="dialogue-line">
-                  {v2 ? "함께 복원한 정문 기록을 보관했다." : "다음 거점에 또 하나의 기억이 기다린다."}
+                  {v2 ? `함께 복원한 ${site!.name} 기록을 보관했다.` : "다음 거점에 또 하나의 기억이 기다린다."}
                 </p>
                 {v2 ? (
-                  <><button className="button primary" onClick={() => setPane("summary")}>
-                    정문 결과 보기 <ArrowRight size={18} />
+                  <><NextStageAction snapshot={v2} busy={busy} send={send} />
+                  <button className="button primary" onClick={() => setPane("summary")}>
+                    {site!.name} 결과 보기 <ArrowRight size={18} />
                   </button><button className="button secondary" onClick={() => setModal("records")}>
                     수집한 기록 읽기 <BookOpen size={18} />
                   </button></>
@@ -1333,7 +1337,7 @@ export default function GameApp({
           ) : scene === "done" ? (
             <>
               <div className="completion">
-                <span className="eyebrow">{v2 ? "정문 확인 완료 · 전남대편" : "작전 완료 · 전남대편"}</span>
+                <span className="eyebrow">{v2 ? `${site!.name} 확인 완료 · 전남대편` : "작전 완료 · 전남대편"}</span>
                 <h1 data-scene-heading tabIndex={-1}>
                   오늘의 실록 한 장을
                   <br />
@@ -1352,10 +1356,11 @@ export default function GameApp({
                   <br />네 사람의 자리에서 다시 이었다.
                 </p>
                 <p className="completion-next">
-                  {v2 ? "정문의 사초를 복원했다. 다음 거점은 준비 중이며, 이번 확인은 여기까지다."
+                  {v2 ? `${site!.name}의 사초를 복원했다. ${v2.course.sites.some((s) => s.seq > site!.seq) ? "지휘관의 출발 신호에 맞춰 다음 거점으로 이동하라." : "후속 거점은 준비 중이며, 이번 확인은 여기까지다."}`
                     : "민주길의 기록은 여기서 끝나지 않는다. 박관현의 언덕, 윤상원의 숲, 김남주의 뜰이 다음 사초를 기다린다."}
                 </p>
                 {v2 && completionLabel && <p>{completionLabel}</p>}
+                {v2?.game.completion?.visit && <p>{v2.game.completion.visit.label}</p>}
                 <div className="completion-score">
                   <span>
                     <b>{s!.game.score}</b> 기록 점수
@@ -1372,6 +1377,7 @@ export default function GameApp({
                 {v2 && <button className="button secondary" onClick={() => setPane("report")}>
                   사초로 돌아가기
                 </button>}
+                {v2 && <NextStageAction snapshot={v2} busy={busy} send={send} />}
                 <button className="button secondary" onClick={home}>
                   새 작전 준비하기
                 </button>
@@ -1615,14 +1621,16 @@ export default function GameApp({
               </p>
               <p>
                 {v2
-                  ? "각자가 본인의 도착을 확인한다. 합성 코스는 본인 모의 도착 버튼으로 확인한다."
+                  ? simulatedArrival
+                    ? "각자가 본인 모의 도착 버튼으로 개발 시연을 진행한다."
+                    : `GPS를 켜고 반경 ${site?.radiusM ?? 10}m 안에서 5초간 기다리라. 네 명 모두 도착해야 미션이 열린다.`
                   : "위치 확인이 어려우면 이동 시작 30초 후 지휘관이 수동 도착할 수 있다."}
                 {" "}좌표는 기기에서만 계산한다.
               </p>
               <p>
                 <Shield size={16} /> 추모 공간을 존중하며 안전하게 이동하라.
                 {(s?.course.demo ?? backend === "local")
-                  ? "시연 코스의 실제 좌표와 문항은 미확정이다."
+                  ? v2?.stage.arrival.confirmed ? "GPS 좌표는 지정됐으며 문항은 시연용이다." : "시연 코스의 실제 좌표와 문항은 미확정이다."
                   : "지정된 거점에서 동료와 단서를 모아라."}
               </p>
             </div>

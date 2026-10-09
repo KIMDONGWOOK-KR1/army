@@ -78,7 +78,8 @@ export function serializeAnswerV2(step: Step, answer: unknown): string {
       JSON.stringify(Object.keys(answer).sort()) !== JSON.stringify(keys)
     ) return invalid();
     const pairs = keys.map((k) => [k, choice(answer[k])]);
-    if (new Set(pairs.map((p) => p[1])).size !== pairs.length) return invalid();
+    // Classification may assign multiple statements to the same category. Match stays 1:1.
+    if (step.type !== "classification" && new Set(pairs.map((p) => p[1])).size !== pairs.length) return invalid();
     return JSON.stringify(pairs);
   }
   throw new Error("정답 해시 채점 단계가 아니다.");

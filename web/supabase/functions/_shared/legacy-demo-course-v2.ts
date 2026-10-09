@@ -2,6 +2,7 @@
 // Server/seed only: raw inputs must never be projected or logged.
 import { demoCourseInput } from "./course.ts";
 import { isDevCourseId } from "./deployment.ts";
+import { jnuGpsArrival } from "./jnu-gps.ts";
 import { prepareCourseV2 } from "./prepare-course-v2.ts";
 import { ROLES } from "./types.ts";
 import type {
@@ -13,7 +14,7 @@ import type {
   Step,
 } from "./types.ts";
 
-export function legacyDemoV2Input(id: string) {
+export function legacyDemoV2Input(id: string, gps = false) {
   if (!isDevCourseId(id)) throw new Error("dev 시연 코스 ID가 필요하다.");
   const { course, synthetic } = demoCourseInput();
   const oldGate = course.sites.find((site) => site.id === "gate")!;
@@ -177,10 +178,14 @@ export function legacyDemoV2Input(id: string) {
     synthetic: true,
     stages: { gate: { roles: privateRoles, steps: privateSteps } },
   };
+  if (gps) {
+    gate.arrival = jnuGpsArrival("gate");
+    content.name = `${course.name} · 정문 GPS 현장 시험`;
+  }
   return { content, privateInput };
 }
 
-export function legacyDemoCourseV2(id: string, salt: string) {
-  const { content, privateInput } = legacyDemoV2Input(id);
+export function legacyDemoCourseV2(id: string, salt: string, gps = false) {
+  const { content, privateInput } = legacyDemoV2Input(id, gps);
   return prepareCourseV2(content, privateInput, salt);
 }

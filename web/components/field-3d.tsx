@@ -335,6 +335,7 @@ export function Field3D({
   look = "",
   fallback,
   fast = false,
+  simulateMovement = true,
   onStatus,
   onMarkerTap,
 }: {
@@ -350,6 +351,7 @@ export function Field3D({
   fallback: ReactNode;
   // 발표용 자동 시연: 시연 이동을 빠르게 하고 카메라를 살짝 물린다
   fast?: boolean;
+  simulateMovement?: boolean;
   onStatus?: (status: FieldStatus) => void;
   // 도착 반경 안에서 거점 표석을 눌렀다
   onMarkerTap?: () => void;
@@ -362,6 +364,7 @@ export function Field3D({
     target,
     distance,
     fast,
+    simulateMovement,
     onStatus,
     onMarkerTap,
   });
@@ -372,6 +375,7 @@ export function Field3D({
     target,
     distance,
     fast,
+    simulateMovement,
     onStatus,
     onMarkerTap,
   };
@@ -648,7 +652,7 @@ export function Field3D({
       if (gps) {
         demoV = 0;
         if (Math.hypot(gps.x - goal.x, gps.z - goal.z) > JITTER_M) goal = gps;
-      } else {
+      } else if (live.current.simulateMovement) {
         const k = legOf(seq),
           stop = Math.max(0, world.legLength[k] - radius * 0.5),
           cruise = live.current.fast ? FAST_SPEED : DEMO_SPEED,
@@ -688,6 +692,7 @@ export function Field3D({
         heading += diff * Math.min(1, dt * (moving ? 8 : 2.5));
       }
       player.animate(dt, moving, speed, t);
+      player.group.visible = !!gps || live.current.simulateMovement;
       player.group.position.x = pos.x;
       player.group.position.z = pos.z;
       player.group.rotation.y = heading;
@@ -697,9 +702,9 @@ export function Field3D({
       // 조용한 구역(코스의 추모 거점이거나 지도 위 5·18 구역 안)에서는 표석이 돌거나 튀지 않고
       // 원이 깜빡이지 않는다.
       const remain =
-          gps && judged !== null
+          judged !== null
             ? judged
-            : Math.hypot(site.x - pos.x, site.z - pos.z),
+            : live.current.simulateMovement ? Math.hypot(site.x - pos.x, site.z - pos.z) : Infinity,
         inside = remain <= radius,
         calm = !!tg.reverent || calmAt(site.x, site.z);
       insideNow = inside;

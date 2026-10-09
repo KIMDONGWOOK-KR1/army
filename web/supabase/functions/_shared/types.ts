@@ -108,6 +108,7 @@ export type Command = {
   level?: number;
   method?: VerifyMethod | "gps" | "manual" | "qr";
   source?: { text: string; source_id?: string };
+  mode_id?: string;
 };
 export type PublicGame = {
   id: string;
@@ -174,6 +175,7 @@ export type StepType =
   | "truefalse"
   | "order"
   | "match"
+  | "classification"
   | "choice"
   | "multi-choice"
   | "frequency"
@@ -224,6 +226,8 @@ export type Step = {
   statements?: string[]; // truefalse: answer array in this exact order.
   fields?: FieldSpec[]; // match: keys to associate with choices; record: input fields.
   requires?: StepRef[];
+  // Only a declared completed free-form record may be relayed to this step's owner.
+  recordFrom?: StepRef;
   requiresReports?: Role[];
   grading: Grading;
   sourceRequired?: boolean;
@@ -348,6 +352,8 @@ export type GameV2State = {
   progress: Record<string, Record<Role, RoleProgress>>;
   explanationConfirms: Record<string, Partial<Record<Role, number>>>;
   completed: Record<string, { at: number; method: "field" | "explained" }>;
+  // Optional for stored PR-2 games. Selecting outdoor never resets progress or penalties.
+  altMode?: Record<string, "outdoor">;
   sacho: Record<string, {
     completedAt: number;
     eventOrder: { stepId: string; method: VerifyMethod; verified: boolean }[];
@@ -368,6 +374,12 @@ export type GameV2State = {
       text: string;
       source_id?: string;
     }[];
+    visitMode?: "onsite" | "outdoor";
+    research?: {
+      material: Record<string, string> | null;
+      assessment: Record<string, string> | null;
+      revision: Record<string, string> | null;
+    };
   }>;
 };
 export type GameEvent = {

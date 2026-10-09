@@ -20,7 +20,7 @@ beforeAll(async () => {
     grant usage on schema realtime to authenticated;
     alter table realtime.messages enable row level security;create publication supabase_realtime;`,
   );
-  for (const name of ["202610060001_game.sql", "202610080001_game_v2.sql"]) {
+  for (const name of ["202610060001_game.sql", "202610080001_game_v2.sql", "202610090001_yongbong_alt_mode.sql"]) {
     await db.exec(
       await readFile(
         new URL(`../supabase/migrations/${name}`, import.meta.url),
@@ -77,6 +77,29 @@ async function commit(
   );
 }
 describe("v2 transaction and append-only events", () => {
+  it("commits the outdoor event atomically and rejects stale retries", async () => {
+    const { game, course, user, event } = await fixture();
+    game.version = 2; game.v2!.altMode = { yongbong: "outdoor" };
+    const outdoor = { ...event, stage_id: "yongbong", action: "select-alt-mode", data: { mode_id: "outdoor" } };
+    const pub = project(game, course, user, 100000).game;
+    expect((await commit(game, 1, pub, [outdoor])).rows[0].ok).toBe(true);
+    expect((await commit(game, 1, pub, [outdoor])).rows[0].ok).toBe(false);
+    expect((await db.query("select data from game_events where game_id=$1", [game.id])).rows).toEqual([{ data: { mode_id: "outdoor" } }]);
+  });
+  it("rolls back invalid outdoor metadata, missing state and extra private fields", async () => {
+    const { game, course, user, event } = await fixture(); game.version = 2;
+    const pub = project(game, course, user, 100000).game;
+    const outdoor = { ...event, stage_id: "yongbong", action: "select-alt-mode", data: { mode_id: "outdoor" } };
+    await expect(commit(game, 1, pub, [outdoor])).rejects.toThrow("INVALID_GAME_EVENT");
+    game.v2!.altMode = { yongbong: "outdoor" };
+    for (const invalid of [{ ...outdoor, stage_id: "gate" },
+      { ...outdoor, data: { mode_id: "onsite" } },
+      { ...outdoor, data: { mode_id: "outdoor", record: "SYNTHETIC-PRIVATE" } }]) {
+      await expect(commit(game, 1, pub, [invalid])).rejects.toThrow("INVALID_GAME_EVENT");
+    }
+    expect((await db.query<{ version: number }>("select version::int from games_private where id=$1", [game.id])).rows[0].version).toBe(1);
+    expect((await db.query("select data from game_events where game_id=$1", [game.id])).rows).toEqual([]);
+  });
   it("commits one CAS winner with one event and rejects the stale writer", async () => {
     const { game, course, user, event } = await fixture();
     game.version = 2;

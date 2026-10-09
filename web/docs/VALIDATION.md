@@ -1,5 +1,32 @@
 # 웹앱 구현·검증 기록
 
+## 2026-10-09 PR-4 용봉관
+
+- 정문→용봉관 이동·새 전원 도착, 역할별 11단계, 통신원 기록의 암호해독관 전용 전달, 기록 없는 해설 경로, 반복 분류 선택, 외부 대체 모드, 사초②와 재접속 복구를 구현했다.
+- `npm test`: 32파일 321개 통과. 신규 용봉관 엔진·시드 8개와 DB 2개를 포함한다. 자료 비공개 범위·종속성·시드 검증, 모드 전환의 기존 기록·감점·시도 보존·멱등, CAS 경합·이벤트 거절을 확인했다.
+- `npm run typecheck`, `npm run build` 통과. Edge `deno check --no-lock` 및 CI 대상 v2 공유 모듈 13개의 `deno lint` 통과.
+- `playwright.yongbong.config.ts`: 합성 4세션 시나리오 1개 통과. 메인 화면의 용봉관 출발·외부 대체 모드·분류 입력, 역할별 기록 분리, 새로고침·기록첩, 360/390/430px 가로 넘침을 확인했다. 명시적 `YONGBONG_CAPTURE=1` 옵션으로 [합성 외부 모드 화면](../../docs/fe/images/yongbong-outdoor-synthetic.png)을 캡처했다. 실제 시나리오 화면·자료는 캡처하지 않았다.
+- 실제 원문 등록 준비는 ignored private 폴더에서만 수행했다. 스키마 검토용 메모리 복사본에서 7개 정답 형태를 검사했고 1개 연결을 미확정으로 남겼다. 운영 등록 차단을 확인했으며 실제 정답·본문을 테스트·커밋에 넣지 않았다.
+- **미수행:** Supabase 새 마이그레이션 적용·Edge 배포·코스 등록·Vercel 배포, 휴대폰 4대 현장 GPS 완주, 실제 사진·공식 자료 검수. [적용 안내](../../docs/be/YONGBONG_APPLY.md) 참고. 이전 정문 전용 기록은 당시 검증 이력이다.
+
+## 2026-10-09 GPS 통합본 dev 배포 후 확인
+
+- Vercel dev 별칭 `https://hoguk-dev-web.vercel.app/`에 코드 `76550a5` 배포 완료. 배포 ID는 `dpl_8t9gAhzRr3uc75L4dm7JSLGWP4qS`이며 Ready 상태와 별칭 연결을 확인했다. 아래 구현 당시의 미배포 기록 이후 수행한 작업이다.
+- `/`, `/verify` HTTP 200, 배포 JS의 새 GPS 화면 문구·예상 dev Supabase 호스트, 위치 권한 정책을 확인했다. 클라우드 `/api/game`의 로컬 게임 경로는 403 `LOCAL_DISABLED`로 차단됨을 확인했다.
+- 브라우저 자동화 도구의 Windows 초기화 오류로 배포 후 화면 시각 검사는 수행하지 못했다. HTTP·정적 자산 확인을 네 기기 현장 시험이나 클라우드 정문 완주로 보지 않는다.
+- GPS 코스 등록·Edge 최초 준비는 사용자 완료 보고 기준이다. 현재 `ACTIVE_COURSE_ID`를 읽거나 변경하지 않았다. 같은 웹에서 개발용/GPS 코스를 번갈아 확인하는 절차는 [GPS 적용 안내](../../docs/be/GPS_APPLY.md)에 기록했다.
+- PR 제출 전 문서 보완 후 `npm test` 31개 파일·311개, `npm run typecheck`, CI 대상 공유 모듈 11개의 Deno lint를 다시 통과했다. 수정 문서 5개의 로컬 링크, GPS 안내의 PowerShell 코드 블록 5개 문법, `git diff --check`도 확인했다. 웹·Edge 코드는 기존 GPS 검증 시점과 같다.
+
+## 2026-10-09 GPS 필수 도착과 반경 10m
+
+- 세 목표 좌표를 `jnu-gps.ts`에 보관하고 정문 공개 코스 및 새 dev `v1-gate-gps` preset에 연결했다. 목표 지정은 사용자 승인이고 4대 실기기 현장 시험은 미수행이다. 후속 용봉관·봉지 미션은 아직 연결하지 않았다.
+- `npm test`: 31개 파일, 311개 테스트 통과. 신규 7개 테스트에서 전원 도착 전 문제·힌트·보고·개방 차단, 본인만 도착, 멱등성, 역할·도착 복원, 수동·QR·모의 우회 거절, 설정 오류, 9m/11m 경계, dev seed와 prod 차단을 검증했다.
+- `npm run typecheck`, `npm run build`: 통과. Edge `deno check --no-lock supabase/functions/game/index.ts`와 변경된 공통 모듈 5개 `deno lint`: 통과.
+- `npx playwright test --config playwright.gps.config.ts`: 1개 네 세션 시나리오 통과(2.1분). 외부 위치·accuracy 41m·10초 지난 위치·권한 거부에서 도착 요청 0건, 3명 도착 시 전원 대기, 네 번째 GPS 도착 후 네 화면에서 미션 공개, 각자 도착 요청 1회, 재접속 역할·도착 보존, 사용자 좌표 미전송을 확인했다. 위치 입력은 브라우저 합성이며 실제 현장 측위 시험이 아니다.
+- 새 테스트는 실제 시나리오 정답·비밀값·원시 GPS CSV를 사용하지 않는다. 공개 이동 화면만 제외 폴더 `.demo-data/gps-travel-public.png`에 캡처해 390px 표시를 검토했다. 개인 미션·응답은 캡처·trace·video로 저장하지 않았다.
+- 보조 FE lint에는 Next.js 확장자 없는 import·브라우저 window·기존 버튼 type 관례에 맞지 않는 Deno 규칙을 제외했다(`no-sloppy-imports,no-window,no-window-prefix,jsx-button-has-type`). 초기 실행의 환경 규칙 오류와 테스트 블록 내부 함수 선언 지적을 확인하고, 후자는 화살표 함수로 수정했다. 저장소 CI의 Edge lint 규칙은 완화하지 않았다.
+- 새 DB 마이그레이션 없음. 클라우드 코스 등록·Edge·Vercel 배포는 실행하지 않았다. 새 불변 코스 리비전 및 새 방이 필요하며 [적용 안내](../../docs/be/GPS_APPLY.md)를 따른다.
+
 ## 2026-10-09: 기존 v1 정문의 임시 v2 이관
 
 `feat/ui-v2-integration`에서 기존 v1 원본을 공유하는 `v1-gate` preset을 추가했다. 현장 확정 코스가 아니며 [적용 안내](../../docs/be/LEGACY_GATE_DEV.md)대로 별도 dev 리비전으로 등록한다.

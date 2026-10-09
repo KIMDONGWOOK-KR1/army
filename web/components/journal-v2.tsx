@@ -1,6 +1,7 @@
 "use client";
 import type { V2Response } from "@/lib/game-snapshot";
 import styles from "./mission-v2.module.css";
+import { SharedRecords } from "./yongbong-panel";
 
 const methods: Record<string, string> = {
   field: "현장 확인",
@@ -42,6 +43,8 @@ export function JournalV2({ snapshot }: { snapshot: V2Response }) {
                     : "조사 후 복원"}
                 </p>
                 <h4>내 조사 기록</h4>
+                {journal.visit && <p>{journal.visit.label}</p>}
+                {!!journal.shared_records?.length && <SharedRecords records={journal.shared_records} />}
                 {journal.entries.map((entry) => (
                   <section className={styles.note} key={entry.step_id}>
                     <h5>{entry.prompt}</h5>

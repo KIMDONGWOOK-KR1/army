@@ -1,4 +1,5 @@
 import { answerHashV2, normalizeTextV2 } from "./answer-v2.ts";
+import { allowsSimulatedArrival, hasGpsArrival } from "./arrival-policy.ts";
 import { DomainError, sha256, validateNickname } from "./game-core.ts";
 import {
   projectPublicStageV2,
@@ -7,6 +8,7 @@ import {
 } from "./project-course-v2.ts";
 import { ROLES } from "./types.ts";
 import { projectJournalV2 } from "./project-journal-v2.ts";
+import { researchV2, sharedRecordsV2, visitV2 } from "./yongbong-v2.ts";
 import type {
   Command,
   Course,
@@ -253,7 +255,9 @@ export function projectGameV2(
         at: completed.at,
         method: completed.method,
         label: completed.method === "explained" ? "해설 확인 후 복원" : "조사 후 복원",
+        ...(visitV2(stage, state) ? { visit: visitV2(stage, state) } : {}),
       } : null,
+      ...(stage.altModes?.length ? { visit: visitV2(stage, state) } : {}),
       step_done_count: Object.fromEntries(
         ROLES.map(
           (r) => [r, Object.values(progress[r].steps).filter(done).length],
@@ -271,7 +275,7 @@ export function projectGameV2(
       confirm_mask: ROLES.map((r) =>
         state.explanationConfirms[stage.id]?.[r] !== undefined
       ),
-      swap: { window_ends_at: null, used: false, pending: null }, // PR-3 owns the exchange window.
+      swap: { window_ends_at: null, used: false, pending: null }, // Compatibility only: participant role exchange is forbidden.
     },
     self: {
       id: member.id,
@@ -297,6 +301,8 @@ export function projectGameV2(
       explanations,
       rewards,
       journal: projectJournalV2(course, state, member.role),
+      ...(visible && stage.roles[member.role!]?.steps.some((s) => s.recordFrom)
+        ? { shared_records: sharedRecordsV2(stage, state, member.role!) } : {}),
     },
     stage: personal?.stage ?? projectPublicStageV2(course, stage.id),
   };
@@ -315,6 +321,7 @@ const writes = new Set([
   "open-lock",
   "open-after-explanation",
   "depart-next-site",
+  "select-alt-mode",
 ]);
 export type SnapshotV2 = ReturnType<typeof projectGameV2>;
 function recordInput(step: Step, value: unknown) {
@@ -405,6 +412,8 @@ function finish(
     observations,
     eventRecords,
     sources,
+    ...(visitV2(stage, state) ? { visitMode: visitV2(stage, state)!.mode } : {}),
+    ...(researchV2(stage, state) ? { research: researchV2(stage, state) } : {}),
   };
   state.completed[stage.id] = { at: now, method };
   state.stagePhase = "done";
@@ -427,6 +436,7 @@ function finish(
     method,
     label: method === "explained" ? "해설 확인 후 복원" : "조사 후 복원",
     sacho_id: stage.sacho?.id ?? null,
+    ...(visitV2(stage, state) ? { visit: visitV2(stage, state) } : {}),
   };
 }
 
@@ -594,20 +604,14 @@ async function execute(
       stageAction();
       phase("playing", "travel");
       const method = cmd.manual ? "manual" : cmd.method ?? "gps";
-      if (method === "manual") {
-        commander();
-        const retry = (game.siteStartedAt ?? now) + 30000;
-        if (now < retry) {
-          fail("COOLDOWN", "이동 시작 30초 후 수동 도착할 수 있다.", retry);
-        }
-      } else if (method === "simulated") {
-        if (!course.demo) {
-          fail("FORBIDDEN", "합성 코스에서만 모의 도착할 수 있다.");
+      if (method === "simulated") {
+        if (!allowsSimulatedArrival(course, stage.arrival)) {
+          fail("FORBIDDEN", "GPS 코스에서는 모의 도착할 수 없다.");
         }
       } else if (method !== "gps") {
-        fail("BAD_REQUEST", "이 버전에서 지원하지 않는 도착 방식이다.");
-      } else if (!stage.arrival.confirmed) {
-        fail("CONTENT_UNCONFIRMED", "도착 좌표 확정이 필요하다.");
+        fail("FORBIDDEN", "GPS로 본인의 도착을 확인하라. 수동·QR 도착은 사용할 수 없다.");
+      } else if (!hasGpsArrival(stage.arrival)) {
+        fail("CONTENT_UNCONFIRMED", "전원 GPS 도착 좌표·반경·체류 설정 확인이 필요하다.");
       }
       if (
         !game.arrivals.some((a) =>
@@ -617,15 +621,16 @@ async function execute(
         game.arrivals.push({
           siteId: stage.id,
           memberId: member!.id,
-          manual: method === "manual",
+          manual: false,
           simulated: method === "simulated",
           at: now,
         });
       }
-      const all = game.members.every((m) =>
-        game.arrivals.some((a) => a.siteId === stage.id && a.memberId === m.id)
+      const all = game.members.length === 4 && game.members.every((m) =>
+        game.arrivals.some((a) => a.siteId === stage.id && a.memberId === m.id &&
+          !a.manual && (allowsSimulatedArrival(course, stage.arrival) || !a.simulated))
       );
-      if (all || stage.arrival.require === "any") {
+      if (all) {
         game.phase = "mission";
         state.stagePhase = "mission";
       } else state.stagePhase = "arrival";
@@ -724,6 +729,20 @@ async function execute(
         level: level!,
         penalty: stage.scoring.enabled ? penalty : 0,
       };
+      break;
+    }
+    case "select-alt-mode": {
+      stageAction();
+      phase("playing", "mission");
+      commander();
+      if (stage.id !== "yongbong" || cmd.mode_id !== "outdoor" ||
+        !stage.altModes?.some((mode) => mode.id === cmd.mode_id)) {
+        fail("BAD_REQUEST", "현재 거점에서 허용된 외부 대체 모드를 선택하라.");
+      }
+      state.altMode ??= {};
+      state.altMode[stage.id] = "outdoor";
+      result = { visit: visitV2(stage, state) };
+      metadata = { mode_id: "outdoor" };
       break;
     }
     case "submit-report": {

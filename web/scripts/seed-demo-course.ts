@@ -5,6 +5,7 @@ import { demoCourse } from "../supabase/functions/_shared/course";
 import { isDevCourseId } from "../supabase/functions/_shared/deployment";
 import { demoCourseV2 } from "../supabase/functions/_shared/demo-course-v2";
 import { legacyDemoCourseV2 } from "../supabase/functions/_shared/legacy-demo-course-v2";
+import { yongbongDemoCourseV2 } from "../supabase/functions/_shared/yongbong-course-v2";
 
 // Deliberately does not load .env.local or accept real course/answer file paths.
 export async function prepareDemoSeed(
@@ -45,16 +46,17 @@ export async function prepareDemoSeed(
   if (!["1", "2"].includes(values["schema-version"]!)) {
     throw new Error("schema-version은 1 또는 2여야 한다.");
   }
-  if (!["synthetic", "v1-gate"].includes(values.preset!)) {
-    throw new Error("preset은 synthetic 또는 v1-gate여야 한다.");
+  if (!["synthetic", "v1-gate", "v1-gate-gps", "gate-yongbong", "gate-yongbong-gps"].includes(values.preset!)) {
+    throw new Error("preset은 synthetic, v1-gate, v1-gate-gps, gate-yongbong, gate-yongbong-gps 중 하나여야 한다.");
   }
-  if (values.preset === "v1-gate" && values["schema-version"] !== "2") {
-    throw new Error("v1-gate preset은 schema-version 2에만 허용한다.");
+  if (values.preset !== "synthetic" && values["schema-version"] !== "2") {
+    throw new Error("정문·용봉관 preset은 schema-version 2에만 허용한다.");
   }
   const course = values["schema-version"] === "2"
-    ? await (values.preset === "v1-gate" ? legacyDemoCourseV2 : demoCourseV2)(
+    ? await (values.preset!.startsWith("gate-yongbong") ? yongbongDemoCourseV2 : values.preset !== "synthetic" ? legacyDemoCourseV2 : demoCourseV2)(
       id,
       salt,
+      values.preset!.endsWith("-gps"),
     )
     : await demoCourse(salt);
   course.id = id;

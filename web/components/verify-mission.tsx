@@ -11,6 +11,7 @@ import {
 } from "@/supabase/functions/_shared/types";
 import { emptyStepAnswer, VerifyInput } from "./verify-input";
 import { useLockDraft } from "./use-lock-draft";
+import { NextStageAction, YongbongPanel } from "./yongbong-panel";
 
 type Send = (command: Command) => Promise<V2Response | null>;
 const statusLabels = {
@@ -299,9 +300,10 @@ export function VerifyMission({ snapshot, busy, now, send }: {
 
   return (
     <div className="verify-stack">
+      <YongbongPanel snapshot={snapshot} busy={busy} send={act} />
       <section className="verify-card verify-stack">
         <h2>{stage.name} · {ROLE_NAMES[role]}</h2>
-        <p>정문 v2 동작 확인 화면</p>
+        <p>{stage.name} v2 동작 확인 화면</p>
         {mission.intro.trigger === "enter" && <p>{mission.intro.text}</p>}
         {visibleScenes.map((scene) => <p key={scene.id}>{scene.text}</p>)}
         <p>
@@ -311,16 +313,16 @@ export function VerifyMission({ snapshot, busy, now, send }: {
         </p>
         {cleared && (
           <div role="status">
-            <h3>정문 확인 완료</h3>
-            {completionLabel && <p>{completionLabel}</p>}
+            <h3>{stage.name} 확인 완료</h3>
+            <p>{game.completion?.label ?? completionLabel}</p>
+            {game.completion?.visit && <p>{game.completion.visit.label}</p>}
             <p>
-              {stage.sacho?.name ?? "정문 기록"}을 복원했습니다. 이 확인 화면은
-              정문 완료 상태를 유지합니다.
+              {stage.sacho?.name ?? `${stage.name} 기록`}을 복원했습니다.
             </p>
           </div>
         )}
       </section>
-
+      <NextStageAction snapshot={snapshot} busy={busy} send={act} />
       {role === "commander" && self.transfer_clue && (
         <section
           className="verify-card verify-stack"

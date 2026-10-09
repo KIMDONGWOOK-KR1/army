@@ -86,7 +86,7 @@ export function VerifyInput({
     );
   }
 
-  if (step.type === "match") {
+  if (step.type === "match" || step.type === "classification") {
     return (step.fields ?? []).map((field) => (
       <label className="verify-field" key={field.id}>
         <span>{field.label}</span>
@@ -104,7 +104,7 @@ export function VerifyInput({
               <option
                 key={id}
                 value={id}
-                disabled={Object.entries(record).some(([key, v]) =>
+                disabled={step.type === "match" && Object.entries(record).some(([key, v]) =>
                   key !== field.id && v === id
                 )}
               >

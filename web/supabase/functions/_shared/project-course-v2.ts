@@ -56,6 +56,7 @@ function mission(m: RoleMission | null) {
         }
         : {}),
       ...(s.requiresReports ? { requiresReports: [...s.requiresReports] } : {}),
+      ...(s.recordFrom ? { recordFrom: { ...s.recordFrom } } : {}),
       ...(s.sourceIds ? { sourceIds: [...s.sourceIds] } : {}),
       sourceRequired: s.sourceRequired ?? false,
       maxLen: s.maxLen ?? 300,

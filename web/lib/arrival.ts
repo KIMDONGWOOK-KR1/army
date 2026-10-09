@@ -18,6 +18,10 @@ export function haversine(a: number, b: number, c: number, d: number) {
  * The original recorder accepts partial windows and carries dwell across discarded fixes/gaps.
  */
 export function judgeArrival(samples: Fix[], target: Target) {
+  if (![target.lat, target.lng, target.radiusM].every(Number.isFinite) ||
+    Math.abs(target.lat) > 90 || Math.abs(target.lng) > 180 || target.radiusM <= 0) {
+    return { arrived: false, distance: null, dwell: 0, validSamples: 0 };
+  }
   let window: Fix[] = [],
     since: number | null = null,
     last: number | null = null,
@@ -36,6 +40,7 @@ export function judgeArrival(samples: Fix[], target: Target) {
       since = null;
       dwell = 0;
       arrived = false;
+      distance = null;
       continue;
     }
     if (last !== null && f.timestamp <= last) continue;
@@ -44,6 +49,7 @@ export function judgeArrival(samples: Fix[], target: Target) {
       since = null;
       dwell = 0;
       arrived = false;
+      distance = null;
     }
     last = f.timestamp;
     window.push(f);
