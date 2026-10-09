@@ -243,6 +243,8 @@ const snapshot = structuredClone(signalAfterHint);
 
 ## 6. 후속 액션 계약 초안
 
+**2026-10-09 정책 변경:** 실제 4인 코스는 전원 GPS 도착이 필수다. 아래 표의 PR-3 QR·수동 대체 요청은 이전 초안이며 실제 코스용 구현 대상에서 제외한다. 방 합류 QR과 dev 합성 코스의 모의 도착은 별개다. 현재 PR-2의 지휘관 본인 수동 도착 경로는 아직 남아 있으므로, 이 문서 변경이 서버 차단 완료를 의미하지 않는다. GPS 필수 적용·미도착 상태의 API 접근 범위 검증은 PR-3에서 수행한다. [결정 기록](DECISIONS.md)을 따른다.
+
 모든 쓰기에 공통 키 game_id/request_id, 단계 액션에는 stage_id를 보낸다. 응답은 갱신된 Snapshot + result이며 아래는 각 액션의 추가 부분이다.
 
 | PR / action | 추가 요청 예시 | 서버 권한·전이 / result 초안 |
