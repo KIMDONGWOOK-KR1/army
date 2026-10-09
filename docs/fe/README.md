@@ -30,7 +30,7 @@ PR-2 서버 기준 브랜치는 `feat/engine-v2-gate`이며 PR-0 #6·PR-1 #7을 
 | PR-2 검증 | 단위·DB·계약 테스트 94개, 타입 검사·빌드·Deno 검사/lint 통과. 기존 v1 E2E 9개 시나리오 통과 |
 | UI 연결 | `/verify`를 유지하고 통합 브랜치의 `/`에도 v2 문제·별도 보고·힌트·읽음 확인·두 개방 경로 연결. [통합 안내](UI_INTEGRATION.md) 참고 |
 | 별도 확인할 것 | PR-2 DB/Edge 클라우드 적용, 통합 웹 Vercel 배포, 실기기 시험. 공개 dev URL에서 v2가 동작한다고 가정하지 않는다 |
-| 후속 범위 | PR-3 프롤로그·역할 교환·QR·수동 대행, 후속 거점·추모·봉지·최종 결과, 시간 점수·랭킹 |
+| 후속 범위 | 프롤로그 문구 연결의 잔여 부분, 후속 거점·추모·봉지·최종 결과, 시간 점수·랭킹. 역할 교환·QR·수동 도착은 사용자 결정으로 제외 |
 
 v2 FE와 API 시험 준비 후 BE 담당이 새 마이그레이션·Edge·새 불변 v2 합성 코스 리비전을 준비한다. 이후 ACTIVE_COURSE_ID를 전환해 **새 방**을 만든다. 기존 방은 기존 코스에 고정되며 r1을 덮어쓰지 않는다. FE가 임의로 DB·시드·Edge 비밀값을 바꿀 필요는 없다.
 
@@ -62,7 +62,7 @@ type V2ActionResponse = SnapshotV2 & { result?: Record<string, unknown> };
 모든 게임 요청에는 game_id, 단계 요청에는 stage_id를 사용한다. 쓰기에는 request_id가 필수다. 새 사용자 동작에는 새 ID를 만들고, 응답 유실 재전송에는 **같은 ID와 같은 본문**을 유지한다.
 
 1. 기존 4인 로비→방장 start-game→각자 set-ready→지휘관 begin-operation으로 출발한다. 방장과 지휘관은 다를 수 있다.
-2. 본인 report-arrival 후 팀 도착 상태를 조회한다. PR-2 dev API 시험에서는 네 명이 각각 `method:"simulated"`로 도착한다. 이는 현장 GPS 검증을 뜻하지 않는다. QR·타인 수동 대행은 PR-3 전에는 호출하지 않는다.
+2. 본인 report-arrival 후 팀 도착 상태를 조회한다. 지정 GPS 코스는 반경 10m 안에서 5초 체류 후 `method:"gps"`를 보내며, 네 명 모두 도착해야 미션이 열린다. GPS 미확정 dev 시연에만 `method:"simulated"`를 사용한다. QR·수동 대행은 거절한다. 기존 시연 문항을 현장에서 시험하는 새 `v1-gate-gps` preset과 재배포 절차는 [GPS 적용 안내](../be/GPS_APPLY.md)를 따른다.
 3. get-game으로 현재 stage_id·site_phase를 확인한다. mission/cleared에서 get-stage를 호출해 본인의 미션·힌트·진행 상태를 받는다. travel에서 get-stage는 409 WRONG_PHASE다.
 4. self.step_progress[stepId].status가 open인 문제를 submit-step으로 제출한다. locked는 선행 문제/보고를 기다린다. HTTP 200이어도 result.accepted=false이면 채점 오답이다.
 5. 본인의 모든 문제가 done/explained이고 선행 보고 조건을 충족하면 submit-report를 보낸다. 본인 숫자를 표시하고 구두 전달을 안내한다. 타인 화면에는 보고 ✓만 표시한다.

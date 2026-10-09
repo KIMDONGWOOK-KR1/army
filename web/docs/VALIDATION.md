@@ -1,5 +1,15 @@
 # 웹앱 구현·검증 기록
 
+## 2026-10-09 GPS 필수 도착과 반경 10m
+
+- 세 목표 좌표를 `jnu-gps.ts`에 보관하고 정문 공개 코스 및 새 dev `v1-gate-gps` preset에 연결했다. 목표 지정은 사용자 승인이고 4대 실기기 현장 시험은 미수행이다. 후속 용봉관·봉지 미션은 아직 연결하지 않았다.
+- `npm test`: 31개 파일, 311개 테스트 통과. 신규 7개 테스트에서 전원 도착 전 문제·힌트·보고·개방 차단, 본인만 도착, 멱등성, 역할·도착 복원, 수동·QR·모의 우회 거절, 설정 오류, 9m/11m 경계, dev seed와 prod 차단을 검증했다.
+- `npm run typecheck`, `npm run build`: 통과. Edge `deno check --no-lock supabase/functions/game/index.ts`와 변경된 공통 모듈 5개 `deno lint`: 통과.
+- `npx playwright test --config playwright.gps.config.ts`: 1개 네 세션 시나리오 통과(2.1분). 외부 위치·accuracy 41m·10초 지난 위치·권한 거부에서 도착 요청 0건, 3명 도착 시 전원 대기, 네 번째 GPS 도착 후 네 화면에서 미션 공개, 각자 도착 요청 1회, 재접속 역할·도착 보존, 사용자 좌표 미전송을 확인했다. 위치 입력은 브라우저 합성이며 실제 현장 측위 시험이 아니다.
+- 새 테스트는 실제 시나리오 정답·비밀값·원시 GPS CSV를 사용하지 않는다. 공개 이동 화면만 제외 폴더 `.demo-data/gps-travel-public.png`에 캡처해 390px 표시를 검토했다. 개인 미션·응답은 캡처·trace·video로 저장하지 않았다.
+- 보조 FE lint에는 Next.js 확장자 없는 import·브라우저 window·기존 버튼 type 관례에 맞지 않는 Deno 규칙을 제외했다(`no-sloppy-imports,no-window,no-window-prefix,jsx-button-has-type`). 초기 실행의 환경 규칙 오류와 테스트 블록 내부 함수 선언 지적을 확인하고, 후자는 화살표 함수로 수정했다. 저장소 CI의 Edge lint 규칙은 완화하지 않았다.
+- 새 DB 마이그레이션 없음. 클라우드 코스 등록·Edge·Vercel 배포는 실행하지 않았다. 새 불변 코스 리비전 및 새 방이 필요하며 [적용 안내](../../docs/be/GPS_APPLY.md)를 따른다.
+
 ## 2026-10-09: 기존 v1 정문의 임시 v2 이관
 
 `feat/ui-v2-integration`에서 기존 v1 원본을 공유하는 `v1-gate` preset을 추가했다. 현장 확정 코스가 아니며 [적용 안내](../../docs/be/LEGACY_GATE_DEV.md)대로 별도 dev 리비전으로 등록한다.

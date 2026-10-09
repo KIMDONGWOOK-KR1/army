@@ -195,14 +195,14 @@
       "confirmed": false,
       "arrival": {
         "mode": "gps",
-        "confirmed": false,
+        "confirmed": true,
         "require": "all",
-        "lat": null,
-        "lng": null,
-        "radiusM": 15,
+        "lat": 35.172851,
+        "lng": 126.905149,
+        "radiusM": 10,
         "noticeM": 20,
         "dwellSec": 5,
-        "note": "TODO(확인필요): 현장 기준점. 기본값 적용 — 확정 필요(D2·D3): 전원 도착, GPS → QR → 지휘관 수동(30초), 진행자 기능 제외."
+        "note": "2026-10-09 사용자 지정 좌표·시험 반경 10m. 휴대폰 4대 현장 검증은 별도."
       },
       "quiet": false,
       "scoring": {

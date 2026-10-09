@@ -1,4 +1,5 @@
 import { answerHashV2 } from "./answer-v2.ts";
+import { hasGpsArrival } from "./arrival-policy.ts";
 import { ROLES } from "./types.ts";
 import type {
   CourseV2,
@@ -386,6 +387,9 @@ export function validateCourseV2Content(input: unknown): CourseV2Content {
       (arrival.radiusM === undefined || arrival.noticeM === undefined ||
         arrival.dwellSec === undefined || arrival.noticeM < arrival.radiusM)
     ) fail(stageId, "GPS 도착 범위·안내 거리·체류 시간이 필요하다.");
+    if (arrival.mode === "gps" && arrival.confirmed && !hasGpsArrival(arrival)) {
+      fail(stageId, "확정 GPS 코스는 전원 도착·유효 좌표·반경·5초 체류가 필요하다.");
+    }
     const q = obj(a.scoring, stageId);
     keys(
       q,
