@@ -36,6 +36,7 @@ import {
 import { Mission, LockPanel } from "./mission";
 import { MissionV2, LockPanelV2 } from "./mission-v2";
 import { JournalV2 } from "./journal-v2";
+import { NextStageAction } from "./yongbong-panel";
 import { isV2Response, type GameResponse } from "@/lib/game-snapshot";
 import { SceneArt } from "./scene-art";
 import { GameDialog } from "./game-dialog";
@@ -1294,19 +1295,21 @@ export default function GameApp({
                 <h1 data-scene-heading tabIndex={-1}>
                   {site!.sacho.name}
                 </h1>
-                <p>{site!.sacho.body || (v2 ? "정문 단계 확인 완료" : "")}</p>
+                <p>{site!.sacho.body || (v2 ? `${site!.name} 단계 확인 완료` : "")}</p>
                 {v2 && completionLabel && <p>{completionLabel}</p>}
+                {v2?.game.completion?.visit && <p>{v2.game.completion.visit.label}</p>}
                 <div className="sacho-reward">
                   <Check size={17} /> 사초를 기록첩에 보관했다.
                 </div>
               </div>
               <section className="game-console">
                 <p className="dialogue-line">
-                  {v2 ? "함께 복원한 정문 기록을 보관했다." : "다음 거점에 또 하나의 기억이 기다린다."}
+                  {v2 ? `함께 복원한 ${site!.name} 기록을 보관했다.` : "다음 거점에 또 하나의 기억이 기다린다."}
                 </p>
                 {v2 ? (
-                  <><button className="button primary" onClick={() => setPane("summary")}>
-                    정문 결과 보기 <ArrowRight size={18} />
+                  <><NextStageAction snapshot={v2} busy={busy} send={send} />
+                  <button className="button primary" onClick={() => setPane("summary")}>
+                    {site!.name} 결과 보기 <ArrowRight size={18} />
                   </button><button className="button secondary" onClick={() => setModal("records")}>
                     수집한 기록 읽기 <BookOpen size={18} />
                   </button></>
@@ -1334,7 +1337,7 @@ export default function GameApp({
           ) : scene === "done" ? (
             <>
               <div className="completion">
-                <span className="eyebrow">{v2 ? "정문 확인 완료 · 전남대편" : "작전 완료 · 전남대편"}</span>
+                <span className="eyebrow">{v2 ? `${site!.name} 확인 완료 · 전남대편` : "작전 완료 · 전남대편"}</span>
                 <h1 data-scene-heading tabIndex={-1}>
                   오늘의 실록 한 장을
                   <br />
@@ -1353,10 +1356,11 @@ export default function GameApp({
                   <br />네 사람의 자리에서 다시 이었다.
                 </p>
                 <p className="completion-next">
-                  {v2 ? "정문의 사초를 복원했다. 다음 거점은 준비 중이며, 이번 확인은 여기까지다."
+                  {v2 ? `${site!.name}의 사초를 복원했다. ${v2.course.sites.some((s) => s.seq > site!.seq) ? "지휘관의 출발 신호에 맞춰 다음 거점으로 이동하라." : "후속 거점은 준비 중이며, 이번 확인은 여기까지다."}`
                     : "민주길의 기록은 여기서 끝나지 않는다. 박관현의 언덕, 윤상원의 숲, 김남주의 뜰이 다음 사초를 기다린다."}
                 </p>
                 {v2 && completionLabel && <p>{completionLabel}</p>}
+                {v2?.game.completion?.visit && <p>{v2.game.completion.visit.label}</p>}
                 <div className="completion-score">
                   <span>
                     <b>{s!.game.score}</b> 기록 점수
@@ -1373,6 +1377,7 @@ export default function GameApp({
                 {v2 && <button className="button secondary" onClick={() => setPane("report")}>
                   사초로 돌아가기
                 </button>}
+                {v2 && <NextStageAction snapshot={v2} busy={busy} send={send} />}
                 <button className="button secondary" onClick={home}>
                   새 작전 준비하기
                 </button>

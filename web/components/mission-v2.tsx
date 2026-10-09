@@ -18,6 +18,7 @@ import { emptyStepAnswer, VerifyInput } from "./verify-input";
 import { isLegacyMissionStep, LegacyMissionInput } from "./legacy-mission-input";
 import { useLockDraft } from "./use-lock-draft";
 import styles from "./mission-v2.module.css";
+import { YongbongPanel } from "./yongbong-panel";
 
 type Props = {
   snapshot: V2Response;
@@ -218,6 +219,7 @@ export function MissionV2({ snapshot, busy, send, onShowDigit }: Props & { onSho
   );
   return (
     <div className={styles.root}>
+      <YongbongPanel snapshot={snapshot} busy={busy} send={send} />
       <div className={styles.card}>
         <div className="section-label">
           <span>{ROLE_NAMES[role]}의 조사</span>

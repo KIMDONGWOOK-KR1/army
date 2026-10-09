@@ -31,7 +31,7 @@ export default function VerifyApp() {
     <div className="verify-page">
       <main id="main-content" className="verify-stack verify-container">
         <header className="verify-card verify-stack">
-          <h1>정문 v2 확인용 화면</h1>
+          <h1>정문·용봉관 v2 확인용 화면</h1>
           <p>
             합성 코스로 4인 흐름을 확인하는 임시 화면이다. 모의 도착은 실제 현장
             GPS 검증에 해당하지 않는다.
@@ -114,7 +114,7 @@ export default function VerifyApp() {
             <section className="verify-card verify-stack">
               <h2>합성 코스가 필요하다</h2>
               <p>
-                이 화면은 dev 합성 v2 코스의 정문 확인용이다. 연결된 코스 설정을
+                이 화면은 dev 합성 v2 코스의 흐름 확인용이다. 연결된 코스 설정을
                 확인하라.
               </p>
               <button
@@ -151,7 +151,7 @@ export default function VerifyApp() {
                     : s.game.site_phase === "travel"
                     ? "이동 중"
                     : s.game.site_phase === "cleared"
-                    ? "정문 완료"
+                    ? `${s.stage.name} 완료`
                     : "조사 중"}
                 </p>
                 <ul className="verify-team" data-testid="verify-team">
@@ -229,7 +229,7 @@ export default function VerifyApp() {
               {s.game.status === "playing" && s.game.site_phase === "travel" &&
                 (
                   <section className="verify-card verify-stack">
-                    <h2>정문 도착 확인 · {s.current_site.radiusM}m</h2>
+                    <h2>{s.stage.name} 도착 확인 · {s.current_site.radiusM}m</h2>
                     <p>
                       {canSimulate ? "각자 본인의 모의 도착 버튼을 누른다."
                         : "GPS를 켜고 반경 안에서 5초간 기다리라. 네 명 모두 도착해야 미션이 열린다."}

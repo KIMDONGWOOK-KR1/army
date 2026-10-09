@@ -1,4 +1,5 @@
 import type { CourseV2, GameV2State, Role } from "./types.ts";
+import { sharedRecordsV2, visitV2 } from "./yongbong-v2.ts";
 
 /** Completed public rewards plus the authenticated role's records only. */
 export function projectJournalV2(
@@ -17,6 +18,9 @@ export function projectJournalV2(
       name: stage.sacho?.name ?? stage.name,
       completed_at: completed.at,
       method: completed.method,
+      ...(visitV2(stage, state) ? { visit: visitV2(stage, state) } : {}),
+      ...(stage.roles[role]?.steps.some((step) => step.recordFrom)
+        ? { shared_records: sharedRecordsV2(stage, state, role) } : {}),
       sections: [...(stage.sacho?.sections ?? [])],
       entries: (stage.roles[role]?.steps ?? []).flatMap((step) => {
         const p = progress?.steps[step.id];

@@ -1,6 +1,8 @@
-# BE v2 API 계약 — PR-2 정문 구현 / 후속 액션 초안
+# BE v2 API 계약 — 정문·용봉관 구현 / 후속 액션 초안
 
-2026-10-08 · FE: 이환희 / BE·Infra: 김종연 / 리뷰·머지: 김동욱
+2026-10-09 갱신 · FE: 이환희 / BE·Infra: 김종연 / 리뷰·머지: 김동욱
+
+**PR-4에서 용봉관 이동·조사·자료 전달·외부 대체 모드·사초②를 추가했다.** 상세 계약은 11절, 수동 DB·Edge·코스·웹 적용은 [용봉관 적용 안내](YONGBONG_APPLY.md)를 따른다. 기존 정문 fixtures는 유지하며 용봉관의 전체 응답 예시로 사용하지 않는다.
 
 화면 개발 시작 순서·기존 v1 화면의 전환 지점·연결 준비는 [FE 인수인계 README](../fe/README.md)를 먼저 참고한다. 요청·응답 세부 형식은 이 문서가 기준이다.
 
@@ -216,7 +218,7 @@ const snapshot = structuredClone(signalAfterHint);
 
 `sourceRequired:true`면 source.text와 method가 필요하다. source_id는 코스에 존재하고 해당 단계의 sourceIds 범위에 있어야 한다. record의 source 필드와 별도의 source는 각각 관찰 기록과 확인 방식 메타데이터이며 FE는 같은 사용자 입력에서 함께 채워도 된다. 같은 미완료 문제의 제출은 최소 1초 간격이며 형식 오류는 시도 횟수에 포함하지 않는다. 채점 오답은 문제 시도 횟수만 늘리고 자물쇠 시도·감점에는 영향을 주지 않는다.
 
-`map-hash`는 **1:1 연결만** 지원한다. G-01의 실제 근거 선택지·정답 짝은 미확정이며 같은 선택지를 여러 사건에 쓰는 구성은 등록할 수 없다. 주파수 UI는 소수점 한 자리 이하의 문자열을 보내야 하며 `12.30` 같은 두 자리 입력도 거절한다.
+`match/map-hash`는 **1:1 연결만** 지원한다. 용봉관의 `classification/map-hash`는 필드 ID→선택 번호 객체로 보내되 여러 문장에 같은 분류를 사용할 수 있다. 이 예외가 기존 match의 중복 선택을 허용하지는 않는다. G-01의 실제 근거 선택지·정답 짝은 미확정이다. 주파수 UI는 소수점 한 자리 이하의 문자열을 보내야 하며 `12.30` 같은 두 자리 입력도 거절한다.
 
 `method`: 참가자는 `field`(현장 확인), `official_digital`(공식 디지털 자료 확인)만 선택한다. `simulated`는 dev 전용 검증, `explained`는 서버의 해설 경로, `proxy`는 D3 확정 뒤 PR-6에서만 생성한다. 클라이언트가 explained를 보내 정답 검증을 우회할 수 없다.
 
@@ -264,7 +266,7 @@ const snapshot = structuredClone(signalAfterHint);
 | PR-3 set-ready | `{"ready":true}` | 본인 출발 확인 문구 확인 / `{ready:true}` |
 | 구현 report-arrival | `{"method":"gps"}` | 본인 도착만 기록. 전원 도착 후 미션, 원시 좌표 없음 / `{arrived:true}` |
 | 기존 depart-next-site | 없음 | 지휘관·현재 단계 완료. 다음 이동으로 전환, 문제 화면 잠금 |
-| PR-4 select-alt-mode | `{"mode_id":"outside"}` | 지휘관·코스에 정의된 용봉관 모드. 결과에 ‘실내 관람 아님’ |
+| PR-4 select-alt-mode — 구현 | `{"mode_id":"outdoor"}` | 지휘관·용봉관 전원 도착 후 완료 전. 이전 초안의 outside는 사용하지 않는다. 아래 11절 참고 |
 | PR-5 draft-memorial-record | `{"text":"팀이 함께 남길 추모 기록"}` | 지휘관 초안, 수정 때 추모 확인 초기화 / `{draft_version:1}` |
 | PR-5 confirm-stage | `{"draft_version":1}` | 본인이 현재 추모 기록 읽음 확인. 4명 확인 후 사초③ |
 | PR-5 submit-retro | `{"text":"확인한 기록과 남은 질문"}` | 본인의 봉지 회고 / `{saved:true}` |
@@ -342,4 +344,50 @@ courseId는 소문자로 시작하는 ID, stepId는 `G-03.freq` 형태의 대문
 
 현재 v2는 기존 4인 로비→역할 배정→준비→출발 흐름으로 정문에 진입한다. 최초 역할을 유지하며 역할 교환은 금지한다. `report-arrival`은 본인 도착만 기록한다. 2026-10-09 추가 구현은 위 GPS 도착 계약을 따른다. 지정 GPS 코스는 네 명 모두 GPS 도착이 필요하며 수동·QR·모의 도착으로 우회하지 않는다. GPS 미확정 dev 시연만 모의 도착을 제공한다.
 
-정문 완료 뒤 get-stage는 계속 정문을 반환한다. 이 단계에서 전체 게임을 종료하지 않으며 dev 합성 코스에는 다음 거점이 없다. `/verify` 확인용 UI는 포함하며 정식 FE 디자인·랭킹·시간 점수 계산·추모·봉지는 이번 PR에 포함되지 않는다. 서버 이벤트에는 시각·역할·액션과 제한된 판정 메타데이터만 저장해 후속 통계를 준비한다. 합성 수치는 정책 확정을 뜻하지 않는다.
+정문 완료 뒤 get-stage는 출발 전까지 정문을 반환한다. 기존 정문 전용 코스는 다음 거점이 없고, PR-4의 새 `gate-yongbong` / `gate-yongbong-gps` 코스는 지휘관의 `depart-next-site`로 용봉관에 진입한다. 전체 코스 종료·랭킹·시간 점수·추모·봉지는 후속 범위다. 서버 이벤트에는 시각·역할·액션과 제한된 판정 메타데이터만 저장한다. 합성 수치는 정책 확정을 뜻하지 않는다.
+
+## 11. PR-4 용봉관
+
+정문 완료 후 `{"action":"depart-next-site","stage_id":"gate","request_id":"<새 ID>"}`를 보낸다. 용봉관 이동 상태가 되며 본인 문제·힌트·숫자는 다시 숨긴다. 기존 정문 도착은 용봉관 도착으로 인정하지 않는다. 지정 GPS 코스는 용봉관 10m 안 5초·네 명 도착을 요구하고 개발용 코스는 각자 모의 도착한다. 이후 단계 요청의 `stage_id`는 `yongbong`이다. 용봉관 완료 후 현재 코스에 다음 미션은 없으며 `depart-next-site`는 `NO_STAGE`다.
+
+| 역할 | 단계 ID / 동작 |
+|---|---|
+| scout | `Y-01.features` 외형 2개 선택 → `Y-01.use` 과거 용도 |
+| signal | `Y-02.functions` 1:1 연결 → `Y-02.choice` 선택 → `Y-02.record` 자료 기록 |
+| cipher | `Y-03.sources` 1:1 연결 → `Y-03.verdict` OX → `Y-03.limits` 자료 확인 범위·한계·질문 |
+| commander | 나머지 세 역할 보고 → `Y-04.classify` 3분류 → `Y-04.evidence` 근거 연결 → `Y-04.revision` 수정 기록 |
+
+`Y-02.record`는 `title/type/created_at/provider/known` 다섯 필드가 필수이며 각 칸에 `확인 불가`를 허용한다. 고정 정답이 없고 기존처럼 출처·확인 방식·300자 상한 등 형식만 검사한다. `Y-04.revision`은 `verified/follow_up` 두 칸이 모두 필요하다. `Y-03.limits`는 `checked/missing/limit/question`을 기록하며 본인의 OX와 통신원 기록 완료가 선행 조건이다.
+
+### 개인 기록 전달 예외
+
+`Step.recordFrom:{role,stepId}`는 같은 거점의 다른 역할이 완료한 `record` 필드만 지정할 수 있고 `requires`에도 같은 참조가 있어야 한다. 정답형 단계·다른 거점·같은 역할·빠진 선행 참조는 seed가 거절한다. 용봉관에서는 **통신원 자료 기록 → 암호해독관 self**에만 선언했다. 지휘관은 기록 본문 대신 구두 보고를 듣는다.
+
+도착 후 암호해독관의 `self.shared_records`에 다음 항목이 추가된다(아래는 합성 예시). 통신원 기록 완료 전에는 빈 배열이며 다른 역할과 이동 상태 응답에는 필드 자체가 없다.
+
+```json
+{
+  "step_id": "Y-03.limits",
+  "from_role": "signal",
+  "from_step_id": "Y-02.record",
+  "status": "recorded",
+  "fields": [{"id":"title","label":"자료 제목"}],
+  "record": {"title":"[합성] 자료 가"},
+  "method": "official_digital",
+  "source": {"text":"[합성] 연습 자료"}
+}
+```
+
+실제 `fields/record`에는 선언된 다섯 필드가 들어간다. 통신원이 3단계 힌트로 기록 없이 완료하면 `status:"explained_without_record"`, `record:null`, `source:null`, `method:"explained"`다. 자료를 임의로 생성하지 않고 ‘기록 없음·추가 확인 필요’를 표시한다. 힌트의 대상 역할 전체 해설 처리 규칙은 유지한다. 전달 항목에는 다른 문제의 기록·숫자·정답·해시·힌트가 없다. 완료 뒤 같은 항목은 암호해독관의 해당 `self.journal[].shared_records`에만 남는다.
+
+### 외부 대체 모드와 결과
+
+```json
+{"action":"select-alt-mode","game_id":"<게임 ID>","stage_id":"yongbong","mode_id":"outdoor","request_id":"<새 ID>"}
+```
+
+지휘관만 용봉관 `mission` 중 선택할 수 있다. 도착 전·완료 후는 `WRONG_PHASE`, 타 역할은 `FORBIDDEN`, 미지원 모드는 `BAD_REQUEST`다. 중간에 선택해도 기존 답안 처리·기록·보고·감점·자물쇠 시도를 초기화하지 않는다. 같은 요청 재전송은 멱등하며 다른 본문에 같은 ID를 쓰면 `IDEMPOTENCY_CONFLICT`다. 실내 모드로 되돌리는 액션은 없다.
+
+대체 모드 지원 거점에만 `game.visit:{mode:"onsite"|"outdoor",label}`을 추가한다. 선택 전 label은 `현장 조사`로, 실내 관람 완료를 보장하지 않는다. 외부 모드 label은 `외부 대체 조사 · 실내 관람 아님`이다. 완료 결과·`game.completion.visit`·해당 `self.journal[].visit`에도 표시하고 재접속 후 유지한다. 개방 방식 label(`조사 후 복원`/`해설 확인 후 복원`)과 구분한다.
+
+사초②는 private `v2.sacho.yongbong`에 기존 출처·기록과 함께 `visitMode`, `research:{material,assessment,revision}`을 저장한다. 각각 통신원 자료 정보, 암호해독관 확인 범위·추가 질문, 지휘관 수정 기록이다. 기록 없이 해설 완료한 부분은 null이다. 전체 research를 공개하거나 지휘관 self에 제공하지 않는다. `game_events`에는 `select-alt-mode`의 `mode_id`만 남긴다. [새 마이그레이션·적용 절차](YONGBONG_APPLY.md)를 따른다.

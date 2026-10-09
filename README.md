@@ -8,7 +8,8 @@
 
 | 문서 | 확인할 내용 |
 |---|---|
-| [FE 인수인계 — 정문 v2](docs/fe/README.md) | 현재 서버 구현·배포 구분, API 계약·mock 12개, v1 화면에서 바꿀 부분, FE/BE 연결 순서 |
+| [FE 인수인계 — 정문·용봉관 v2](docs/fe/README.md) | 현재 서버 구현·배포 구분, API 계약·정문 mock 12개, FE/BE 연결 순서 |
+| [용봉관 적용 안내](docs/be/YONGBONG_APPLY.md) | 두 거점 새 코스, 자료 전달·외부 대체 모드, 새 DB 마이그레이션과 재배포 |
 | [메인 UI 통합 안내](docs/fe/UI_INTEGRATION.md) | PR #8 디자인과 PR #9 정문 API 연결, 실행·시험 방법과 dev 적용 조건 |
 | [GPS 적용·개발용 모드 전환](docs/be/GPS_APPLY.md) | 같은 Vercel dev 주소에서 개발용 모의 도착과 GPS 10m 도착을 번갈아 시험하는 절차 |
 | [MVP 개발 기획서](codex-handoff-v2/MVP_PLAN.md) | 필수 기능, 분업, 일정, 검수 기준, 회의 결정표 |
@@ -32,7 +33,7 @@ AR·주적·사격 연출은 제외합니다. 2~3인 겸임, 집결 보너스, �
 
 ## 개발용·GPS 모드 시험
 
-같은 [Vercel dev 웹](https://hoguk-dev-web.vercel.app/)에서 **개발용 코스(장소 무관 모의 도착)**와 **GPS 코스(정문 10m 안 5초, 전원 도착)**를 시험할 수 있습니다. 담당 개발자가 Supabase의 `ACTIVE_COURSE_ID`를 전환하고 새 방을 만드는 방식입니다. 최초 웹 배포 후 코스 전환만으로는 Vercel 재배포가 필요하지 않으며 기존 방은 원래 코스를 유지합니다. 실제 등록된 코스 ID와 전환 명령은 [GPS 적용 안내](docs/be/GPS_APPLY.md)를 따릅니다. 현재 v2 미션은 정문까지입니다.
+같은 [Vercel dev 웹](https://hoguk-dev-web.vercel.app/)에서 **개발용 코스(장소 무관 모의 도착)**와 **GPS 코스(각 거점 10m 안 5초, 전원 도착)**를 시험할 수 있습니다. 담당 개발자가 Supabase의 `ACTIVE_COURSE_ID`를 전환하고 새 방을 만드는 방식입니다. 두 모드를 지원하는 웹 배포 후 코스 전환만으로는 Vercel 재배포가 필요하지 않으며 기존 방은 원래 코스를 유지합니다. 기존 정문 전용 코스는 [GPS 적용 안내](docs/be/GPS_APPLY.md)를 따릅니다. 이 브랜치는 용봉관까지 구현했으며 새 `gate-yongbong` / `gate-yongbong-gps` 코스와 DB·Edge·웹 적용은 [용봉관 적용 안내](docs/be/YONGBONG_APPLY.md)를 따릅니다. 기존 배포가 자동 갱신되는 것은 아닙니다.
 
 ## 팀 역할
 

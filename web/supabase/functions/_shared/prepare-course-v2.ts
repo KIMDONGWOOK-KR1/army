@@ -154,6 +154,7 @@ const compatible: Record<StepType, Grading[]> = {
   truefalse: ["hash"],
   order: ["order-hash"],
   match: ["map-hash"],
+  classification: ["map-hash"],
   choice: ["hash"],
   "multi-choice": ["set-hash"],
   frequency: ["hash"],
@@ -176,6 +177,7 @@ function step(value: unknown, production: boolean, sourceIds: string[]): Step {
     "statements",
     "fields",
     "requires",
+    "recordFrom",
     "requiresReports",
     "grading",
     "sourceRequired",
@@ -229,7 +231,7 @@ function step(value: unknown, production: boolean, sourceIds: string[]): Step {
     unique(s.choices, s.id);
   }
   if (
-    ["order", "match", "choice", "multi-choice", "spot-correct"].includes(
+    ["order", "match", "classification", "choice", "multi-choice", "spot-correct"].includes(
       s.type,
     ) && !s.choices
   ) fail(s.id, "선택지가 필요하다.");
@@ -240,7 +242,7 @@ function step(value: unknown, production: boolean, sourceIds: string[]): Step {
     fail(s.id, "진위 문장이 필요하다.");
   }
   if (o.fields !== undefined) s.fields = fields(o.fields);
-  if (["match", "record-form"].includes(s.type) && !s.fields) {
+  if (["match", "classification", "record-form"].includes(s.type) && !s.fields) {
     fail(s.id, "입력 필드가 필요하다.");
   }
   if (o.requires !== undefined) {
@@ -252,6 +254,14 @@ function step(value: unknown, production: boolean, sourceIds: string[]): Step {
         stepId: id(r.stepId, s.id, true),
       };
     });
+  }
+  if (o.recordFrom !== undefined) {
+    const r = obj(o.recordFrom, s.id);
+    exact(r, ["role", "stepId"], s.id);
+    s.recordFrom = { role: one(r.role, ROLES, s.id), stepId: id(r.stepId, s.id, true) };
+    if (!s.requires?.some((ref) => ref.role === s.recordFrom!.role && ref.stepId === s.recordFrom!.stepId)) {
+      fail(s.id, "자료 전달에는 같은 선행 단계 지정이 필요하다.");
+    }
   }
   if (o.requiresReports !== undefined) {
     s.requiresReports = arr(o.requiresReports, s.id, 1, 4).map((v) =>
@@ -529,6 +539,10 @@ export function validateCourseV2Content(input: unknown): CourseV2Content {
         exact(t, ["id", "label"], stageId);
         return { id: id(t.id, stageId), label: str(t.label, stageId) };
       });
+      unique(stage.altModes.map((mode) => mode.id), stageId);
+      if (stageId !== "yongbong" || stage.altModes.some((mode) => mode.id !== "outdoor")) {
+        fail(stageId, "현재 대체 모드는 용봉관 outdoor만 지원한다.");
+      }
     }
     return stage;
   });
@@ -567,6 +581,13 @@ function validateDependencies(stages: Stage[]) {
   }
   const graph = new Map<string, string[]>();
   for (const [id, node] of nodes) {
+    if (node.step.recordFrom) {
+      const ref = node.step.recordFrom, source = nodes.get(ref.stepId);
+      if (!source || source.role !== ref.role || source.stage.id !== node.stage.id ||
+        source.role === node.role || source.step.grading !== "record" || !source.step.fields?.length) {
+        fail(id, "자료 전달은 같은 거점의 다른 역할이 작성한 기록 필드만 허용한다.");
+      }
+    }
     const edges = (node.step.requires ?? []).map((ref) => {
       const target = nodes.get(ref.stepId);
       if (

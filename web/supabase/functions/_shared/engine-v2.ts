@@ -8,6 +8,7 @@ import {
 } from "./project-course-v2.ts";
 import { ROLES } from "./types.ts";
 import { projectJournalV2 } from "./project-journal-v2.ts";
+import { researchV2, sharedRecordsV2, visitV2 } from "./yongbong-v2.ts";
 import type {
   Command,
   Course,
@@ -254,7 +255,9 @@ export function projectGameV2(
         at: completed.at,
         method: completed.method,
         label: completed.method === "explained" ? "해설 확인 후 복원" : "조사 후 복원",
+        ...(visitV2(stage, state) ? { visit: visitV2(stage, state) } : {}),
       } : null,
+      ...(stage.altModes?.length ? { visit: visitV2(stage, state) } : {}),
       step_done_count: Object.fromEntries(
         ROLES.map(
           (r) => [r, Object.values(progress[r].steps).filter(done).length],
@@ -298,6 +301,8 @@ export function projectGameV2(
       explanations,
       rewards,
       journal: projectJournalV2(course, state, member.role),
+      ...(visible && stage.roles[member.role!]?.steps.some((s) => s.recordFrom)
+        ? { shared_records: sharedRecordsV2(stage, state, member.role!) } : {}),
     },
     stage: personal?.stage ?? projectPublicStageV2(course, stage.id),
   };
@@ -316,6 +321,7 @@ const writes = new Set([
   "open-lock",
   "open-after-explanation",
   "depart-next-site",
+  "select-alt-mode",
 ]);
 export type SnapshotV2 = ReturnType<typeof projectGameV2>;
 function recordInput(step: Step, value: unknown) {
@@ -406,6 +412,8 @@ function finish(
     observations,
     eventRecords,
     sources,
+    ...(visitV2(stage, state) ? { visitMode: visitV2(stage, state)!.mode } : {}),
+    ...(researchV2(stage, state) ? { research: researchV2(stage, state) } : {}),
   };
   state.completed[stage.id] = { at: now, method };
   state.stagePhase = "done";
@@ -428,6 +436,7 @@ function finish(
     method,
     label: method === "explained" ? "해설 확인 후 복원" : "조사 후 복원",
     sacho_id: stage.sacho?.id ?? null,
+    ...(visitV2(stage, state) ? { visit: visitV2(stage, state) } : {}),
   };
 }
 
@@ -720,6 +729,20 @@ async function execute(
         level: level!,
         penalty: stage.scoring.enabled ? penalty : 0,
       };
+      break;
+    }
+    case "select-alt-mode": {
+      stageAction();
+      phase("playing", "mission");
+      commander();
+      if (stage.id !== "yongbong" || cmd.mode_id !== "outdoor" ||
+        !stage.altModes?.some((mode) => mode.id === cmd.mode_id)) {
+        fail("BAD_REQUEST", "현재 거점에서 허용된 외부 대체 모드를 선택하라.");
+      }
+      state.altMode ??= {};
+      state.altMode[stage.id] = "outdoor";
+      result = { visit: visitV2(stage, state) };
+      metadata = { mode_id: "outdoor" };
       break;
     }
     case "submit-report": {
