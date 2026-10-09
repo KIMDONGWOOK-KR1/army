@@ -181,6 +181,7 @@ function step(value: unknown, production: boolean, sourceIds: string[]): Step {
     "sourceIds",
     "answerCount",
     "maxLen",
+    "normalize",
     "note",
   ], "step");
   const s: Step = {
@@ -204,6 +205,23 @@ function step(value: unknown, production: boolean, sourceIds: string[]): Step {
   }
   if (!compatible[s.type].includes(s.grading)) {
     fail(s.id, "유형과 채점 방식이 맞지 않는다.");
+  }
+  if (o.normalize !== undefined) {
+    if (
+      !(["text", "observation"].includes(s.type) && s.grading === "hash") &&
+      !(s.type === "words" && s.grading === "set-hash")
+    ) {
+      fail(s.id, "정규화 옵션은 텍스트·낱말 정답에만 허용한다.");
+    }
+    const rules = obj(o.normalize, s.id);
+    keys(rules, ["caseInsensitive", "ignoreSpaces"], s.id);
+    s.normalize = {};
+    if (rules.caseInsensitive !== undefined) {
+      s.normalize.caseInsensitive = bool(rules.caseInsensitive, s.id);
+    }
+    if (rules.ignoreSpaces !== undefined) {
+      s.normalize.ignoreSpaces = bool(rules.ignoreSpaces, s.id);
+    }
   }
   if (o.choices !== undefined) {
     s.choices = strings(o.choices, s.id, 1, 100);
@@ -492,11 +510,13 @@ export function validateCourseV2Content(input: unknown): CourseV2Content {
     ) fail(stageId, "추모 단계에는 점수·숫자·자물쇠를 둘 수 없다.");
     if (a.sacho !== undefined) {
       const s = obj(a.sacho, stageId);
-      exact(s, ["id", "name", "sections"], stageId);
+      keys(s, ["id", "name", "sections", "char", "body"], stageId);
       stage.sacho = {
         id: id(s.id, stageId),
         name: str(s.name, stageId),
         sections: strings(s.sections, stageId, 1),
+        ...(s.char !== undefined ? { char: str(s.char, stageId, 4) } : {}),
+        ...(s.body !== undefined ? { body: str(s.body, stageId, 3000) } : {}),
       };
     }
     if (a.altModes !== undefined) {

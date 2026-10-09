@@ -1,25 +1,24 @@
 "use client";
 import { useEffect, useState } from "react";
-import {
-  Radio,
-  Check,
-  LockKeyhole,
-  ArrowRight,
-  CalendarDays,
-} from "lucide-react";
+import { Check, LockKeyhole, ArrowRight } from "lucide-react";
 import {
   ROLE_NAMES,
   type Snapshot,
   type Command,
 } from "@/supabase/functions/_shared/types";
+import { FrequencyTuner } from "./frequency-tuner";
+import { MissionCalendar } from "./mission-calendar";
+import { formatTenths, glide, toTenths } from "./dial-math";
 export function Mission({
   snapshot,
   busy,
   send,
+  auto,
 }: {
   snapshot: Snapshot;
   busy: boolean;
   send: (c: Command) => Promise<Snapshot | null>;
+  auto?: string;
 }) {
   const { self, current_site: site } = snapshot,
     clue = self.clue!;
@@ -31,15 +30,33 @@ export function Mission({
     setFrequency("50.0");
     setWrong(false);
   }, [site.id, self.role]);
-  const submit = async () => {
+  const submit = async (value?: string) => {
     const next = await send({
       action: "submit-report",
       site_id: site.id,
       role: self.role!,
-      answer: clue.type === "frequency" ? frequency : answer,
+      answer: value ?? (clue.type === "frequency" ? frequency : answer),
     });
     if (next) setWrong(next.result?.ok === false);
   };
+  // 자동 시연: 답을 고르는(주파수는 돌리는) 모습을 보여 준 뒤 보고한다.
+  useEffect(() => {
+    if (!auto || self.reported) return;
+    const timers: number[] = [];
+    const at = (ms: number, f: () => void) =>
+      timers.push(window.setTimeout(f, ms));
+    let t = 2200;
+    if (clue.type === "frequency")
+      // 다이얼을 50.0에서 목표까지 천천히 출발해 감속하며 돌린다.
+      for (const v of glide(toTenths(50), toTenths(Number(auto))))
+        at((t += 70), () => setFrequency(formatTenths(v)));
+    else if (clue.choices) at(t, () => setAnswer(auto));
+    else
+      for (let i = 1; i <= auto.length; i++)
+        at((t += 180), () => setAnswer(auto.slice(0, i)));
+    at(t + 1400, () => void submit(auto));
+    return () => timers.forEach(window.clearTimeout);
+  }, [auto, self.reported, site.id, self.role]);
   if (self.reported)
     return (
       <div className="digit-result">
@@ -66,85 +83,17 @@ export function Mission({
       <h3>{clue.title}</h3>
       <p className="question">{clue.question}</p>
       <div className="clue-hint">{clue.hint}</div>
-      {clue.type === "calendar" && (
-        <div className="calendar">
-          <div>
-            <CalendarDays size={17} /> 1980년 5월
-          </div>
-          <div className="calendar-grid">
-            {["일", "월", "화", "수", "목", "금", "토"].map((d) => (
-              <b key={d}>{d}</b>
-            ))}
-            {Array.from({ length: 4 }, (_, i) => (
-              <span key={`blank${i}`} />
-            ))}
-            {Array.from({ length: 31 }, (_, i) => (
-              <span key={i} className={i === 17 ? "marked" : ""}>
-                {i + 1}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
+      {clue.type === "calendar" && <MissionCalendar />}
       {clue.type === "frequency" ? (
-        <div className="radio-panel">
-          <Radio size={22} />
-          <div className="frequency-display">
-            {frequency}
-            <small>MHz</small>
-          </div>
-          <div className="waveform" aria-hidden="true">
-            {Array.from({ length: 31 }, (_, i) => (
-              <i
-                key={i}
-                style={{ height: 8 + Math.abs(Math.sin(i * 0.7)) * 22 }}
-              />
-            ))}
-          </div>
-          <label htmlFor="frequency">주파수 조절</label>
-          <input
-            id="frequency"
-            type="range"
-            min={clue.min ?? 10}
-            max={clue.max ?? 100}
-            step="0.1"
-            value={frequency}
-            onChange={(e) => setFrequency(Number(e.target.value).toFixed(1))}
-          />
-          <div className="frequency-controls">
-            <button
-              className="button secondary"
-              aria-label="주파수 0.1 낮추기"
-              onClick={() =>
-                setFrequency(
-                  Math.max(clue.min ?? 10, Number(frequency) - 0.1).toFixed(1),
-                )
-              }
-            >
-              −
-            </button>
-            <input
-              aria-label="주파수 직접 입력"
-              type="number"
-              min={clue.min ?? 10}
-              max={clue.max ?? 100}
-              step="0.1"
-              value={frequency}
-              onChange={(e) => setFrequency(e.target.value)}
-            />
-            <button
-              className="button secondary"
-              aria-label="주파수 0.1 높이기"
-              onClick={() =>
-                setFrequency(
-                  Math.min(clue.max ?? 100, Number(frequency) + 0.1).toFixed(1),
-                )
-              }
-            >
-              +
-            </button>
-          </div>
-        </div>
+        <FrequencyTuner
+          value={frequency}
+          onChange={(v) => {
+            setFrequency(v);
+            setWrong(false);
+          }}
+          min={clue.min ?? 10}
+          max={clue.max ?? 100}
+        />
       ) : clue.choices ? (
         <div className={`choices ${clue.type === "hanja" ? "hanja" : ""}`}>
           {clue.choices.map((choice, i) => (
@@ -210,6 +159,7 @@ export function LockPanel({
   now,
   digits,
   setDigits,
+  auto,
 }: {
   snapshot: Snapshot;
   busy: boolean;
@@ -217,6 +167,7 @@ export function LockPanel({
   now: number;
   digits: string[];
   setDigits: (digits: string[]) => void;
+  auto?: string[];
 }) {
   const [feedback, setFeedback] = useState("");
   const lock = snapshot.self.lock!;
@@ -225,11 +176,11 @@ export function LockPanel({
       Math.ceil(((lock.nextAttemptAt ?? 0) - now) / 1000),
     ),
     reports = snapshot.game.report_mask.every(Boolean);
-  const submit = async () => {
+  const submit = async (value = digits) => {
     const next = await send({
       action: "open-lock",
       site_id: snapshot.current_site.id,
-      digits: digits.map(Number),
+      digits: value.map(Number),
     });
     if (next) {
       setFeedback(
@@ -239,6 +190,23 @@ export function LockPanel({
       );
     }
   };
+  // 자동 시연: 전해 들은 숫자를 한 칸씩 넣고 자물쇠를 연다.
+  useEffect(() => {
+    if (!auto || !reports || lock.openedAt) return;
+    const timers = auto.map((_, i) =>
+      window.setTimeout(
+        () => setDigits(auto.map((d, j) => (j <= i ? d : ""))),
+        1500 + i * 700,
+      ),
+    );
+    timers.push(
+      window.setTimeout(
+        () => void submit(auto),
+        1500 + auto.length * 700 + 900,
+      ),
+    );
+    return () => timers.forEach(window.clearTimeout);
+  }, [auto?.join(), reports, snapshot.current_site.id]);
   return (
     <section className="lock-panel">
       <div className="section-label">

@@ -22,9 +22,9 @@
           "cipher"
         ],
         "sacho": {
-          "char": "①",
+          "char": "記",
           "name": "[합성] 정문 기록",
-          "body": ""
+          "body": "[합성] 네 역할이 자료를 확인하고 함께 기록을 복원했습니다."
         }
       },
       {
@@ -42,7 +42,7 @@
           "cipher"
         ],
         "sacho": {
-          "char": "②",
+          "char": "",
           "name": "[합성] 다음 기록",
           "body": ""
         }
@@ -64,9 +64,9 @@
       "cipher"
     ],
     "sacho": {
-      "char": "①",
+      "char": "記",
       "name": "[합성] 정문 기록",
-      "body": ""
+      "body": "[합성] 네 역할이 자료를 확인하고 함께 기록을 복원했습니다."
     }
   },
   "game": {
@@ -112,9 +112,9 @@
           "cipher"
         ],
         "sacho": {
-          "char": "①",
+          "char": "記",
           "name": "[합성] 정문 기록",
-          "body": "[합성] 완료 화면의 기록 표시 영역입니다."
+          "body": "[합성] 네 역할이 자료를 확인하고 함께 기록을 복원했습니다."
         }
       }
     ],
@@ -181,6 +181,11 @@
       "window_ends_at": 1791417510000,
       "used": false,
       "pending": null
+    },
+    "completion": {
+      "at": 1791418200000,
+      "method": "field",
+      "label": "조사 후 복원"
     }
   },
   "self": {
@@ -340,7 +345,42 @@
       "label": "[합성] 전달 안내 표시 영역",
       "value": "[합성 표시: 주파수 값 생략]",
       "target_step_id": "G-03.freq"
-    }
+    },
+    "journal": [
+      {
+        "stage_id": "gate",
+        "name": "[합성] 정문 조사 기록",
+        "completed_at": 1791418200000,
+        "method": "field",
+        "sections": [
+          "[합성] 본인 조사",
+          "[합성] 확인 출처"
+        ],
+        "entries": [
+          {
+            "step_id": "G-01.verdict",
+            "prompt": "[합성] 연습 문장을 읽고 판단 항목을 선택하십시오.",
+            "verified": true,
+            "method": "field",
+            "explanation": "[합성] 이 역할의 조사 절차를 확인했습니다."
+          },
+          {
+            "step_id": "G-01.order",
+            "prompt": "[합성] 연습 카드의 배치를 조정하십시오.",
+            "verified": true,
+            "method": "field",
+            "explanation": "[합성] 이 역할의 조사 절차를 확인했습니다."
+          },
+          {
+            "step_id": "G-01.evidence",
+            "prompt": "[합성] 연습 카드와 근거 입력란의 연결 화면입니다. 근거 선택지는 미확정입니다.",
+            "verified": true,
+            "method": "field",
+            "explanation": "[합성] 이 역할의 조사 절차를 확인했습니다."
+          }
+        ]
+      }
+    ]
   },
   "stage": {
     "schema_version": 2,

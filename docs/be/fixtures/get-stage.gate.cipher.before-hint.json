@@ -22,7 +22,7 @@
           "cipher"
         ],
         "sacho": {
-          "char": "①",
+          "char": "",
           "name": "[합성] 정문 기록",
           "body": ""
         }
@@ -42,7 +42,7 @@
           "cipher"
         ],
         "sacho": {
-          "char": "②",
+          "char": "",
           "name": "[합성] 다음 기록",
           "body": ""
         }
@@ -64,7 +64,7 @@
       "cipher"
     ],
     "sacho": {
-      "char": "①",
+      "char": "",
       "name": "[합성] 정문 기록",
       "body": ""
     }
@@ -160,7 +160,8 @@
       "window_ends_at": 1791417510000,
       "used": false,
       "pending": null
-    }
+    },
+    "completion": null
   },
   "self": {
     "id": "mock-member-cipher",
@@ -268,7 +269,8 @@
     "hint_level": 0,
     "hints": [],
     "explanations": {},
-    "rewards": {}
+    "rewards": {},
+    "journal": []
   },
   "stage": {
     "schema_version": 2,

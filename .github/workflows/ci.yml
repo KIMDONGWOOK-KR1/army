@@ -38,3 +38,5 @@ jobs:
           deno-version: v2.x
       - name: Check Edge function
         run: deno check --no-lock supabase/functions/game/index.ts supabase/functions/_shared/prepare-seed-course.ts supabase/functions/_shared/project-course-v2.ts
+      - name: Lint v2 shared engine
+        run: deno lint supabase/functions/_shared/engine-v2.ts supabase/functions/_shared/game-core.ts supabase/functions/_shared/demo-course-v2.ts supabase/functions/_shared/legacy-demo-course-v2.ts supabase/functions/_shared/project-journal-v2.ts supabase/functions/_shared/answer-v2.ts supabase/functions/_shared/prepare-course-v2.ts supabase/functions/_shared/project-course-v2.ts supabase/functions/_shared/types.ts

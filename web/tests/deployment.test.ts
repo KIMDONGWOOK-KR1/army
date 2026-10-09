@@ -125,6 +125,7 @@ describe("isolated dev course deployment", () => {
   });
   it("hashes with the supplied salt while preserving unconfirmed synthetic coordinates", async () => {
     const env = environment(), { course } = await prepareDemoSeed(args, env);
+    if (!("sites" in course)) throw new Error("Expected the default v1 seed");
     const local = await demoCourse();
     expect(course).toMatchObject({
       id: "jnu-demo-dev-r1",
@@ -152,6 +153,7 @@ describe("isolated dev course deployment", () => {
   });
   it("completes two sites with four members, server rules and private responses using the seed salt", async () => {
     const env = environment(), { course } = await prepareDemoSeed(args, env);
+    if (!("sites" in course)) throw new Error("Expected the default v1 seed");
     const game = createGame("host", "배포시험", course, 0, "ABCD");
     let now = 0, sequence = 0;
     const call = (userId: string, command: Parameters<typeof dispatch>[3]) =>

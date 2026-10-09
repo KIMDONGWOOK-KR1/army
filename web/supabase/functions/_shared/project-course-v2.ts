@@ -1,4 +1,16 @@
 import type { CourseV2, Role, RoleMission, SceneText, Step } from "./types.ts";
+import { DomainError } from "./game-core.ts";
+
+export function stagePrivateV2(course: CourseV2, stageId: string) {
+  const data = course.private?.stages?.[stageId];
+  if (!data?.roles || !data.steps) {
+    throw new DomainError(
+      "CONTENT_UNCONFIRMED",
+      "현재 단계의 비공개 자료 준비가 필요하다.",
+    );
+  }
+  return data;
+}
 
 const scenes = (list: SceneText[]) =>
   list.map((s) => ({
@@ -47,6 +59,18 @@ function mission(m: RoleMission | null) {
       ...(s.sourceIds ? { sourceIds: [...s.sourceIds] } : {}),
       sourceRequired: s.sourceRequired ?? false,
       maxLen: s.maxLen ?? 300,
+      ...(s.normalize
+        ? {
+          normalize: {
+            ...(s.normalize.caseInsensitive !== undefined
+              ? { caseInsensitive: s.normalize.caseInsensitive }
+              : {}),
+            ...(s.normalize.ignoreSpaces !== undefined
+              ? { ignoreSpaces: s.normalize.ignoreSpaces }
+              : {}),
+          },
+        }
+        : {}),
       ...(s.answerCount !== undefined ? { answerCount: s.answerCount } : {}),
     })),
   };
@@ -55,7 +79,7 @@ function mission(m: RoleMission | null) {
 /** Metadata for the CURRENT stage only. Never serialize the stored CourseV2 directly. */
 export function projectPublicStageV2(course: CourseV2, stageId: string) {
   const s = course.stages.find((s) => s.id === stageId);
-  if (!s) throw new Error("단계를 찾을 수 없다.");
+  if (!s) throw new DomainError("NO_STAGE", "단계를 찾을 수 없다.");
   const completion = s.completion.type === "lock"
     ? { type: "lock" as const, order: [...s.completion.order] }
     : s.completion.type === "confirm"
@@ -122,8 +146,15 @@ export function projectPublicStageV2(course: CourseV2, stageId: string) {
 export function projectStageV2(course: CourseV2, stageId: string, role: Role) {
   const stage = projectPublicStageV2(course, stageId);
   const s = course.stages.find((s) => s.id === stageId)!;
+  const privateStage = stagePrivateV2(course, stageId);
+  if (s.roles[role] && !privateStage.roles[role]) {
+    throw new DomainError(
+      "CONTENT_UNCONFIRMED",
+      "본인 역할의 비공개 자료 준비가 필요하다.",
+    );
+  }
   const clue = role === "commander"
-    ? course.private.stages[stageId].roles.commander?.transferClue
+    ? privateStage.roles.commander?.transferClue
     : undefined;
   return {
     stage,

@@ -1,0 +1,372 @@
+/* 통신원 주파수 조절 장치: 회전 다이얼(크림 면·남색 윤곽·노란 지침·톱니 테두리)과
+   지글거리다 가라앉는 파형 화면. --tune(0~1)은 방금 돌린 정도로, 불빛 세기에만 쓴다. */
+.panel {
+  --tune: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: left;
+}
+
+/* 숫자 창: 크게 보이는 값이자 직접 입력 칸 */
+.readout {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px 4px 8px;
+  background: #18213b;
+  border: 2px solid #445d95;
+  border-radius: 9px;
+  box-shadow: inset 0 3px 0 rgba(0, 0, 0, 0.3);
+}
+.lamp {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  color: #ffd166;
+  background: radial-gradient(
+    circle,
+    rgba(255, 197, 61, calc(0.16 + var(--tune) * 0.55)),
+    rgba(255, 197, 61, 0) 70%
+  );
+}
+.lamp svg {
+  filter: drop-shadow(0 0 calc(var(--tune) * 7px) rgba(255, 209, 102, 0.95));
+}
+.readout .lcd {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  min-height: 52px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-bottom: 2px dashed rgba(254, 239, 204, 0.3);
+  border-radius: 0;
+  color: #fef4da;
+  font: 600 40px/1.2 var(--mono);
+  letter-spacing: 0.02em;
+  text-align: center;
+  text-shadow: 0 0 calc(3px + var(--tune) * 12px)
+    rgba(255, 209, 102, calc(0.25 + var(--tune) * 0.6));
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+.lcd::-webkit-outer-spin-button,
+.lcd::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.readout .lcd:focus-visible {
+  outline: 3px solid var(--sun);
+  outline-offset: 2px;
+  border-bottom-color: transparent;
+}
+.readout .lcd[aria-invalid="true"] {
+  border-bottom-color: #ffae98;
+}
+.validation {
+  grid-column: 1 / -1;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #d0d9ef;
+}
+.validation p {
+  margin: 0;
+}
+.validation .error {
+  margin-top: 4px;
+  color: #ffae98;
+}
+.unit {
+  font: 600 13px var(--sans);
+  color: #d5ddf2;
+}
+
+/* 파형 화면: 위는 파형, 아래는 10~100 MHz 띠와 바늘 */
+.scope {
+  position: relative;
+  height: 76px;
+  overflow: hidden;
+  border: 2px solid #445d95;
+  border-radius: 9px;
+  background:
+    radial-gradient(
+      120% 90% at 50% 38%,
+      rgba(255, 197, 61, calc(0.05 + var(--tune) * 0.22)),
+      rgba(255, 197, 61, 0) 70%
+    ),
+    repeating-linear-gradient(
+      90deg,
+      rgba(143, 163, 209, 0.13) 0 1px,
+      transparent 1px 24px
+    ),
+    #111a30;
+}
+.wave {
+  position: absolute;
+  top: 3px;
+  left: 6px;
+  width: calc(100% - 12px);
+  height: 44px;
+  overflow: visible;
+}
+.wave path {
+  fill: none;
+  stroke: #ffd166;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 calc(1px + var(--tune) * 4px) rgba(255, 209, 102, 0.8));
+}
+.band {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 0;
+  height: 24px;
+  border-top: 1px solid rgba(143, 163, 209, 0.45);
+}
+.band span {
+  position: absolute;
+  bottom: 3px;
+  transform: translateX(-50%);
+  font: 600 10px/1 var(--mono);
+  color: #dbe3f6;
+}
+.band span::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -9px;
+  width: 1px;
+  height: 5px;
+  background: rgba(219, 227, 246, 0.75);
+}
+/* 바늘은 띠와 같은 폭(좌우 16px 안쪽)에서 움직이고, 띠의 윗선에서 멈춰 숫자를 가리지 않는다 */
+.needle {
+  --at: 0;
+  position: absolute;
+  top: 0;
+  bottom: 26px;
+  left: calc(16px + (100% - 32px) * var(--at));
+  width: 2px;
+  margin-left: -1px;
+  background: #ff8a5c;
+  box-shadow: 0 0 6px rgba(255, 138, 92, 0.8);
+  transition: left 160ms cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+.needle::after {
+  content: "";
+  position: absolute;
+  left: -4px;
+  bottom: -5px;
+  border: 5px solid transparent;
+  border-bottom: 0;
+  border-top-color: #ff8a5c;
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 2px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.head small {
+  font-size: 11px;
+  font-weight: 400;
+  color: #d0d9ef;
+}
+
+/* 다이얼 줄: [−] 다이얼 [+] — 양손 엄지로 미세 조정 */
+.row {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) 48px;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 340px;
+  margin-inline: auto;
+}
+.row .nudge {
+  width: 48px;
+  min-width: 0;
+  height: 48px;
+  min-height: 48px;
+  padding: 0;
+  border-radius: 50%;
+  box-shadow: 0 4px 0 #0f1628;
+  border-color: #0f1628;
+}
+.row .nudge:not(:disabled):active {
+  box-shadow: 0 1px 0 #0f1628;
+}
+
+.dial {
+  position: relative;
+  justify-self: center;
+  width: 100%;
+  max-width: 208px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  cursor: grab;
+}
+.dial[data-dragging] {
+  cursor: grabbing;
+}
+.dial[aria-disabled="true"] {
+  cursor: not-allowed;
+  touch-action: auto;
+  opacity: 0.55;
+}
+.dial:focus-visible {
+  outline: 3px solid var(--sun);
+  outline-offset: 3px;
+}
+/* 방금 돌린 만큼 은은하게 달아오르는 테두리 불빛 */
+.dial::before {
+  content: "";
+  position: absolute;
+  inset: 1%;
+  border-radius: 50%;
+  pointer-events: none;
+  box-shadow: 0 0 calc(var(--tune) * 24px) calc(var(--tune) * 3px)
+    rgba(255, 197, 61, calc(var(--tune) * 0.55));
+}
+.dial > * {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.dial svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.bezel {
+  fill: #18213b;
+  stroke: #445d95;
+  stroke-width: 2;
+}
+.scale line {
+  stroke: rgba(254, 239, 204, 0.5);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+}
+.scale line.major {
+  stroke: #fef4da;
+  stroke-width: 2.6;
+}
+.dial .shadow {
+  inset: 12% 10% 8%;
+  border-radius: 50%;
+  background: rgba(4, 8, 18, 0.6);
+  filter: blur(4px);
+}
+.knob {
+  transition: transform 80ms cubic-bezier(0.2, 0.8, 0.3, 1);
+  will-change: transform;
+}
+.rim {
+  fill: #ecdcb2;
+  stroke: #1e2942;
+  stroke-width: 2.6;
+  stroke-linejoin: round;
+}
+.face {
+  fill: #fef4da;
+  stroke: #1e2942;
+  stroke-width: 3;
+}
+.groove {
+  fill: none;
+  stroke: rgba(30, 41, 66, 0.13);
+  stroke-width: 1.5;
+}
+.pointer {
+  fill: #ffc53d;
+  stroke: #1e2942;
+  stroke-width: 2.6;
+}
+.pip {
+  fill: #1e2942;
+}
+.cap {
+  fill: #25324f;
+  stroke: #1e2942;
+  stroke-width: 2;
+}
+.capDot {
+  fill: #fef4da;
+}
+/* 빛은 손잡이와 함께 돌지 않는다 */
+.dial .gloss {
+  inset: 12%;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 34% 28%,
+    rgba(255, 255, 255, 0.5),
+    rgba(255, 255, 255, 0) 48%
+  );
+}
+
+/* 넓은 화면: 왼쪽은 숫자 창과 큰 파형 화면, 오른쪽은 다이얼 — 스크롤 없이 한눈에 */
+@media (min-width: 761px) {
+  .panel {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 300px);
+    grid-template-areas:
+      "readout head"
+      "scope row";
+    gap: 10px 22px;
+  }
+  .readout {
+    grid-area: readout;
+  }
+  .head {
+    grid-area: head;
+    align-self: end;
+  }
+  .scope {
+    grid-area: scope;
+    height: auto;
+    min-height: 76px;
+  }
+  .wave {
+    height: calc(100% - 32px);
+  }
+  .row {
+    grid-area: row;
+  }
+}
+@media (max-width: 370px) {
+  .readout .lcd {
+    font-size: 34px;
+  }
+}
+@media (max-height: 700px) {
+  .dial {
+    max-width: 164px;
+  }
+  .scope {
+    height: 64px;
+  }
+  .wave {
+    height: 34px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .knob,
+  .needle {
+    transition: none;
+  }
+}

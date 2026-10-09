@@ -84,6 +84,7 @@ export type Game = {
   }[];
   receipts: Record<string, { hash: string; result: Record<string, unknown> }>;
   reportTimes: Record<string, number>;
+  v2?: GameV2State;
 };
 export type Command = {
   action: string;
@@ -93,12 +94,20 @@ export type Command = {
   nickname?: string;
   code?: string;
   role?: Role;
-  answer?: string;
+  answer?: StepAnswer;
   digits?: number[];
   manual?: boolean;
   demo_role?: Role;
   simulated?: boolean;
   seconds?: number;
+  // 시연 장면 건너뛰기: site_id 거점의 이동·단서·자물쇠 단계, 또는 작전 완료
+  stage?: "travel" | "mission" | "lock" | "done";
+  stage_id?: string;
+  step_id?: string;
+  target_role?: Role;
+  level?: number;
+  method?: VerifyMethod | "gps" | "manual" | "qr";
+  source?: { text: string; source_id?: string };
 };
 export type PublicGame = {
   id: string;
@@ -155,12 +164,34 @@ export type Snapshot = {
 
 // PR-1: v2 content contracts only. The v1 engine/Snapshot remains unchanged.
 export type StageKind = "prologue" | "mission" | "memorial" | "epilogue";
-export type VerifyMethod = "field" | "official_digital" | "explained" | "simulated" | "proxy";
+export type VerifyMethod =
+  | "field"
+  | "official_digital"
+  | "explained"
+  | "simulated"
+  | "proxy";
 export type StepType =
-  | "truefalse" | "order" | "match" | "choice" | "multi-choice"
-  | "frequency" | "words" | "spot-correct" | "text" | "observation"
-  | "record-form" | "fill-blank" | "confirm";
-export type Grading = "hash" | "set-hash" | "order-hash" | "map-hash" | "record" | "open" | "confirm";
+  | "truefalse"
+  | "order"
+  | "match"
+  | "choice"
+  | "multi-choice"
+  | "frequency"
+  | "words"
+  | "spot-correct"
+  | "text"
+  | "observation"
+  | "record-form"
+  | "fill-blank"
+  | "confirm";
+export type Grading =
+  | "hash"
+  | "set-hash"
+  | "order-hash"
+  | "map-hash"
+  | "record"
+  | "open"
+  | "confirm";
 export type StepAnswer = string | string[] | Record<string, string>;
 export type StepRef = { role: Role; stepId: string };
 export type SceneText = {
@@ -168,9 +199,22 @@ export type SceneText = {
   channel: "narration" | "guide" | "screen";
   text: string;
   // Render only when this server-side event occurs; never on stage fetch alone.
-  trigger: "enter" | "role-reveal" | "ready" | "retry" | "role-complete" | "reports-ready" | "stage-complete" | "scout-reported";
+  trigger:
+    | "enter"
+    | "role-reveal"
+    | "ready"
+    | "retry"
+    | "role-complete"
+    | "reports-ready"
+    | "stage-complete"
+    | "scout-reported";
 };
-export type FieldSpec = { id: string; label: string; required: boolean; maxLen: number };
+export type FieldSpec = {
+  id: string;
+  label: string;
+  required: boolean;
+  maxLen: number;
+};
 export type Step = {
   id: string;
   confirmed: boolean;
@@ -186,6 +230,7 @@ export type Step = {
   sourceIds?: string[];
   answerCount?: number;
   maxLen?: number;
+  normalize?: { caseInsensitive?: boolean; ignoreSpaces?: boolean };
   note?: string;
 };
 export type RoleMission = {
@@ -226,7 +271,8 @@ export type Stage = {
     | { type: "lock"; order: Role[] }
     | { type: "confirm"; labels: Record<Role, string> }
     | { type: "joint-record" };
-  sacho?: { id: string; name: string; sections: string[] };
+  // Optional public reward text. Released only after this stage is completed.
+  sacho?: { id: string; name: string; sections: string[]; char?: string; body?: string };
   altModes?: { id: string; label: string }[];
 };
 export type CourseV2Content = {
@@ -236,7 +282,12 @@ export type CourseV2Content = {
   confirmed: boolean;
   demo: boolean;
   sources: { id: string; title: string; url: string }[];
-  settings: { teamSize: 4; roleSwapEnabled: boolean; roleSwapSeconds: 30; note: string };
+  settings: {
+    teamSize: 4;
+    roleSwapEnabled: boolean;
+    roleSwapSeconds: 30;
+    note: string;
+  };
   stages: Stage[];
   note?: string;
 };
@@ -271,6 +322,61 @@ export type CourseV2PrivateInput = {
   synthetic: boolean;
   stages: Record<string, {
     roles: Record<Role, RolePrivate | null>;
-    steps: Record<string, Omit<StepPrivate, "answerHash"> & { answer?: StepAnswer }>;
+    steps: Record<
+      string,
+      Omit<StepPrivate, "answerHash"> & { answer?: StepAnswer }
+    >;
   }>;
+};
+
+export type StepProgress = {
+  status: "locked" | "open" | "done" | "explained";
+  attempts: number;
+  lastAt: number | null;
+  method?: VerifyMethod;
+  record?: Record<string, string>;
+  source?: { text: string; source_id?: string };
+};
+export type RoleProgress = {
+  steps: Record<string, StepProgress>;
+  hintLevel: 0 | 1 | 2 | 3;
+  reported: boolean;
+};
+export type GameV2State = {
+  stageIndex: number;
+  stagePhase: "travel" | "arrival" | "mission" | "closing" | "record" | "done";
+  progress: Record<string, Record<Role, RoleProgress>>;
+  explanationConfirms: Record<string, Partial<Record<Role, number>>>;
+  completed: Record<string, { at: number; method: "field" | "explained" }>;
+  sacho: Record<string, {
+    completedAt: number;
+    eventOrder: { stepId: string; method: VerifyMethod; verified: boolean }[];
+    observations: {
+      role: Role;
+      stepId: string;
+      record: Record<string, string>;
+    }[];
+    eventRecords: {
+      role: Role;
+      stepId: string;
+      record: Record<string, string>;
+    }[];
+    sources: {
+      role: Role;
+      stepId: string;
+      method: VerifyMethod;
+      text: string;
+      source_id?: string;
+    }[];
+  }>;
+};
+export type GameEvent = {
+  request_id: string;
+  at: number;
+  actor_member: string;
+  action: string;
+  stage_id: string;
+  role: Role | null;
+  // Only server-selected metadata. Never request bodies, answers, records, GPS or secrets.
+  data: Record<string, string | number | boolean | null>;
 };

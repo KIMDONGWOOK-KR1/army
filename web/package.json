@@ -13,10 +13,15 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "test:e2e": "playwright test",
+    "test:e2e:v2": "playwright test --config playwright.v2.config.ts",
+    "test:e2e:integration": "playwright test --config playwright.integration.config.ts",
+    "test:e2e:legacy": "playwright test --config playwright.legacy.config.ts",
     "seed:course": "node --env-file-if-exists=.env.local --import=tsx scripts/seed-course.ts",
     "seed:demo": "node --import=tsx scripts/seed-demo-course.ts"
   },
   "dependencies": {
+    "@fontsource/bagel-fat-one": "^5.3.0",
+    "@fontsource/black-han-sans": "^5.3.0",
     "@fontsource/noto-sans-kr": "^5.3.0",
     "@fontsource/noto-serif-kr": "^5.3.0",
     "@supabase/supabase-js": "^2.0.0",
@@ -24,7 +29,8 @@
     "next": "^16.0.0",
     "qrcode": "^1.5.4",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "three": "^0.186.1"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
@@ -35,6 +41,7 @@
     "@types/qrcode": "^1.5.5",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "@types/three": "^0.186.0",
     "tailwindcss": "^4.0.0",
     "tsx": "^4.0.0",
     "typescript": "^5.0.0",

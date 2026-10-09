@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { localRequest } from "@/lib/server/store";
 import { DomainError } from "@/supabase/functions/_shared/engine";
+import { domainHttpStatus } from "@/supabase/functions/_shared/game-core";
 import type { Command } from "@/supabase/functions/_shared/types";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -59,15 +60,8 @@ export async function POST(req: NextRequest) {
             "SERVER_ERROR",
             "연결을 처리하지 못했다. 잠시 뒤 다시 시도하라.",
           );
-    if (!(e instanceof DomainError)) console.error("game request failed", e);
-    const status =
-      error.code === "NO_GAME"
-        ? 404
-        : error.code === "FORBIDDEN"
-          ? 403
-          : error.code === "SERVER_ERROR"
-            ? 500
-            : 400;
+    if (!(e instanceof DomainError)) console.error("game request failed");
+    const status = domainHttpStatus(error.code);
     const response = NextResponse.json(
       { code: error.code, message: error.message, retry_at: error.retry_at },
       { status, headers },

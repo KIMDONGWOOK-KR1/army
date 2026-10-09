@@ -7,7 +7,10 @@ export function isDevCourseId(id: string) {
 
 // Explicit dev-only opt-in, default off. Never configure this in a prod project.
 // This permits four-person synthetic courses, not solo demo actions or rule bypasses.
-export function assertEdgeCourseAllowed(course: Course, devOptIn: string) {
+export function assertEdgeCourseAllowed(
+  course: Pick<Course, "id" | "confirmed" | "demo">,
+  devOptIn: string,
+) {
   if (course.confirmed === true && course.demo === false) return;
   if (
     devOptIn === "true" &&

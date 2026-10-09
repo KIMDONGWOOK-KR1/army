@@ -2,7 +2,7 @@
 import { useState } from "react";
 import type { Snapshot } from "@/supabase/functions/_shared/types";
 
-type LockDraft = { scope: string; digits: string[] };
+export type LockDraft = { scope: string; digits: string[] };
 
 export function reconcileLockDraft(
   snapshot: Snapshot | null,
@@ -32,7 +32,11 @@ export function reconcileLockDraft(
 export function useLockDraft(snapshot: Snapshot | null) {
   const [draft, setDraft] = useState(() => reconcileLockDraft(snapshot, null));
   const current = reconcileLockDraft(snapshot, draft);
-  if (draft.scope !== current.scope) setDraft(current);
+  // While no snapshot is loaded yet, keep the draft (a draft handed over from the other
+  // mockup view waits here for its snapshot; a new game still gets a new scope).
+  if (snapshot && draft.scope !== current.scope) setDraft(current);
   const setDigits = (digits: string[]) => setDraft({ ...current, digits });
-  return { digits: current.digits, setDigits };
+  // Phone mockup view switch: restore the draft the previous document was typing.
+  const restore = (seed: LockDraft) => setDraft(seed);
+  return { digits: current.digits, setDigits, draft: current, restore };
 }

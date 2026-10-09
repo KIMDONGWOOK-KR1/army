@@ -1,0 +1,8 @@
+{
+  "_note": "랜드마크 건물 모형 목록. field-landmark-slots.ts의 자리(key)에 맞춰 세운다. 모형 이름(node)은 LM_로 시작하고 꼭짓점 색(COLOR_0)을 쓰며 한 채 300 KB·삼각형 8천 개 이하. optional인 파일이 없으면 코드로 만든 건물이 그대로 선다.",
+  "entries": [
+    { "key": "minjumaru", "file": "minjumaru.glb", "node": "LM_minjumaru", "yaw": 0, "fit": "footprint", "optional": true },
+    { "key": "jungbomaru", "file": "jungbomaru.glb", "node": "LM_jungbomaru", "yaw": 0, "fit": "footprint", "optional": true },
+    { "key": "hq", "file": "hq.glb", "node": "LM_hq", "yaw": 0, "fit": "footprint", "optional": true }
+  ]
+}

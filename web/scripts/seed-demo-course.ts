@@ -3,6 +3,8 @@ import { pathToFileURL } from "node:url";
 import { createClient } from "@supabase/supabase-js";
 import { demoCourse } from "../supabase/functions/_shared/course";
 import { isDevCourseId } from "../supabase/functions/_shared/deployment";
+import { demoCourseV2 } from "../supabase/functions/_shared/demo-course-v2";
+import { legacyDemoCourseV2 } from "../supabase/functions/_shared/legacy-demo-course-v2";
 
 // Deliberately does not load .env.local or accept real course/answer file paths.
 export async function prepareDemoSeed(
@@ -16,6 +18,8 @@ export async function prepareDemoSeed(
     options: {
       "dev-project-ref": { type: "string" },
       "course-id": { type: "string" },
+      "schema-version": { type: "string", default: "1" },
+      "preset": { type: "string", default: "synthetic" },
     },
   });
   const projectRef = values["dev-project-ref"], id = values["course-id"];
@@ -38,7 +42,21 @@ export async function prepareDemoSeed(
       "dev service role key와 Edge와 동일한 32자 이상 ANSWER_SALT가 필요하다.",
     );
   }
-  const course = await demoCourse(salt);
+  if (!["1", "2"].includes(values["schema-version"]!)) {
+    throw new Error("schema-version은 1 또는 2여야 한다.");
+  }
+  if (!["synthetic", "v1-gate"].includes(values.preset!)) {
+    throw new Error("preset은 synthetic 또는 v1-gate여야 한다.");
+  }
+  if (values.preset === "v1-gate" && values["schema-version"] !== "2") {
+    throw new Error("v1-gate preset은 schema-version 2에만 허용한다.");
+  }
+  const course = values["schema-version"] === "2"
+    ? await (values.preset === "v1-gate" ? legacyDemoCourseV2 : demoCourseV2)(
+      id,
+      salt,
+    )
+    : await demoCourse(salt);
   course.id = id;
   return { url, key, course };
 }
@@ -62,7 +80,7 @@ async function main() {
     );
   }
   console.log(
-    `dev 합성 코스 등록 완료: ${course.id}, 거점 ${course.sites.length}개. 정답·키·salt는 출력하지 않음.`,
+    `dev 합성 코스 등록 완료: ${course.id}. 정답·키·salt는 출력하지 않음.`,
   );
 }
 

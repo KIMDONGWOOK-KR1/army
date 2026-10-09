@@ -1,0 +1,63 @@
+/* 발표용 시연 장면 목록: 작전 메뉴 안에서 한 줄씩 누르는 카드 */
+.scenes {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.scenes h3 {
+  margin: 14px 0 2px;
+  font: 400 17px/1.3 var(--serif);
+  color: var(--ink);
+}
+.scenes ol,
+.scenes ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.pick {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 11px 13px;
+  text-align: left;
+  color: var(--ink);
+  background: var(--card);
+  border: 2px solid var(--edge);
+  border-radius: 14px;
+  box-shadow: 0 3px 0 var(--edge);
+  cursor: pointer;
+}
+.pick:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 var(--edge);
+}
+.pick:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.pick:focus-visible {
+  outline: 3px solid var(--sun);
+  outline-offset: 2px;
+}
+.pick svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--red);
+}
+.pick strong {
+  display: block;
+  font-size: 15px;
+  line-height: 1.35;
+}
+.pick small {
+  display: block;
+  margin-top: 2px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--muted);
+}

@@ -2,13 +2,19 @@
 import { useEffect, useRef, useState } from "react";
 import { judgeArrival, type Fix } from "@/lib/arrival";
 import type { Snapshot, Command } from "@/supabase/functions/_shared/types";
+import { ROLES } from "@/supabase/functions/_shared/types";
+import { isV2Response, type GameResponse } from "@/lib/game-snapshot";
 export function useLocation(
-  snapshot: Snapshot | null,
+  snapshot: GameResponse | null,
   send: (c: Command) => Promise<Snapshot | null>,
 ) {
   const [status, setStatus] = useState("위치 신호 대기"),
     [distance, setDistance] = useState<number | null>(null),
-    [dwell, setDwell] = useState(0);
+    [dwell, setDwell] = useState(0),
+    // 지도에 내 자리를 그리는 데 쓰는 마지막 위치(시연 코스에서도 받는다)
+    [fix, setFix] = useState<Pick<Fix, "lat" | "lng" | "accuracy"> | null>(
+      null,
+    );
   const watch = useRef<number | null>(null),
     fixes = useRef<Fix[]>([]),
     sent = useRef(false),
@@ -26,7 +32,7 @@ export function useLocation(
     sent.current = false;
     setDistance(null);
     setDwell(0);
-  }, [snapshot?.current_site.id]);
+  }, [snapshot?.game.id, snapshot?.current_site.id, snapshot?.self.id]);
   useEffect(() => {
     if (snapshot?.game.status === "done") stop();
   }, [snapshot?.game.status]);
@@ -49,7 +55,9 @@ export function useLocation(
         };
         fixes.current.push(fix);
         fixes.current = fixes.current.slice(-60);
-        if (s.current_site.lat === null || s.current_site.lng === null) {
+        setFix({ lat: fix.lat, lng: fix.lng, accuracy: fix.accuracy });
+        if (s.current_site.lat === null || s.current_site.lng === null ||
+          (isV2Response(s) && !s.stage.arrival.confirmed)) {
           setStatus("시연 코스 · 실제 좌표 미확정");
           return;
         }
@@ -69,13 +77,16 @@ export function useLocation(
           verdict.arrived &&
           s.game.status === "playing" &&
           s.game.site_phase === "travel" &&
+          (!isV2Response(s) || !s.self.role ||
+            !s.game.arrival_mask[ROLES.indexOf(s.self.role)]) &&
           !sent.current
         ) {
           sent.current = true;
           void send({
             action: "report-arrival",
-            site_id: s.current_site.id,
-            manual: false,
+            ...(isV2Response(s)
+              ? { stage_id: s.stage.id, method: "gps" as const }
+              : { site_id: s.current_site.id, manual: false }),
           }).then((next) => {
             if (!next) sent.current = false;
           });
@@ -90,5 +101,5 @@ export function useLocation(
       { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 },
     );
   };
-  return { status, distance, dwell, start, stop };
+  return { status, distance, dwell, fix, start, stop };
 }
