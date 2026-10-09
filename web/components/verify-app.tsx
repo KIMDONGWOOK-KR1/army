@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useGameV2 } from "./use-game";
 import { VerifyMission } from "./verify-mission";
+import { useLocation } from "./use-location";
+import { allowsSimulatedArrival } from "@/supabase/functions/_shared/arrival-policy";
 import { ROLE_NAMES, ROLES } from "@/supabase/functions/_shared/types";
 
 export default function VerifyApp() {
@@ -22,6 +24,8 @@ export default function VerifyApp() {
   const isSynthetic = s?.course.demo === true &&
     s.course.id.startsWith("jnu-demo-dev-");
   const myIndex = s?.self.role ? ROLES.indexOf(s.self.role) : -1;
+  const location = useLocation(s, send);
+  const canSimulate = !!s && allowsSimulatedArrival(s.course, s.stage.arrival);
 
   return (
     <div className="verify-page">
@@ -225,24 +229,25 @@ export default function VerifyApp() {
               {s.game.status === "playing" && s.game.site_phase === "travel" &&
                 (
                   <section className="verify-card verify-stack">
-                    <h2>정문 도착 확인</h2>
+                    <h2>정문 도착 확인 · {s.current_site.radiusM}m</h2>
                     <p>
-                      각자 본인의 도착 버튼을 누른다. 다른 역할을 대신 도착
-                      처리할 수 없다.
+                      {canSimulate ? "각자 본인의 모의 도착 버튼을 누른다."
+                        : "GPS를 켜고 반경 안에서 5초간 기다리라. 네 명 모두 도착해야 미션이 열린다."}
                     </p>
+                    {!canSimulate && <p role="status">{location.status} · 전원 도착 {s.game.arrival_mask.filter(Boolean).length}/4</p>}
                     <button
                       type="button"
                       className="button primary"
                       disabled={busy || myIndex < 0 ||
                         s.game.arrival_mask[myIndex]}
-                      onClick={() =>
-                        void send({
+                      onClick={() => canSimulate
+                        ? void send({
                           action: "report-arrival",
                           stage_id: s.game.stage_id,
                           method: "simulated",
-                        })}
+                        }) : location.start()}
                     >
-                      본인 모의 도착 확인
+                      {canSimulate ? "본인 모의 도착 확인" : "GPS 위치 확인"}
                     </button>
                   </section>
                 )}

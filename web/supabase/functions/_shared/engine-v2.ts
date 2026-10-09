@@ -1,4 +1,5 @@
 import { answerHashV2, normalizeTextV2 } from "./answer-v2.ts";
+import { allowsSimulatedArrival, hasGpsArrival } from "./arrival-policy.ts";
 import { DomainError, sha256, validateNickname } from "./game-core.ts";
 import {
   projectPublicStageV2,
@@ -594,20 +595,14 @@ async function execute(
       stageAction();
       phase("playing", "travel");
       const method = cmd.manual ? "manual" : cmd.method ?? "gps";
-      if (method === "manual") {
-        commander();
-        const retry = (game.siteStartedAt ?? now) + 30000;
-        if (now < retry) {
-          fail("COOLDOWN", "이동 시작 30초 후 수동 도착할 수 있다.", retry);
-        }
-      } else if (method === "simulated") {
-        if (!course.demo) {
-          fail("FORBIDDEN", "합성 코스에서만 모의 도착할 수 있다.");
+      if (method === "simulated") {
+        if (!allowsSimulatedArrival(course, stage.arrival)) {
+          fail("FORBIDDEN", "GPS 코스에서는 모의 도착할 수 없다.");
         }
       } else if (method !== "gps") {
-        fail("BAD_REQUEST", "이 버전에서 지원하지 않는 도착 방식이다.");
-      } else if (!stage.arrival.confirmed) {
-        fail("CONTENT_UNCONFIRMED", "도착 좌표 확정이 필요하다.");
+        fail("FORBIDDEN", "GPS로 본인의 도착을 확인하라. 수동·QR 도착은 사용할 수 없다.");
+      } else if (!hasGpsArrival(stage.arrival)) {
+        fail("CONTENT_UNCONFIRMED", "전원 GPS 도착 좌표·반경·체류 설정 확인이 필요하다.");
       }
       if (
         !game.arrivals.some((a) =>
@@ -617,15 +612,16 @@ async function execute(
         game.arrivals.push({
           siteId: stage.id,
           memberId: member!.id,
-          manual: method === "manual",
+          manual: false,
           simulated: method === "simulated",
           at: now,
         });
       }
-      const all = game.members.every((m) =>
-        game.arrivals.some((a) => a.siteId === stage.id && a.memberId === m.id)
+      const all = game.members.length === 4 && game.members.every((m) =>
+        game.arrivals.some((a) => a.siteId === stage.id && a.memberId === m.id &&
+          !a.manual && (allowsSimulatedArrival(course, stage.arrival) || !a.simulated))
       );
-      if (all || stage.arrival.require === "any") {
+      if (all) {
         game.phase = "mission";
         state.stagePhase = "mission";
       } else state.stagePhase = "arrival";

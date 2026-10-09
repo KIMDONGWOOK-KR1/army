@@ -66,12 +66,20 @@ export function TravelHud({
   onMenu: () => void;
 }) {
   const ready = !!field && !field.loading && !field.failed;
-  const inRange = ready && field.inRange;
+  const gpsRequired = !!v2Arrival && !v2Arrival.simulated;
+  const inRange = gpsRequired
+    ? location.distance !== null && location.distance <= site.radiusM
+    : ready && field.inRange;
   const color = ROLE_COLORS[role ?? "commander"];
   const total = Math.max(1, sites.length);
 
   let main: string, sub: string;
-  if (!field || field.loading) {
+  if (gpsRequired) {
+    main = v2Arrival.arrived ? "내 GPS 도착 확인됨" : location.distance === null
+      ? "GPS 위치 확인 필요"
+      : inRange ? "도착 범위 안 · 5초 유지 중" : `${site.name}까지 ${meters(location.distance)}`;
+    sub = `반경 ${site.radiusM}m · 전원 도착 ${v2Arrival.count}/4`;
+  } else if (!field || field.loading) {
     main = "지도 불러오는 중";
     sub = "";
   } else if (field.failed) {
@@ -86,7 +94,9 @@ export function TravelHud({
       : `${site.name}까지 ${meters(field.distance)}`;
     sub = modeLine(field);
   }
-  const nextDistance = ready
+  const nextDistance = gpsRequired
+    ? location.distance === null ? "—" : meters(location.distance)
+    : ready
     ? field.inRange
       ? "범위 안"
       : meters(field.distance)
@@ -162,6 +172,10 @@ export function TravelHud({
                 <ArrowRight size={18} aria-hidden="true" />
               </>
             )}
+          </button>
+        ) : gpsRequired ? (
+          <button type="button" className="hud-action" onClick={location.start}>
+            GPS 위치 확인 · 반경 {site.radiusM}m <LocateFixed size={18} aria-hidden="true" />
           </button>
         ) : role === "commander" ? (
           <button

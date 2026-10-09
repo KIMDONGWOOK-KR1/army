@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { useGameAny } from "./use-game";
 import { useLocation } from "./use-location";
+import { allowsSimulatedArrival } from "@/supabase/functions/_shared/arrival-policy";
 import { useLockDraft } from "./use-lock-draft";
 import {
   handoffPane,
@@ -207,8 +208,7 @@ export default function GameApp({
     cueSend = useCueSend(rawSend);
   const v2 = s && isV2Response(s) ? s : null;
   const soloDemo = !!s?.game.demo && !v2;
-  const simulatedArrival = !!v2 && v2.course.demo &&
-    v2.course.id.startsWith("jnu-demo-dev-");
+  const simulatedArrival = !!v2 && allowsSimulatedArrival(v2.course, v2.stage.arrival);
   const ownArrival = !!v2?.self.role &&
     v2.game.arrival_mask[ROLES.indexOf(v2.self.role)];
   // Keep the completion receipt visible across polling while this view is mounted.
@@ -1058,7 +1058,7 @@ export default function GameApp({
                   <p>
                     {s!.self.ready
                       ? "장비 수령을 마쳤다. 동료들의 준비를 기다리라."
-                      : "현장에서 위치를 확인한다. 권한을 거부해도 참여할 수 있다."}
+                      : "장비 수령 후 GPS를 켜라. 네 명 모두 거점 반경 안에 도착해야 미션이 열린다."}
                   </p>
                 </div>
                 <div className="console-actions">
@@ -1069,7 +1069,7 @@ export default function GameApp({
                         disabled={busy}
                         onClick={() => void send({ action: "set-ready" })}
                       >
-                        위치 없이 준비 완료
+                        {v2 && !simulatedArrival ? "준비만 완료 · GPS는 이동 시 설정" : "위치 없이 준비 완료"}
                       </button>
                       <button
                         className="button primary"
@@ -1113,6 +1113,7 @@ export default function GameApp({
                 look={s!.self.id}
                 fallback={<SceneArt site={site!.seq - 1} />}
                 fast={auto && !v2}
+                simulateMovement={soloDemo || simulatedArrival}
                 onStatus={setField}
                 onMarkerTap={() => {
                   if (simulatedArrival && !ownArrival && !busy)
@@ -1615,14 +1616,16 @@ export default function GameApp({
               </p>
               <p>
                 {v2
-                  ? "각자가 본인의 도착을 확인한다. 합성 코스는 본인 모의 도착 버튼으로 확인한다."
+                  ? simulatedArrival
+                    ? "각자가 본인 모의 도착 버튼으로 개발 시연을 진행한다."
+                    : `GPS를 켜고 반경 ${site?.radiusM ?? 10}m 안에서 5초간 기다리라. 네 명 모두 도착해야 미션이 열린다.`
                   : "위치 확인이 어려우면 이동 시작 30초 후 지휘관이 수동 도착할 수 있다."}
                 {" "}좌표는 기기에서만 계산한다.
               </p>
               <p>
                 <Shield size={16} /> 추모 공간을 존중하며 안전하게 이동하라.
                 {(s?.course.demo ?? backend === "local")
-                  ? "시연 코스의 실제 좌표와 문항은 미확정이다."
+                  ? v2?.stage.arrival.confirmed ? "GPS 좌표는 지정됐으며 문항은 시연용이다." : "시연 코스의 실제 좌표와 문항은 미확정이다."
                   : "지정된 거점에서 동료와 단서를 모아라."}
               </p>
             </div>

@@ -45,16 +45,17 @@ export async function prepareDemoSeed(
   if (!["1", "2"].includes(values["schema-version"]!)) {
     throw new Error("schema-version은 1 또는 2여야 한다.");
   }
-  if (!["synthetic", "v1-gate"].includes(values.preset!)) {
-    throw new Error("preset은 synthetic 또는 v1-gate여야 한다.");
+  if (!["synthetic", "v1-gate", "v1-gate-gps"].includes(values.preset!)) {
+    throw new Error("preset은 synthetic, v1-gate 또는 v1-gate-gps여야 한다.");
   }
-  if (values.preset === "v1-gate" && values["schema-version"] !== "2") {
+  if (values.preset !== "synthetic" && values["schema-version"] !== "2") {
     throw new Error("v1-gate preset은 schema-version 2에만 허용한다.");
   }
   const course = values["schema-version"] === "2"
-    ? await (values.preset === "v1-gate" ? legacyDemoCourseV2 : demoCourseV2)(
+    ? await (values.preset !== "synthetic" ? legacyDemoCourseV2 : demoCourseV2)(
       id,
       salt,
+      values.preset === "v1-gate-gps",
     )
     : await demoCourse(salt);
   course.id = id;

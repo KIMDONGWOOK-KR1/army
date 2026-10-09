@@ -10,7 +10,7 @@ import type {
   Role,
 } from "../../supabase/functions/_shared/types";
 
-export async function team() {
+export async function team(options: { arrive?: boolean } = {}) {
   const salt = crypto.randomUUID(),
     course = await demoCourseV2("jnu-demo-dev-test-r2", salt);
   const input = demoV2Input(course.id).privateInput;
@@ -39,8 +39,10 @@ export async function team() {
     game.members.find((m) => m.role === role)!.userId;
   const call = (role: Role, cmd: Command) => callUser(user(role), cmd);
   await call("commander", { action: "begin-operation" });
-  for (const role of ROLES) {
-    await call(role, { action: "report-arrival", method: "simulated" });
+  if (options.arrive !== false) {
+    for (const role of ROLES) {
+      await call(role, { action: "report-arrival", method: "simulated" });
+    }
   }
   const solve = async (role: Role) => {
     for (const step of course.stages[1].roles[role]!.steps) {

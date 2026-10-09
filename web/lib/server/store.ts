@@ -63,10 +63,10 @@ async function operation(session: string, cmd: Command): Promise<Snapshot> {
     db.courses ??= {};
     if (db.courses[id]) return db.courses[id];
     const preset = process.env.LOCAL_V2_PRESET ?? "synthetic";
-    if (!["synthetic", "v1-gate"].includes(preset))
+    if (!["synthetic", "v1-gate", "v1-gate-gps"].includes(preset))
       throw new DomainError("SERVER_ERROR", "로컬 v2 preset 설정을 확인하라.");
-    const build = preset === "v1-gate" ? legacyDemoCourseV2 : demoCourseV2;
-    return db.courses[id] = await build(id, salt ?? "");
+    const build = preset !== "synthetic" ? legacyDemoCourseV2 : demoCourseV2;
+    return db.courses[id] = await build(id, salt ?? "", preset === "v1-gate-gps");
   };
   let course: Course | CourseV2 = await demoCourse();
   const events: GameEvent[] = [];
