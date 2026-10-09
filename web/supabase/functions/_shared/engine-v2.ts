@@ -271,7 +271,7 @@ export function projectGameV2(
       confirm_mask: ROLES.map((r) =>
         state.explanationConfirms[stage.id]?.[r] !== undefined
       ),
-      swap: { window_ends_at: null, used: false, pending: null }, // PR-3 owns the exchange window.
+      swap: { window_ends_at: null, used: false, pending: null }, // Compatibility only: participant role exchange is forbidden.
     },
     self: {
       id: member.id,

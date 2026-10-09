@@ -96,7 +96,7 @@ v2 데이터의 저장 버전은 `schemaVersion: 2`, 응답 버전 표시는 `st
 |---|---|
 | `game.step_done_count`, `game.hint_level` | `Record<Role, number>` / 완료한 문제 수, 역할별 해제한 힌트 단계 |
 | `game.arrival_mask`, `game.confirm_mask` | boolean 4개 / 도착 여부, 단계 확인 여부. 일반 자물쇠 경로인 정문 예시에서는 확인 마스크가 모두 false |
-| `game.swap` | `{window_ends_at:number\|null, used:boolean, pending:null}` / 교환 창이 닫힌 예시. pending 요청 구조는 PR-3에서 확정 |
+| `game.swap` | 호환용 비활성 필드. 실제 응답은 `{window_ends_at:null, used:false, pending:null}`. 2026-10-09 사용자 결정으로 참가자 간 역할 교환을 금지하며 pending 요청을 구현하지 않음 |
 | `self.step_progress` | 본인 step ID만 키로 사용. 필수 `status`, `attempts`; 완료 시 `method`, 자유 기록 단계만 `record`를 추가 |
 | `self.hints` | 해제된 본인 힌트의 문자열 배열. 아직 해제되지 않은 단계의 placeholder도 넣지 않음 |
 | `self.explanations`, `self.rewards` | 해설은 빈 객체. 보상은 완료 후 통신원에게만 `G-03.freq` 키의 합성 표시 문구를 넣고 나머지는 빈 객체. 미해제 항목의 키는 생략 |
@@ -243,14 +243,14 @@ const snapshot = structuredClone(signalAfterHint);
 
 ## 6. 후속 액션 계약 초안
 
+**참가자 간 역할 교환 금지:** 최초 배정 역할을 유지한다. `propose-swap`/`respond-swap`은 구현 목록에서 제외했고 현재 v2 서버도 지원하지 않는다(`INVALID_ACTION`). `game.swap`은 비활성 호환 필드로 유지한다. 로컬 v1 혼자 시연의 보직 전환과 구분한다.
+
 **2026-10-09 정책 변경:** 실제 4인 코스는 전원 GPS 도착이 필수다. 아래 표의 PR-3 QR·수동 대체 요청은 이전 초안이며 실제 코스용 구현 대상에서 제외한다. 방 합류 QR과 dev 합성 코스의 모의 도착은 별개다. 현재 PR-2의 지휘관 본인 수동 도착 경로는 아직 남아 있으므로, 이 문서 변경이 서버 차단 완료를 의미하지 않는다. GPS 필수 적용·미도착 상태의 API 접근 범위 검증은 PR-3에서 수행한다. [결정 기록](DECISIONS.md)을 따른다.
 
 모든 쓰기에 공통 키 game_id/request_id, 단계 액션에는 stage_id를 보낸다. 응답은 갱신된 Snapshot + result이며 아래는 각 액션의 추가 부분이다.
 
 | PR / action | 추가 요청 예시 | 서버 권한·전이 / result 초안 |
 |---|---|---|
-| PR-3 propose-swap | `{"target_member_id":"member-b"}` | 30초 창·팀 1회. pending 생성 / `{swap_pending:true}` |
-| PR-3 respond-swap | `{"accept":true}` | 제안받은 당사자만. 동의 후 두 역할 교환 / `{swapped:true}` |
 | PR-3 set-ready | `{"ready":true}` | 본인 출발 확인 문구 확인 / `{ready:true}` |
 | PR-3 report-arrival | `{"method":"gps"}` 또는 `{"method":"qr","qr_token":"<개인 현장 토큰>"}` | 본인 도착만 기록. 원시 좌표 없음 / `{arrived:true}` |
 | PR-3 report-arrival 수동 | `{"method":"manual","target_member_id":"member-b"}` | 지휘관·서버 30초 대기 뒤 대체 도착. 대행 사실 보존 |
