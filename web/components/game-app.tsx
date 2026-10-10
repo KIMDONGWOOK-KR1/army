@@ -1340,7 +1340,7 @@ export default function GameApp({
           ) : scene === "sacho" ? (
             <>
               <div className="sacho-scene" data-testid={v2 ? "stage-v2-completed" : undefined}>
-                <span className="eyebrow">기억 복원 · {site!.name}</span>
+                <span className="eyebrow">{v2?.stage.completion.type === "tribute" ? "추모" : "기억 복원"} · {site!.name}</span>
                 <div className="sacho-character">{site!.sacho.char || (v2 ? "記" : "")}</div>
                 <h1 data-scene-heading tabIndex={-1}>
                   {site!.sacho.name}
@@ -1354,7 +1354,7 @@ export default function GameApp({
               </div>
               <section className={`game-console ${v2 ? "summary-console" : ""}`}>
                 <p className="dialogue-line">
-                  {v2 ? `함께 복원한 ${site!.name} 기록을 보관했다.` : "다음 거점에 또 하나의 기억이 기다린다."}
+                  {v2 ? v2.stage.completion.type === "tribute" ? "함께 올린 국화를 기록첩에 남겼다." : `함께 복원한 ${site!.name} 기록을 보관했다.` : "다음 거점에 또 하나의 기억이 기다린다."}
                 </p>
                 {v2 ? (
                   // 출발(또는 기다림·머무르기)을 위에, 결과·기록 두 칸을 아래에(작은 폰에서 사초 글이 가려지지 않게)
@@ -1397,11 +1397,17 @@ export default function GameApp({
           ) : scene === "done" ? (
             <>
               <div className="completion">
-                <span className="eyebrow">{v2 ? `${site!.name} 확인 완료 · 전남대편` : "작전 완료 · 전남대편"}</span>
+                <span className="eyebrow">{v2 ? `${site!.name} ${v2.stage.completion.type === "tribute" ? "헌화" : "확인 완료"} · 전남대편` : "작전 완료 · 전남대편"}</span>
                 <h1 data-scene-heading tabIndex={-1}>
-                  오늘의 실록 한 장을
-                  <br />
-                  함께 엮었다.
+                  {v2?.stage.completion.type === "tribute" ? (
+                    <>잠시 멈춰
+                    <br />
+                    함께 기억했다.</>
+                  ) : (
+                    <>오늘의 실록 한 장을
+                    <br />
+                    함께 엮었다.</>
+                  )}
                 </h1>
                 <div className="collected-seals">
                   {s!.game.acquired_sites.map((p) => (

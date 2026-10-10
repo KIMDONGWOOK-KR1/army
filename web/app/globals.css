@@ -46,6 +46,23 @@ body {
   background: #192032;
   color: var(--ink);
   font: 16px/1.65 var(--sans);
+  /* 한글은 단어(어절) 중간에서 줄을 바꾸지 않는다. 너무 긴 낱말만 칸 끝에서 끊는다 */
+  word-break: keep-all;
+  overflow-wrap: break-word;
+  line-break: strict;
+}
+/* 제목은 줄 길이를 고르게, 문단은 마지막 줄에 한 글자만 남지 않게 */
+h1,
+h2,
+h3,
+h4,
+.dialogue-line {
+  text-wrap: balance;
+}
+p,
+li,
+blockquote {
+  text-wrap: pretty;
 }
 button,
 input {
@@ -2886,17 +2903,7 @@ html[data-mockup] .game-viewport {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-/* 긴 거점 이름: 한 줄 그대로 글자만 줄인다(아래 지도 출처 자리가 밀리지 않게) */
-.hud-site h1[data-long] {
-  font-size: 16px;
-  padding-top: 4px;
-}
-.hud-next b[data-long] {
-  font-size: 14px;
-  line-height: 1.25;
-  white-space: normal;
-  word-break: keep-all;
-}
+
 .hud-next-row {
   display: flex;
   align-items: center;
@@ -2927,9 +2934,6 @@ html[data-mockup] .game-viewport {
 @media (max-width: 370px) {
   .hud-site h1 {
     font-size: 22px;
-  }
-  .hud-site h1[data-long] {
-    font-size: 14px;
   }
   .hud-distance b {
     font-size: 12.5px;
@@ -4098,4 +4102,156 @@ html[data-mockup] .game-viewport {
 .summary-actions .button {
   min-width: 0;
   white-space: nowrap;
+}
+
+/* ── 이동 화면 위 줄(2026-10-10): 거점 이름·남은 거리를 한 줄 묶음에 넣고, 자리가 모자라면
+   거리 칸이 다음 줄로 내려간다. 글자를 줄이거나 '…'로 자르지 않는다. ── */
+.hud-top {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px 10px;
+}
+.hud-top > * {
+  pointer-events: auto;
+}
+.hud-top .hud-site {
+  position: static;
+  flex: 1 1 9em;
+  min-width: 0;
+  max-width: none;
+}
+.hud-top .hud-site h1 {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  font-size: clamp(19px, 6vw, 25px);
+}
+.hud-top-right {
+  flex: 0 1 auto;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+.hud-top .hud-distance {
+  position: static;
+  max-width: 100%;
+}
+.hud-top .hud-distance b,
+.hud-top .hud-distance small {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+.hud-top .hud-gps {
+  position: static;
+  max-width: 100%;
+}
+/* 지도 출처는 위 줄과 겹치지 않게 아래 초상 위로 */
+.scene-travel .field-credit {
+  top: auto;
+  bottom: calc(var(--hud-bottom, 12px) + 150px);
+}
+/* '다음 거점' 칸: 이름은 언제나 한 줄. 넓은 화면은 아래 오른쪽, 좁은 화면(460px 미만)은 위 줄 아래 */
+.hud-next b {
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+}
+.hud-next-top {
+  display: none;
+}
+@media (max-width: 459px) {
+  .hud-next-bottom {
+    display: none;
+  }
+  .hud-next-top {
+    display: block;
+    position: static;
+    width: auto;
+    max-width: 100%;
+  }
+}
+@media (min-width: 460px) {
+  .hud-next-bottom {
+    width: auto;
+    min-width: 118px;
+    max-width: calc(50% - 44px);
+  }
+  .hud-next-bottom b {
+    font-size: clamp(14px, 3.6vw, 18px);
+  }
+}
+/* ── 상단 바: 좁은 폰에서는 제호 글자를 숨기고(記 도장은 남김), 글자가 크면 바가 늘어난다 ── */
+@media (max-width: 760px) {
+  .game-hud {
+    height: auto;
+    min-height: calc(57px + env(safe-area-inset-top, 0px));
+    padding-top: calc(env(safe-area-inset-top, 0px) + 5px);
+    padding-bottom: 5px;
+  }
+  .hud-stage {
+    min-width: 0;
+    flex: 1 1 auto;
+    text-align: center;
+  }
+  .hud-route {
+    line-height: 1.25;
+  }
+}
+@media (max-width: 380px) {
+  .game-brand b {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+}
+/* 누르는 자리 44px: 상단 자동 시연 단추 */
+.hud-auto {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* ── 폰에서 읽기(2026-10-10): 문장으로 읽는 글은 16px 이상, 누르는 단추는 44px 이상 ──
+   '거점 01'·'0 / 1' 같은 짧은 꼬리표·숫자 표시는 그대로 작게 둔다. */
+.game-canvas .fine-print,
+.game-canvas .console-footnote,
+.game-canvas .console-copy p,
+.game-canvas .dialogue-line,
+.game-canvas .hud-speech,
+.game-canvas .completion > p,
+.game-canvas .completion > p.completion-next,
+.game-canvas .record-card p,
+.game-canvas .sacho-scene p,
+.game-canvas .waiting-note,
+.game-canvas .hud-note,
+.game-canvas .verify-field,
+.game-canvas .verify-field > span,
+.game-canvas .reward-stage p,
+.game-canvas .equip-desc {
+  /* 장면마다 따로 작게 정한 규칙보다 이 바닥값을 앞세운다 */
+  font-size: 16px !important;
+}
+.game-canvas .invite-button {
+  min-height: 44px;
+}
+/* 키가 작은 폰(또는 큰 글자)에서 모이기·보직·장비·묵념 장면의 아래 단추가 화면 밖으로 밀리지 않게:
+   장병이 서는 빈 띠를 줄이고, 그래도 넘치면 장면을 스크롤한다 */
+.game-scene:is(.scene-lobby, .scene-briefing, .scene-equip, .scene-memorial) {
+  overflow-y: auto;
+}
+@media (max-height: 640px) {
+  .gather-gap {
+    min-height: 48px;
+  }
 }

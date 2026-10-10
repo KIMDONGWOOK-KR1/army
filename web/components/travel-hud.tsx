@@ -111,29 +111,53 @@ export function TravelHud({
       : ""
   }`;
 
+  // '다음 거점' 칸: 넓은 화면은 아래 오른쪽, 좁은 화면은 위 줄 아래(CSS가 둘 중 하나만 보인다)
+  const next = (className: string) => (
+    <div className={className}>
+      <span className="hud-next-label">다음 거점</span>
+      <b>{site.name}</b>
+      <span className="hud-next-row">
+        <span
+          className="hud-dots"
+          role="img"
+          aria-label={`전체 ${sites.length}곳 중 ${currentSeq}번째`}
+        >
+          {sites.map((p) => (
+            <i key={p.id} className={p.seq <= currentSeq ? "on" : ""} />
+          ))}
+        </span>
+        <span className="hud-next-distance">{nextDistance}</span>
+      </span>
+    </div>
+  );
   return (
     <div
       className={`travel-hud ${site.reverent ? "calm" : ""}`}
       style={{ "--role": color } as CSSProperties}
     >
-      <div className="hud-site">
-        <span className="hud-site-seq">거점 0{site.seq}</span>
-        {/* 긴 거점 이름(용봉열사 추모의 벽 등)은 글자를 줄여 두 줄까지 보인다 */}
-        <h1 data-scene-heading tabIndex={-1} data-long={site.name.length > 6 || undefined}>
-          {site.name}
-        </h1>
+      {/* 위 줄: 거점 이름과 남은 거리. 좁거나 글자가 크면 거리 칸이 다음 줄로 내려간다(잘리지 않게).
+          좁은 폰에서는 '다음 거점' 칸도 이 줄 아래로 올려 이름이 한 줄에 들어가게 한다 */}
+      <div className="hud-top">
+        <div className="hud-site">
+          <span className="hud-site-seq">거점 0{site.seq}</span>
+          <h1 data-scene-heading tabIndex={-1}>
+            {site.name}
+          </h1>
+        </div>
+        <div className="hud-top-right">
+          <div className="hud-distance" data-in-range={inRange}>
+            <span className="hud-distance-icon" aria-hidden="true">
+              <Navigation size={15} strokeWidth={2.6} />
+            </span>
+            <span className="hud-distance-text">
+              <b>{main}</b>
+              {sub && <small>{sub}</small>}
+            </span>
+          </div>
+          {!demo && <p className="hud-gps">{gpsLine}</p>}
+          {next("hud-next hud-next-top")}
+        </div>
       </div>
-
-      <div className="hud-distance" data-in-range={inRange}>
-        <span className="hud-distance-icon" aria-hidden="true">
-          <Navigation size={15} strokeWidth={2.6} />
-        </span>
-        <span className="hud-distance-text">
-          <b>{main}</b>
-          {sub && <small>{sub}</small>}
-        </span>
-      </div>
-      {!demo && <p className="hud-gps">{gpsLine}</p>}
       <span className="hud-sr" role="status">
         {inRange ? "도착 범위에 들어섰다." : ""}
       </span>
@@ -230,22 +254,7 @@ export function TravelHud({
         </span>
       </button>
 
-      <div className="hud-next">
-        <span className="hud-next-label">다음 거점</span>
-        <b data-long={site.name.length > 6 || undefined}>{site.name}</b>
-        <span className="hud-next-row">
-          <span
-            className="hud-dots"
-            role="img"
-            aria-label={`전체 ${sites.length}곳 중 ${currentSeq}번째`}
-          >
-            {sites.map((p) => (
-              <i key={p.id} className={p.seq <= currentSeq ? "on" : ""} />
-            ))}
-          </span>
-          <span className="hud-next-distance">{nextDistance}</span>
-        </span>
-      </div>
+      {next("hud-next hud-next-bottom")}
     </div>
   );
 }

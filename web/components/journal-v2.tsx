@@ -44,16 +44,17 @@ export function JournalV2({ snapshot }: { snapshot: V2Response }) {
                       : "조사 후 복원")}
                 </p>
                 {journal.memorial_record && <section className={styles.note}><h4>추모의 벽 공동 기록</h4><p>{journal.memorial_record.text}</p><p>근거: {journal.memorial_record.reason}</p></section>}
-                <h4>내 조사 기록</h4>
+                <h4>{journal.label === "헌화 완료" ? "내 헌화" : "내 조사 기록"}</h4>
                 {journal.visit && <p>{journal.visit.label}</p>}
                 {!!journal.shared_records?.length && <SharedRecords records={journal.shared_records} />}
                 {journal.entries.map((entry) => (
                   <section className={styles.note} key={entry.step_id}>
                     <h5>{entry.prompt}</h5>
-                    <p>
+                    {/* 헌화 거점은 조사·검증이 아니라 추모 기록이라 확인 방식을 적지 않는다 */}
+                    {journal.label !== "헌화 완료" && <p>
                       {entry.verified ? "조사 검증 완료" : "해설로 확인"} ·{" "}
                       {methods[entry.method] ?? "확인 완료"}
-                    </p>
+                    </p>}
                     {Object.values(entry.record ?? {}).map((text, i) => (
                       <p key={i}>{text}</p>
                     ))}

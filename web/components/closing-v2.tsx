@@ -111,10 +111,11 @@ export function ResultV2({ snapshot: s }: { snapshot: V2Response }) {
     {result.stages.map((stage) => <section key={stage.stage_id} className={styles.card}>
       <h2>{stage.name} · {stage.completion}</h2><p>{stage.summary}</p>
       <p>도착: {stage.arrival_method === "simulated" ? "모의 확인" : "GPS 확인"}{stage.visit_mode === "outdoor" ? " · 외부 대체 조사" : ""}</p>
-      <ul>{stage.roles.map((r) => <li key={r.role}>{ROLE_NAMES[r.role]} · 조사 {r.completed}/{r.total} · 보고 {r.reported ? "완료" : "대기"}
+      {/* 헌화 거점은 조사 통계 대신 국화를 올린 사람만 적는다 */}
+      {stage.completion === "헌화 완료" ? <p>국화 {stage.roles.filter((r) => r.reported).length}송이를 함께 올렸다.</p> : <ul>{stage.roles.map((r) => <li key={r.role}>{ROLE_NAMES[r.role]} · 조사 {r.completed}/{r.total} · 보고 {r.reported ? "완료" : "대기"}
         {` · 힌트 ${r.hint_level}단계 · 해설 ${r.explained}건 · 기록 ${r.records}건 · 교차 확인 ${r.cross_checks}건`}
         <br />확인 방식: {r.methods.map((m) => ({ field: "현장", official_digital: "공식 디지털 자료", explained: "해설", simulated: "모의", proxy: "대리 확인" }[m])).join(", ") || "없음"}
-      </li>)}</ul>
+      </li>)}</ul>}
       {stage.memorial_record && <><blockquote>{stage.memorial_record.text}</blockquote><p>근거: {stage.memorial_record.reason}</p></>}
     </section>)}
     {result.joint_records.map((record) => <section key={record.stage_id} className={styles.card} data-testid="final-joint-record">
