@@ -1352,17 +1352,21 @@ export default function GameApp({
                   <Check size={17} /> 사초를 기록첩에 보관했다.
                 </div>
               </div>
-              <section className="game-console">
+              <section className={`game-console ${v2 ? "summary-console" : ""}`}>
                 <p className="dialogue-line">
                   {v2 ? `함께 복원한 ${site!.name} 기록을 보관했다.` : "다음 거점에 또 하나의 기억이 기다린다."}
                 </p>
                 {v2 ? (
+                  // 출발(또는 기다림·머무르기)을 위에, 결과·기록 두 칸을 아래에(작은 폰에서 사초 글이 가려지지 않게)
                   <><MemorialDeparture key={`${v2.game.id}:${v2.stage.id}`} snapshot={v2} busy={busy} send={send} />
-                  <button className="button primary" onClick={() => setPane("summary")}>
-                    {site!.name} 결과 보기 <ArrowRight size={18} />
-                  </button><button className="button secondary" onClick={() => setModal("records")}>
-                    수집한 기록 읽기 <BookOpen size={18} />
-                  </button></>
+                  <div className="summary-actions">
+                    <button className="button secondary" aria-label={`${site!.name} 결과 보기`} onClick={() => setPane("summary")}>
+                      결과 보기 <ArrowRight size={17} />
+                    </button>
+                    <button className="button secondary" onClick={() => setModal("records")}>
+                      수집한 기록 읽기 <BookOpen size={17} />
+                    </button>
+                  </div></>
                 ) : role === "commander" ? (
                   <button
                     className="button primary"
@@ -1385,7 +1389,11 @@ export default function GameApp({
               </section>
             </>
           ) : scene === "done" && v2?.game.status === "done" ? (
-            <><ResultV2 snapshot={v2} /><button className="button secondary" onClick={home}>새 작전 준비하기</button></>
+            <><ResultV2 snapshot={v2} />
+              {/* 결과가 길어도 버튼이 화면 끝에 잘리지 않게 아래 판에 둔다 */}
+              <section className="game-console summary-console">
+                <button className="button secondary" onClick={home}>새 작전 준비하기</button>
+              </section></>
           ) : scene === "done" ? (
             <>
               <div className="completion">
@@ -1408,7 +1416,8 @@ export default function GameApp({
                   <br />네 사람의 자리에서 다시 이었다.
                 </p>
                 <p className="completion-next">
-                  {v2 ? `${site!.name}의 사초를 복원했다. ${v2.course.sites.some((s) => s.seq > site!.seq) ? "지휘관의 출발 신호에 맞춰 다음 거점으로 이동하라." : "후속 거점은 준비 중이며, 이번 확인은 여기까지다."}`
+                  {/* 출발 안내는 아래 판에 있으니 여기서는 이 거점에서 한 일만 적는다 */}
+                  {v2 ? `${v2.stage.completion.type === "tribute" ? `${site!.name}에서 헌화를 마쳤다.` : `${site!.name}의 사초를 복원했다.`}${v2.course.sites.some((s) => s.seq > site!.seq) ? "" : " 후속 거점은 준비 중이며, 이번 확인은 여기까지다."}`
                     : "민주길의 기록은 여기서 끝나지 않는다. 박관현의 언덕, 윤상원의 숲, 김남주의 뜰이 다음 사초를 기다린다."}
                 </p>
                 {v2 && completionLabel && <p>{completionLabel}</p>}
@@ -1425,22 +1434,37 @@ export default function GameApp({
                   </span>
                 </div>}
               </div>
-              <section className="game-console">
-                {v2 && <button className="button secondary" onClick={() => setPane("report")}>
-                  사초로 돌아가기
-                </button>}
-                {v2 && <NextStageAction snapshot={v2} busy={busy} send={send} />}
-                <button className="button secondary" onClick={home}>
-                  새 작전 준비하기
-                </button>
-                <button
-                  className="button primary"
-                  onClick={() => setModal("records")}
-                >
-                  수집한 기록 읽기
-                  <BookOpen size={18} />
-                </button>
-              </section>
+              {v2 && v2.course.sites.some((p) => p.seq > site!.seq) ? (
+                // 코스 중간 거점: 출발(지휘관 버튼 또는 기다림 안내)을 위에 크게, 아래에 돌아가기·기록 두 칸.
+                // 작전 도중이라 '새 작전 준비하기'는 두지 않는다(잘못 누르면 작전을 떠난다)
+                <section className="game-console summary-console">
+                  <NextStageAction snapshot={v2} busy={busy} send={send} />
+                  <div className="summary-actions">
+                    <button className="button secondary" onClick={() => setPane("report")}>
+                      사초로 돌아가기
+                    </button>
+                    <button className="button secondary" onClick={() => setModal("records")}>
+                      수집한 기록 <BookOpen size={17} />
+                    </button>
+                  </div>
+                </section>
+              ) : (
+                <section className="game-console">
+                  {v2 && <button className="button secondary" onClick={() => setPane("report")}>
+                    사초로 돌아가기
+                  </button>}
+                  <button className="button secondary" onClick={home}>
+                    새 작전 준비하기
+                  </button>
+                  <button
+                    className="button primary"
+                    onClick={() => setModal("records")}
+                  >
+                    수집한 기록 읽기
+                    <BookOpen size={18} />
+                  </button>
+                </section>
+              )}
             </>
           ) : null}
         </main>

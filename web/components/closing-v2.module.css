@@ -27,3 +27,19 @@
 .field textarea { min-height: 96px; resize: vertical; }
 .field select:focus-visible, .field textarea:focus-visible { outline: 2px solid #49664c; outline-offset: 2px; }
 .result { min-height: 0; overflow-y: auto; padding: 20px; }
+
+/* 추모 거점 출발 줄: 출발 버튼(또는 기다림 안내)과 '조용히 머무르기'를 한 줄에 */
+.depart {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: center;
+}
+.depart p {
+  margin: 0;
+  font: 600 14px/1.5 var(--sans);
+}
+.depart :global(.button) {
+  min-width: 0;
+  white-space: nowrap;
+}

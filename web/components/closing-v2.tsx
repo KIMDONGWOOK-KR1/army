@@ -95,11 +95,11 @@ export function MemorialDeparture(props: Props) {
     return () => clearTimeout(timer);
   }, [paused]);
   if (props.snapshot.stage.kind !== "memorial") return <NextStageAction {...props} />;
-  return <section className={styles.card}>
-    <p>원하면 조용히 잠시 머무르라. 언제든 이동 준비를 할 수 있다.</p>
+  // 상자 없이 한 줄로: 출발(또는 기다림 안내) 옆에 '조용히 머무르기'를 작게 둔다
+  return <div className={styles.depart}>
+    {paused ? <p role="status">잠시 머무르는 중이다. 원할 때 이동 준비를 하라.</p> : <NextStageAction {...props} />}
     <button className="button secondary" onClick={() => setPaused(!paused)}>{paused ? "지금 이동 준비" : "조용히 머무르기"}</button>
-    {paused ? <p role="status">잠시 머무르는 중</p> : <NextStageAction {...props} />}
-  </section>;
+  </div>;
 }
 
 export function ResultV2({ snapshot: s }: { snapshot: V2Response }) {

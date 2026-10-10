@@ -4075,3 +4075,27 @@ html[data-mockup] .game-viewport {
     font-size: 27px;
   }
 }
+
+/* 코스 중간 거점 요약: 출발 안내를 위에, 돌아가기·기록 버튼 두 칸을 아래에 둔다(한 줄에 넷이 끼어 글자가 세로로 깨지던 문제) */
+.game-console.summary-console {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+}
+.summary-console > p {
+  margin: 0;
+  font: 600 16px/1.6 var(--sans);
+  text-align: center;
+}
+.summary-console > .button {
+  width: 100%;
+}
+.summary-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.summary-actions .button {
+  min-width: 0;
+  white-space: nowrap;
+}
