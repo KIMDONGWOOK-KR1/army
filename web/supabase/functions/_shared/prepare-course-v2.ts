@@ -593,6 +593,9 @@ function validateDependencies(stages: Stage[]) {
   const graph = new Map<string, string[]>();
   for (const [id, node] of nodes) {
     if (node.step.recordFrom) {
+      if (node.stage.kind === "memorial" || node.stage.kind === "epilogue") {
+        fail(id, "추모·회고의 개인 기록은 다른 역할에 전달할 수 없다.");
+      }
       const ref = node.step.recordFrom, source = nodes.get(ref.stepId);
       if (!source || source.role !== ref.role || source.stage.id !== node.stage.id ||
         source.role === node.role || source.step.grading !== "record" || !source.step.fields?.length) {

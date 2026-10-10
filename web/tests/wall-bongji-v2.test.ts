@@ -7,6 +7,21 @@ import { validateCourseV2Content } from "../supabase/functions/_shared/prepare-c
 import { ROLES, type Command } from "../supabase/functions/_shared/types";
 
 describe("wall and Bongji completion", () => {
+  it("rejects a memorial relay in seed and suppresses it in live and completed projections", async () => {
+    const { content } = fullDemoV2Input("jnu-demo-dev-relay-test");
+    const ref = { role: "scout" as const, stepId: "W-01.activities" };
+    const step = content.stages[2].roles.signal!.steps[0];
+    step.recordFrom = ref; step.requires = [ref];
+    expect(() => validateCourseV2Content(content)).toThrow("추모·회고의 개인 기록");
+    const t = await fullTeam(); await t.arrive(); await t.wallReady();
+    // Defend projection even if an older/bad authoring path stored a relay declaration.
+    t.course.stages[2].roles.signal!.steps[0].recordFrom = ref;
+    expect(t.view("signal").self.shared_records).toEqual([]);
+    expect(JSON.stringify(t.view("signal"))).not.toContain("wall-scout 비공개");
+    await t.draft(); for (const role of ROLES) await t.call(role, { action: "confirm-stage", draft_version: 1 });
+    expect(t.view("signal").self.journal.find((j) => j.stage_id === "wall")?.shared_records).toEqual([]);
+    expect(JSON.stringify(t.view("signal"))).not.toContain("wall-scout 비공개");
+  });
   it("requires four fresh arrivals, reports and independent versioned memorial confirmations", async () => {
     const t = await fullTeam();
     expect(t.view("scout").self.mission).toBeNull();

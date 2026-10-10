@@ -3,8 +3,8 @@
 ## 2026-10-10 PR-5 추모의 벽·봉지
 
 - 추모 조사·구두 보고→지휘관 공동 낱말/문장/근거→현재 버전 네 확인→사초③, 봉지 전원 재도착→개인 회고→공동 기록→네 동의→최종 결과를 구현했다. 개인 본문은 본인만, 공동 기록은 팀 공유이며 두 거점 상태는 분리했다.
-- `npm test`: 33파일 **333개 통과**. 신규 엔진/시드 6개·DB 이벤트/CAS 5개·음향 1개 포함. 초안 및 회고 수정 시 확인 초기화, 종료 후 쓰기 거절, request_id 재시도, 본인 전용 응답·기록첩·결과, 점수 불변, dev 전용 시드, 트랜잭션 롤백을 검증했다. 기존 12개 정문 Snapshot 계약 테스트도 유지한다.
-- `npm run typecheck`, `npm run build`, Edge `deno check --no-lock`, 변경 공유 모듈 8개의 Deno lint 통과. 신규 공유 모듈 2개를 기존 CI lint 목록에 추가했다. 별도 npm lint 스크립트는 없다. Next/브라우저 보조 lint는 no-sloppy-imports/no-window/no-window-prefix/jsx-button-has-type 및 기존 음향의 빈 catch에 대한 no-empty를 제외했다.
+- `npm test`: 33파일 **334개 통과**. 신규 엔진/시드 7개·DB 이벤트/CAS 5개·음향 1개 포함. 추모 기록 전달 설정의 seed 거절·런타임 차단, 초안 및 회고 수정 시 확인 초기화, 종료 후 쓰기 거절, request_id 재시도, 본인 전용 응답·기록첩·결과, 점수 불변, dev 전용 시드, 트랜잭션 롤백을 검증했다. 기존 12개 정문 Snapshot 계약 테스트도 유지한다.
+- `npm run typecheck`, `npm run build`, Edge `deno check --no-lock`, 변경 공유 모듈 9개의 Deno lint 통과. 신규 공유 모듈 2개를 기존 CI lint 목록에 추가했다. 별도 npm lint 스크립트는 없다. Next/브라우저 보조 lint는 no-sloppy-imports/no-window/no-window-prefix/jsx-button-has-type 및 기존 음향의 빈 catch에 대한 no-empty를 제외했다.
 - `playwright.full.config.ts`: 네 개 독립 세션의 전체 코스 시나리오 통과. 기존 잠금 단계는 실제 API의 해설 개방 경로로 진행하고, 추모의 벽 보고·공동 초안·네 확인, 선택형 머무르기, 봉지 회고 수정에 따른 동의 초기화·버전 재조회, 최종 동의·완료 복원은 메인 UI에서 수행했다. `/verify` 완료 복구와 get-result 호출, 360/390/430px 가로 넘침도 확인했다.
 - 음향 설정을 켠 상태로 추모 단계에 들어가 보고·확인·사초 완료까지 효과음 이벤트가 없음을 확인했다. 음향 차단은 사용자 저장 설정을 덮어쓰지 않는다. 새 전체 코스의 추모 좌표는 null이며 모의 도착만 사용했다.
 - 첫 브라우저 시험은 제한 시간에 걸렸고, 진단 후 입력란의 접근성 이름을 명시해 재실행했다. 성공 후 캡처 검토에서 확인한 결과 여백·내부 스크롤을 보완해 다시 통과했다. 캡처는 새 합성 최종 공동 기록 영역만 보관한다: [화면](../../docs/fe/images/full-result-synthetic.png). 실제 원문·개인 자료를 캡처하거나 trace/video로 기록하지 않았다.
