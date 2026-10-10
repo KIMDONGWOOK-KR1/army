@@ -1157,7 +1157,7 @@ export default function GameApp({
             <>
               <div className="mission-header">
                 <div>
-                  <span className="eyebrow">거점 0{site!.seq} · 개인 단서</span>
+                  <span className="eyebrow">거점 0{site!.seq} · {v2?.stage.completion.type === "tribute" ? "헌화" : "개인 단서"}</span>
                   <h1 data-scene-heading tabIndex={-1}>
                     {role && <RoleBadge role={role} />}
                   </h1>

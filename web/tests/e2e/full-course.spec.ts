@@ -1,9 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
 import type { SnapshotV2 } from "../../supabase/functions/_shared/engine-v2";
 import { ROLES, type Role } from "../../supabase/functions/_shared/types";
-import { fullDemoV2Input } from "../../supabase/functions/_shared/wall-bongji-course-v2";
 
-test("four sessions complete memorial and reflections, refresh consent versions and see private results", async ({ browser, baseURL }) => {
+test("four sessions lay flowers at the memorial, write reflections, refresh consent versions and see private results", async ({ browser, baseURL }) => {
   const contexts = await Promise.all(ROLES.map(() => browser.newContext({ baseURL,
     viewport: { width: 390, height: 844 }, reducedMotion: "reduce",
     storageState: { cookies: [], origins: [{ origin: baseURL!, localStorage: [
@@ -48,15 +47,14 @@ test("four sessions complete memorial and reflections, refresh consent versions 
         window.addEventListener("hoguk:sound", (e) => (window as unknown as { heard: string[] }).heard.push((e as CustomEvent<string>).detail));
       });
     }
-    const input = fullDemoV2Input(created.course.id).privateInput.stages.wall;
-    for (const role of ["scout", "signal", "cipher", "commander"] as const) {
-      const s = await call(forRole(role), "get-stage");
-      for (const step of s.self.mission!.steps) {
-        const answer = input.steps[step.id].answer ?? Object.fromEntries(step.fields!.map((f) => [f.id, `[합성] wall-${role} 개인 기록`]));
-        await call(forRole(role), "submit-step", { step_id: step.id, answer, method: "official_digital", source: { text: "[합성] 출처" } });
-      }
-      await forRole(role).getByRole("button", { name: "조사 결과 보고", exact: true }).click();
+    // 추모의 벽: 소개를 읽고 각자 국화 한 송이를 올린다(문제·공동 기록 없음)
+    for (const p of pages) await expect(p.getByTestId("tribute")).toContainText("국화 0송이");
+    for (const [i, role] of (["scout", "signal", "cipher", "commander"] as const).entries()) {
+      const p = forRole(role);
+      await p.getByRole("button", { name: "국화 올리기", exact: true }).click();
+      if (i < 3) await expect(p.getByTestId("tribute")).toContainText(`국화 ${i + 1}송이`);
     }
+    console.log("Synthetic full-course: four flowers laid");
     const fillDraft = async (text: string) => {
       await commander.getByRole("button", { name: "공동 기록 작성", exact: true }).click();
       for (let i = 1; i <= 3; i++) await commander.getByLabel(`낱말 ${i}`, { exact: true }).selectOption({ index: i });
@@ -64,13 +62,6 @@ test("four sessions complete memorial and reflections, refresh consent versions 
       await commander.getByLabel("공동 근거", { exact: true }).fill("[합성] 팀 근거");
       await commander.getByRole("button", { name: "공동 기록 저장", exact: true }).click();
     };
-    console.log("Synthetic full-course: wall reports complete");
-    await fillDraft("[합성] 벽 공동 문장");
-    for (const role of ROLES) {
-      const p = forRole(role); await expect(p.getByTestId("memorial-record")).toContainText("[합성] 벽 공동 문장");
-      for (const other of ROLES.filter((r) => r !== role)) await expect(p.locator("body")).not.toContainText(`wall-${other} 개인 기록`);
-      await p.getByRole("button", { name: "공동 문장과 근거 확인", exact: true }).click();
-    }
     for (const p of pages) {
       await expect(p.getByTestId("stage-v2-completed")).toBeVisible();
       expect(await p.evaluate(() => (window as unknown as { heard: string[] }).heard)).toEqual([]);

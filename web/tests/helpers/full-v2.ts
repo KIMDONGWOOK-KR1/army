@@ -30,15 +30,16 @@ export async function fullTeam() {
     await call(role, { action: "submit-report" });
   };
   const depart = () => call("commander", { action: "depart-next-site" });
-  const wallReady = async () => { for (const role of ["scout", "signal", "cipher", "commander"] as const) await solve(role); };
+  // 추모의 벽은 헌화만 한다: 각자 국화 올리기(확인 문제) 한 번
+  const offer = (role: Role, extra: Partial<Command> = {}) => {
+    const step = course.stages[game.v2!.stageIndex].roles[role]!.steps[0];
+    return call(role, { action: "submit-step", step_id: step.id, answer: "confirmed", method: "field", ...extra });
+  };
   const draft = (action = "draft-memorial-record", version = 0, extra: Partial<Command> = {}) => call("commander", {
     action, draft_version: version, words: course.stages[game.v2!.stageIndex].recordTemplate!.wordChoices.slice(0, 3),
     text: "[합성] 함께 작성한 문장", reason: "[합성] 함께 확인한 근거", ...extra,
   });
-  const wallComplete = async () => {
-    await wallReady(); await draft();
-    for (const role of ROLES) await call(role, { action: "confirm-stage", draft_version: 1 });
-  };
+  const wallComplete = async () => { for (const role of ROLES) await offer(role); };
   await call("commander", { action: "begin-operation" });
   // Existing lock stages are traversed through real actions and receipts.
   for (let index = 0; index < 2; index++) {
@@ -49,5 +50,5 @@ export async function fullTeam() {
     await call("commander", { action: "open-lock", digits: stage.completion.order.map((r) => input.stages[stage.id].roles[r]!.digit!) });
     await depart();
   }
-  return { course, game, input, events, call, callUser, view, arrive, solve, depart, draft, wallReady, wallComplete };
+  return { course, game, input, events, call, callUser, view, arrive, solve, depart, draft, offer, wallComplete };
 }

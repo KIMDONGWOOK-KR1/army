@@ -38,9 +38,10 @@ export function JournalV2({ snapshot }: { snapshot: V2Response }) {
             {journal && (
               <>
                 <p>
-                  {journal.method === "explained"
-                    ? "해설 확인 후 복원"
-                    : "조사 후 복원"}
+                  {journal.label ??
+                    (journal.method === "explained"
+                      ? "해설 확인 후 복원"
+                      : "조사 후 복원")}
                 </p>
                 {journal.memorial_record && <section className={styles.note}><h4>추모의 벽 공동 기록</h4><p>{journal.memorial_record.text}</p><p>근거: {journal.memorial_record.reason}</p></section>}
                 <h4>내 조사 기록</h4>

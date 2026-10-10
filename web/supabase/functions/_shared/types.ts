@@ -278,6 +278,8 @@ export type Stage = {
   completion:
     | { type: "lock"; order: Role[] }
     | { type: "confirm"; labels: Record<Role, string> }
+    // 추모 헌화: 네 사람이 각자 국화를 올리면(본인 확인 문제 완료) 공동 기록 없이 완료된다
+    | { type: "tribute"; label: string }
     | { type: "joint-record" };
   // Optional public reward text. Released only after this stage is completed.
   sacho?: { id: string; name: string; sections: string[]; char?: string; body?: string };
