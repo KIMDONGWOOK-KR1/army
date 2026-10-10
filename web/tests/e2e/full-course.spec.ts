@@ -94,7 +94,12 @@ test("four sessions lay flowers at the memorial, write reflections, refresh cons
     await commander.reload();
     await expect(commander.getByTestId("joint-record")).toContainText("기록 버전 2");
     await expect(commander.getByRole("button", { name: "공동 기록에 동의", exact: true })).toBeEnabled();
-    for (const role of ROLES) await forRole(role).getByRole("button", { name: "공동 기록에 동의", exact: true }).click();
+    // 정찰원 회고 수정으로 기록 버전이 2가 되었다: 각 폰이 새 버전을 받은 뒤에 동의한다(폴링보다 먼저 누르면 예전 버전으로 거절된다)
+    for (const role of ROLES) {
+      const p = forRole(role);
+      await expect(p.getByTestId("joint-record")).toContainText("기록 버전 2");
+      await p.getByRole("button", { name: "공동 기록에 동의", exact: true }).click();
+    }
     for (const role of ROLES) {
       const p = forRole(role); await expect(p.getByTestId("result-v2")).toContainText("조사 3/3 · 사초 3/3");
       for (const other of ROLES.filter((r) => r !== role)) await expect(p.locator("body")).not.toContainText(`${other} 비공개 회고`);

@@ -24,13 +24,38 @@ export function legacyFullDemoV2Input(id: string) {
   const base = content.stages[index];
   const scene = (sid: string, text: string, trigger: SceneText["trigger"] = "enter"): SceneText =>
     ({ id: sid, channel: "screen", text, trigger });
-  // 힌트 2·3단계(1단계는 v1 힌트). 통신원 힌트에는 주파수를 쓰지 않는다(지휘관이 말로 전한다)
-  const guidance: Record<Role, [string, string]> = {
-    commander: ["도착할 때 들은 용봉관 이야기를 다시 떠올리고 선택지와 비교하라.", "해설을 읽고 용봉관이 지금 품은 것을 확인한 뒤 보고하라."],
-    scout: ["시연 안내판의 제목 줄만 읽고 그대로 입력하라.", "안내판 제목을 다시 확인한 뒤 보고하라."],
-    signal: ["지휘관에게 받은 주파수의 숫자와 소수점 위치를 확인하라.", "지휘관과 전달 내용을 확인한 뒤 해설을 읽고 보고하라."],
-    cipher: ["봉황을 뜻하는 글자는 새 모양이 들어간 글자다.", "해설을 읽고 현판의 글자를 확인한 뒤 보고하라."],
+  // 힌트 1~3단계(hh 2026-10-11: 문항마다 새로 씀). 힌트·해설·장면 어디에도 정답 값(선택 번호·이름·주파수·칸)을 쓰지 않는다.
+  // 통신원 주파수는 지휘관 화면의 전달 단서로만 나온다(정문과 같은 협동 방식).
+  const hints: Record<Role, [string, string, string]> = {
+    commander: [
+      "도착할 때 들은 용봉관 이야기를 떠올려라. 건물이 '지금' 무엇을 품고 있는지가 열쇠다.",
+      "선택지 가운데 이 건물의 옛 쓰임·지금 쓰임과 관계없는 것부터 지워라.",
+      "남은 선택지를 도착 이야기의 마지막 문장과 맞춰 본 뒤 해설로 확인하라.",
+    ],
+    scout: [
+      "건물 앞 시연 안내판에서 맨 위 제목 줄을 찾아라.",
+      "제목 줄에는 이 건물의 이름이 적혀 있다. 띄어쓰기 없이 그대로 옮겨라.",
+      "안내판 제목을 다시 읽고 해설로 확인하라.",
+    ],
+    signal: [
+      "주파수는 지휘관에게만 보인다. 지휘관에게 말로 전달받아라.",
+      "전달받은 숫자의 소수점 위치를 확인하고 다이얼이나 입력 칸으로 맞추어라. 소수점은 한 자리까지다.",
+      "지휘관과 숫자를 한 번 더 확인한 뒤 해설로 확인하라.",
+    ],
+    cipher: [
+      "현판의 글자는 봉황을 뜻한다.",
+      "건물 이름 '용봉관'에서 봉황을 뜻하는 글자와 같은 모양을 아홉 칸에서 찾아라. 새를 닮은 획이 들어 있다.",
+      "용·산·문처럼 다른 뜻의 글자를 지우고 남은 칸을 해설로 확인하라.",
+    ],
   };
+  const explanations: Record<Role, string> = {
+    commander: "용봉관은 1957년에 세워져 오랫동안 대학 본부로 쓰였고, 지금은 국가등록문화유산으로 남아 있다. 도착 이야기에서 들은 지금의 쓰임을 고르는 문항이다.",
+    scout: "시연 안내판 제목 줄에 적힌 건물 이름을 그대로 적는 문항이다. 실제 안내판 문항은 답사 후 교체한다.",
+    signal: "지휘관의 개인 단서를 말로 전달받는 협동 과정이다. 주파수는 소수점 첫째 자리까지만 입력한다.",
+    cipher: "용봉관의 '봉'은 봉황을 뜻하는 한자다. 현판과 같은 글자가 있는 칸을 찾는 문항이다.",
+  };
+  // 지휘관이 다시 읽을 수 있는 참고 글(정답 문장은 뺀 용봉관 소개)
+  const reference = "용봉관은 1957년에 세워져 오랫동안 대학 본부로 쓰였다. 2020년 5월 문을 연 '전남대 민주길' 정의의 길은 정문에서 출발해 이 옛 본부에 닿는다.";
   const roles = {} as Stage["roles"];
   const privateRoles = {} as CourseV2PrivateInput["stages"][string]["roles"];
   const privateSteps: CourseV2PrivateInput["stages"][string]["steps"] = {};
@@ -46,13 +71,13 @@ export function legacyFullDemoV2Input(id: string) {
     };
     roles[role] = {
       intro: scene(`legacy-y-${role}-intro`, clue.title),
-      scenes: role === "commander" ? [scene("legacy-y-commander-reference", old.sacho.body)] : [],
+      scenes: role === "commander" ? [scene("legacy-y-commander-reference", reference)] : [],
       digit: true,
       steps: [step],
     };
     privateRoles[role] = {
       digit,
-      hints: [role === "signal" ? "지휘관의 개인 전달 단서를 말로 전달받아 주파수를 맞추어라." : clue.hint, ...guidance[role]],
+      hints: [...hints[role]],
       ...(role === "commander" ? { transferClue: {
         kind: "relay-frequency" as const, label: "통신원에게 말로 전달할 시연 주파수",
         value: synthetic.yongbong.signal[0], targetStepId: LEGACY_YONGBONG_STEPS.signal.id,
@@ -60,10 +85,7 @@ export function legacyFullDemoV2Input(id: string) {
     };
     privateSteps[stepId] = {
       answer,
-      explanation: role === "commander" ? old.sacho.body
-        : role === "scout" ? "시연 안내판 제목은 「용봉관」이다. 실제 안내판 문항은 답사 후 교체한다."
-        : role === "signal" ? "지휘관의 개인 단서를 말로 전달받는 협동 과정이다. 주파수는 소수점 첫째 자리까지만 입력한다."
-        : "鳳(봉)은 봉황을 뜻하는 글자로, 용봉관의 '봉'이다.",
+      explanation: explanations[role],
     };
   }
   const stage: Stage = {
@@ -76,7 +98,7 @@ export function legacyFullDemoV2Input(id: string) {
     ],
     roles,
     completion: { type: "lock", order: [...old.lockOrder] },
-    sacho: { id: "sacho-yongbong", name: "사초② · 겹친 시간의 기록", char: old.sacho.char, body: old.sacho.body,
+    sacho: { id: "sacho-yongbong", name: old.sacho.name, char: old.sacho.char, body: old.sacho.body,
       sections: ["관찰 기록", "출처 및 확인 방식"] },
   };
   delete stage.altModes;

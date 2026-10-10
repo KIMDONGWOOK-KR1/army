@@ -14,6 +14,19 @@ describe("용봉관 v1 문항 전체 코스", () => {
     expect(JSON.stringify(yb)).not.toContain("[합성]");
     expect(JSON.stringify(content.sources)).not.toContain("[합성]");
     expect(JSON.stringify(yb)).not.toContain("19.9");
+    expect(yb.sacho).toMatchObject({ char: "層", name: "겹친 시간의 사초" });
+    // 힌트 3단계·해설에 정답 값이 없다(정답은 서버 비공개 입력에만)
+    const priv = privateInput.stages.yongbong;
+    const said = (role: "commander" | "scout" | "signal" | "cipher") =>
+      [...priv.roles[role]!.hints, ...Object.values(priv.steps).map((s) => s.explanation ?? "")].join(" ");
+    for (const role of ["commander", "scout", "signal", "cipher"] as const) {
+      expect(priv.roles[role]!.hints).toHaveLength(3);
+      expect(said(role)).not.toContain("19.9");
+      expect(said(role)).not.toContain("鳳");
+      expect(said(role)).not.toContain("대학의 역사와 오월의 기록");
+    }
+    expect(priv.roles.scout!.hints.join(" ")).not.toContain("용봉관");
+    expect(JSON.stringify(yb.roles.commander!.scenes)).not.toContain("대학의 역사와 오월의 기록");
     await expect(legacyFullDemoCourseV2("jnu-demo-dev-legacy-test", "s".repeat(40))).resolves.toBeTruthy();
   });
 });
