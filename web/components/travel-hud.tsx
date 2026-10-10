@@ -73,11 +73,13 @@ export function TravelHud({
   const color = ROLE_COLORS[role ?? "commander"];
   const total = Math.max(1, sites.length);
 
+  // 남은 거리 칸이 좁아 긴 거점 이름은 '목적지'로 줄여 쓴다(거점 이름은 왼쪽 위에 있다)
+  const target = site.name.length > 6 ? "목적지" : site.name;
   let main: string, sub: string;
   if (gpsRequired) {
     main = v2Arrival.arrived ? "내 GPS 도착 확인됨" : location.distance === null
       ? "GPS 위치 확인 필요"
-      : inRange ? "도착 범위 안 · 5초 유지 중" : `${site.name}까지 ${meters(location.distance)}`;
+      : inRange ? "도착 범위 안 · 5초 유지 중" : `${target}까지 ${meters(location.distance)}`;
     sub = `반경 ${site.radiusM}m · 전원 도착 ${v2Arrival.count}/4`;
   } else if (!field || field.loading) {
     main = "지도 불러오는 중";
@@ -85,13 +87,13 @@ export function TravelHud({
   } else if (field.failed) {
     main =
       location.distance !== null
-        ? `${site.name}까지 ${meters(location.distance)}`
-        : `${site.name}까지 이동하라`;
+        ? `${target}까지 ${meters(location.distance)}`
+        : `${target}까지 이동하라`;
     sub = location.status;
   } else {
     main = field.inRange
       ? "도착 범위 안"
-      : `${site.name}까지 ${meters(field.distance)}`;
+      : `${target}까지 ${meters(field.distance)}`;
     sub = modeLine(field);
   }
   const nextDistance = gpsRequired
@@ -116,7 +118,8 @@ export function TravelHud({
     >
       <div className="hud-site">
         <span className="hud-site-seq">거점 0{site.seq}</span>
-        <h1 data-scene-heading tabIndex={-1}>
+        {/* 긴 거점 이름(용봉열사 추모의 벽 등)은 글자를 줄여 두 줄까지 보인다 */}
+        <h1 data-scene-heading tabIndex={-1} data-long={site.name.length > 6 || undefined}>
           {site.name}
         </h1>
       </div>
@@ -229,7 +232,7 @@ export function TravelHud({
 
       <div className="hud-next">
         <span className="hud-next-label">다음 거점</span>
-        <b>{site.name}</b>
+        <b data-long={site.name.length > 6 || undefined}>{site.name}</b>
         <span className="hud-next-row">
           <span
             className="hud-dots"
