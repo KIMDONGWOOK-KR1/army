@@ -590,7 +590,12 @@ export default function GameApp({
     reverent: !!site?.reverent,
     hushed,
     // 추모 거점에 들어선 뒤로는(헌화형도 포함) 봉지에서도 자동으로 소리를 되살리지 않는다
-    silent: !!v2 && (v2.stage.kind === "memorial" || v2.self.journal.some((j) => "memorial_record" in j)),
+    // 헌화형 추모의 벽은 05 자연음·06 묵념·07(1/3)을 낸다(hh 2026-10-10). 공동 확인형 추모 단계만 예전처럼 무음
+    silent: !!v2 && ((v2.stage.kind === "memorial" && v2.stage.completion.type !== "tribute") ||
+      v2.self.journal.some((j) => "memorial_record" in j)),
+    epilogue: v2?.stage.kind === "epilogue",
+    final: s?.game.status === "done" && scene === "done",
+    wall: v2?.stage.completion.type === "tribute",
     narration: !!narration,
     reportKey: `${gameId}:${site?.id}:${role}`,
     reported: !!s?.self.reported,

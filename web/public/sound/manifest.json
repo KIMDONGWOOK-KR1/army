@@ -1,0 +1,65 @@
+{
+  "_note": "호국실록 캠퍼스 사운드 — AI 보조 작곡·합성, 호국실록 팀 사운드 디렉션. 48kHz 모노 MP3(192kbps). 길이는 제작 문서(음원 목록과 검증 결과, 2026-10-10)와 ffmpeg 디코딩 표본 수로 확인했다. loop=true인 곡은 길이(seconds)를 반복 끝점으로 쓴다.",
+  "sampleRate": 48000,
+  "tracks": {
+    "01": {
+      "file": "hoguk-01-lobby.mp3",
+      "seconds": 80,
+      "loop": true,
+      "lufs": -18,
+      "webkitWav": "hoguk-01-lobby.wav"
+    },
+    "02": {
+      "file": "hoguk-02-role-reveal.mp3",
+      "seconds": 6.8,
+      "loop": false,
+      "lufs": -16
+    },
+    "03": {
+      "file": "hoguk-03-walk.mp3",
+      "seconds": 96,
+      "loop": true,
+      "lufs": -18,
+      "webkitWav": "hoguk-03-walk.wav"
+    },
+    "04": {
+      "file": "hoguk-04-mission.mp3",
+      "seconds": 80,
+      "loop": true,
+      "lufs": -22
+    },
+    "05": {
+      "file": "hoguk-05-memorial.mp3",
+      "seconds": 72,
+      "loop": true,
+      "lufs": -30,
+      "webkitWav": "hoguk-05-memorial.wav"
+    },
+    "06": {
+      "file": "hoguk-06-silence.mp3",
+      "seconds": 10,
+      "loop": false,
+      "lufs": -36
+    },
+    "07": {
+      "file": "hoguk-07-record.mp3",
+      "seconds": 3.6,
+      "loop": false,
+      "lufs": -16
+    },
+    "08": {
+      "file": "hoguk-08-bongji.mp3",
+      "seconds": 80,
+      "loop": true,
+      "lufs": -21,
+      "webkitWav": "hoguk-08-bongji.wav"
+    },
+    "09": {
+      "file": "hoguk-09-results.mp3",
+      "seconds": 24,
+      "loop": false,
+      "lufs": -18
+    }
+  },
+  "_webkit": "사파리 엔진은 mp3 인코더 지연(1152~1920표본)을 지우지 않아 반복 이음매에 틈이 생긴다. webkitWav가 있는 곡은 웹킷에서만 같은 길이의 16비트 WAV를 쓴다(웹킷 26.6·크롬에서 길이·이음매 확인)."
+}

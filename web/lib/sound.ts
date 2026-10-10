@@ -1,4 +1,5 @@
-// 호국실록 소리 엔진(WebAudio). 소리 파일 없이 lib/sound-synth.ts의 합성 재료로만 낸다.
+// 호국실록 소리 엔진(WebAudio). 배경음과 보직 공개·사초·결과 소리는 public/sound/의 음원 파일로
+// 낸다(lib/sound-files.ts). 파일을 못 불러오면, 그리고 나머지 효과음은 lib/sound-synth.ts의 합성 재료로 낸다.
 //
 // 쓰는 법(다른 화면에서):
 //   import { play, staticNoise } from "@/lib/sound";
@@ -37,6 +38,14 @@ import {
   type SoundName,
   type SoundOptions,
 } from "./sound-synth";
+import {
+  FIRST,
+  createFileDeck,
+  fetchTrack,
+  type FileDeck,
+  type LoopTrack,
+  type Track,
+} from "./sound-files";
 
 export type { BgmStyle, Mood, SoundName, SoundOptions } from "./sound-synth";
 export {
@@ -61,6 +70,15 @@ const state = {
   ctx: null as AudioContext | null,
   chain: null as Chain | null,
   deck: null as BgmDeck | null,
+  // 음원 파일 배경음(반복 곡)과 그 음량 버스
+  files: null as FileDeck | null,
+  fileBus: null as GainNode | null,
+  fileLevel: 1,
+  // 원하는 반복 곡(undefined: 파일을 쓰지 않고 합성 배경음만)
+  track: undefined as LoopTrack | null | undefined,
+  // 추모의 벽(사초 소리를 1/3로)과 묵념 중(사초 소리를 틀지 않는다)
+  wall: false,
+  bowing: false,
   broken: false,
   unlocked: false,
   primed: false,
@@ -180,6 +198,17 @@ function context(): AudioContext | null {
     state.ctx = ctx;
     state.chain = chain;
     state.deck = createBgmDeck(ctx, chain.bgm);
+    // 음원 파일은 잔향을 거치지 않고 바로 마스터로(파일마다 목표 음량으로 만들어져 있다)
+    const fileBus = ctx.createGain();
+    fileBus.gain.value = state.fileLevel;
+    fileBus.connect(chain.master);
+    state.fileBus = fileBus;
+    state.files = createFileDeck(ctx, fileBus, {
+      // 못 불러온 곡은 합성 배경음으로 대신한다
+      onFail: () => syncBgm(),
+      onStart: (track) =>
+        window.dispatchEvent(new CustomEvent("hoguk:bgm-file", { detail: { track } })),
+    });
     // 꺼 둔 채 열었으면 처리도 멈춰 둔다(켜면 resume)
     if (isMuted() || state.sceneQuiet) void ctx.suspend().catch(() => {});
   } catch {
@@ -282,6 +311,13 @@ export function play(name: SoundName, opts: SoundOptions = {}) {
       state.last.set(name, now);
     }
     const at = now + 0.01 + Math.max(0, opts.delay ?? 0);
+    // 보직 공개(02)·사초(07)는 음원 파일로. 사초는 묵념 중에는 틀지 않고, 추모의 벽에서는 1/3 크기로.
+    if (name === "sacho" && state.bowing) return;
+    const cue = name === "role-reveal" ? "02" : name === "sacho" ? "07" : null;
+    if (cue && state.files && fileCue(cue, Math.max(0, opts.delay ?? 0))) {
+      window.dispatchEvent(new CustomEvent("hoguk:sound", { detail: name }));
+      return;
+    }
     // 가락 있는 효과음은 그때 배경음의 화음에 맞춰 비키고, 배경음은 잠깐 낮춘다
     const harmony = state.deck?.harmony(at);
     renderSound(ctx, state.chain.sfx, name, at, harmony?.length ? { ...opts, harmony } : opts);
@@ -337,8 +373,11 @@ export function bgmStyle(): BgmStyle {
   state.style = style ?? DEFAULT_BGM_STYLE;
   return state.style;
 }
-export function startBgm(mood: Mood | null) {
+export function startBgm(mood: Mood | null, track?: LoopTrack | null) {
   state.desired = mood && (MOODS as readonly string[]).includes(mood) ? mood : null;
+  state.track = track;
+  // 첫 곡(01)과 보직 공개(02)는 오디오가 열리기 전부터 받아 둔다
+  if (track !== undefined) for (const t of FIRST) void fetchTrack(t);
   // 화면 이동으로 주소의 ?bgm=이 사라지기 전에 읽어 둔다
   bgmStyle();
   syncBgm();
@@ -355,10 +394,54 @@ export function setBgmLevel(level: number) {
     chain.bgm.gain.setTargetAtTime(state.level, ctx.currentTime, 0.35);
   } catch {}
 }
+// 보직 공개(02)·사초(07) 음원. 받아 둔 파일이 있어 틀 수 있으면 true(못 틀면 합성 소리로 대신한다)
+function fileCue(cue: "02" | "07", delay: number): boolean {
+  const files = state.files;
+  if (!files || files.failed(cue)) return false;
+  const gain = cue === "07" && state.wall ? 1 / 3 : 1;
+  if (!delay) return files.cue(cue, gain);
+  // 늦게 울릴 소리: 지금 받아 둔 상태면 그때 튼다(그 사이 묵념이 시작되면 사초는 틀지 않는다)
+  if (!files.ready(cue)) return files.cue(cue, gain);
+  window.setTimeout(() => {
+    if (!(cue === "07" && state.bowing)) files.cue(cue, gain);
+  }, delay * 1000);
+  return true;
+}
+// 단발 음원: 묵념(06), 최종 결과(09). 파일이 없으면 조용히 넘어간다
+export function playCue(track: Extract<Track, "06" | "09">) {
+  if (isMuted() || state.sceneQuiet) return;
+  const ctx = context();
+  if (!ctx || !state.files || !audible(ctx)) return;
+  if (state.files.cue(track)) window.dispatchEvent(new CustomEvent("hoguk:sound", { detail: `file-${track}` }));
+}
+// 추모의 벽 안인가·묵념 중인가(사초 소리 크기와 05의 새소리를 정한다)
+export function setMemorialState({ wall, bowing }: { wall: boolean; bowing: boolean }) {
+  state.wall = wall;
+  const start = bowing && !state.bowing;
+  state.bowing = bowing;
+  state.files?.calm(bowing);
+  if (start) playCue("06");
+}
+// 음원 배경음의 크기(나레이션 아래에서만 낮춘다. 파일은 장소마다 목표 음량으로 만들어져 있다)
+export function setFileLevel(level: number) {
+  state.fileLevel = Number.isFinite(level) ? Math.min(1, Math.max(0, level)) : 1;
+  const { ctx, fileBus } = state;
+  if (!ctx || !fileBus) return;
+  try {
+    fileBus.gain.setTargetAtTime(state.fileLevel, ctx.currentTime, 0.35);
+  } catch {}
+}
 function syncBgm() {
   const { ctx, deck } = state;
   if (!ctx || !deck) return;
-  const want = isMuted() || state.sceneQuiet ? null : state.desired;
+  const off = isMuted() || state.sceneQuiet;
+  // 반복 곡 파일을 쓸 수 있으면 파일로, 못 쓰면(실패) 합성 배경음으로
+  const track = off ? null : state.track;
+  const useFile = !!state.files && track !== undefined && !(track && state.files.failed(track));
+  try {
+    state.files?.set(useFile ? (track ?? null) : null);
+  } catch {}
+  const want = off || useFile ? null : state.desired;
   let changed = false;
   try {
     const style = bgmStyle();
