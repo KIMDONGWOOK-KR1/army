@@ -125,7 +125,8 @@ export function projectPublicStageV2(course: CourseV2, stageId: string) {
     narration: scenes(s.narration),
     completion,
     ...(s.recordTemplate ? { recordTemplate: { prompt: s.recordTemplate.prompt,
-      wordChoices: [...s.recordTemplate.wordChoices], wordCount: s.recordTemplate.wordCount } } : {}),
+      wordChoices: [...s.recordTemplate.wordChoices], wordCount: s.recordTemplate.wordCount,
+      ...(s.recordTemplate.sentenceParts ? { sentenceParts: [...s.recordTemplate.sentenceParts] } : {}) } } : {}),
     sources: course.sources.map((s) => ({
       id: s.id,
       title: s.title,

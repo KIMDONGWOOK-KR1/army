@@ -547,10 +547,27 @@ export function validateCourseV2Content(input: unknown): CourseV2Content {
     }
     if (a.recordTemplate !== undefined) {
       const t = obj(a.recordTemplate, stageId);
-      exact(t, ["prompt", "wordChoices", "wordCount"], stageId);
+      keys(t, ["prompt", "wordChoices", "wordCount", "sentenceParts"], stageId);
       stage.recordTemplate = { prompt: str(t.prompt, stageId),
         wordChoices: strings(t.wordChoices, stageId, 1, 30), wordCount: integer(t.wordCount, stageId, 1, 8) };
       unique(stage.recordTemplate.wordChoices, stageId);
+      if (Object.hasOwn(t, "sentenceParts")) {
+        const template = stage.recordTemplate;
+        const path = `${stageId}.recordTemplate.sentenceParts`;
+        template.sentenceParts = Array.from(arr(t.sentenceParts, path, template.wordCount + 1, template.wordCount + 1), (part) => {
+          if (typeof part !== "string") return fail(path, "문장 조각은 문자열이어야 한다.");
+          return part;
+        });
+        // NFC may expand characters or recompose across a leading combining mark.
+        // NFD bounds that boundary case; otherwise separate NFC lengths are an upper bound.
+        const fragments = [...template.sentenceParts, ...template.wordChoices];
+        const form = fragments.some((part) => /^\p{M}/u.test(part.normalize("NFC"))) ? "NFD" : "NFC";
+        const lengthBound = (part: string) => [...part.normalize(form)].length;
+        // Repeated word selections remain allowed, so any choice must fit every blank.
+        const maxWordLength = Math.max(...template.wordChoices.map(lengthBound));
+        if (template.sentenceParts.reduce((length, part) => length + lengthBound(part), 0) +
+          maxWordLength * template.wordCount > 600) fail(path, "낱말을 넣은 문장은 600자 이하여야 한다.");
+      }
       if (completion.type === "lock") fail(stageId, "공동 기록 양식은 확인·회고 단계에만 사용한다.");
     }
     if (stage.kind === "epilogue" && (scoring.enabled || completion.type !== "joint-record" ||

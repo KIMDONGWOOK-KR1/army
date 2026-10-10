@@ -283,7 +283,13 @@ export type Stage = {
   // Optional public reward text. Released only after this stage is completed.
   sacho?: { id: string; name: string; sections: string[]; char?: string; body?: string };
   altModes?: { id: string; label: string }[];
-  recordTemplate?: { prompt: string; wordChoices: string[]; wordCount: number };
+  recordTemplate?: {
+    prompt: string;
+    wordChoices: string[];
+    wordCount: number;
+    // Optional fixed prose around the selected words, in selection order.
+    sentenceParts?: string[];
+  };
 };
 export type CourseV2Content = {
   schemaVersion: 2;
