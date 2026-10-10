@@ -110,7 +110,7 @@ function sealTexture() {
   x.lineWidth = 5;
   x.strokeRect(10, 10, 108, 108);
   x.fillStyle = CREAM;
-  x.font = '700 78px "Black Han Sans", "Noto Sans KR", serif';
+  x.font = '700 78px "Noto Sans KR", serif';
   x.textAlign = "center";
   x.textBaseline = "middle";
   x.fillText("記", 64, 70);

@@ -3,7 +3,6 @@
 @import "@fontsource/noto-sans-kr/600.css";
 @import "@fontsource/noto-serif-kr/600.css";
 @import "@fontsource/noto-serif-kr/700.css";
-@import "@fontsource/black-han-sans/400.css";
 :root {
   --paper: #fef4da;
   --card: #fffaef;
@@ -13,14 +12,17 @@
   --red: #b62c17;
   --line: #7a8ebd;
   --gold: #ffca4d;
-  /* 게임 글꼴: 제목·버튼·숫자(hh 2026-10-08 선택). 한자 도장 글자는 뒤 글꼴로 넘어간다 */
-  --serif: "Bagel Fat One", "Black Han Sans", "Noto Sans KR", sans-serif;
+  /* 게임 글꼴: 제목·버튼·숫자. 한글은 Pretendard ExtraBold(Hoguk Heading, hh 2026-10-10),
+     로마자·숫자는 Bagel Fat One(hh 2026-10-08 선택). 한자 도장 글자는 뒤 글꼴로 넘어간다 */
+  --serif: "Hoguk Heading", "Bagel Fat One", "Noto Sans KR", sans-serif;
+  /* 이름 글자(호국실록)는 처음 고른 Bagel Fat One 그대로 둔다 */
+  --brand: "Bagel Fat One", "Noto Sans KR", sans-serif;
   /* 기록 글꼴: 사초·추모처럼 차분해야 하는 장면 */
   --calm: "Noto Serif KR", "Batang", serif;
   --sky: #8ed3f5;
   --sun: #ffc53d;
   --edge: #1f2a44;
-  --sans: "Noto Sans KR", "Malgun Gothic", system-ui, sans-serif;
+  --sans: "Pretendard Variable", "Noto Sans KR", "Malgun Gothic", system-ui, sans-serif;
   --mono: ui-monospace, "Courier New", monospace;
   color-scheme: light;
 }
@@ -162,7 +164,7 @@ html[data-mockup] .game-viewport {
   gap: 10px;
 }
 .game-brand b {
-  font: 700 19px var(--serif);
+  font: 700 19px var(--brand);
   letter-spacing: 0.03em;
   white-space: nowrap;
 }
@@ -324,6 +326,7 @@ html[data-mockup] .game-viewport {
   display: inline-block;
 }
 .title-copy h1 {
+  font-family: var(--brand);
   font-size: 76px;
   letter-spacing: 0.17em;
   color: var(--edge);

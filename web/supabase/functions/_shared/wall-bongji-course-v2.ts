@@ -18,8 +18,9 @@ export function fullDemoV2Input(id: string) {
     cipher: [tribute("W-03.tribute")],
     commander: [tribute("W-04.tribute")],
   };
-  // 시연 문안. 실제 소개 글은 현장 확인 뒤 확정한다.
-  const intro = "5·18민주화운동으로 희생된 이들을 기억하는 자리다. 잠시 걸음을 멈추고 새겨진 이름을 천천히 읽어 보자. 각자 국화 한 송이를 올려 마음을 전한다.";
+  // 전남대 5·18 민주길 누리집(용봉열사 추모의 벽, 2020년 조성·열사 20명) 기준 문안. 현장 안내판과 한 번 더 맞춘다.
+  // 이동 화면의 거점 이름 칸이 좁아 거점 이름은 '추모의 벽'으로 두고, 정식 이름은 소개 첫머리에 쓴다.
+  const intro = "용봉열사 추모의 벽은 독재에 맞서 민주주의를 지키다 목숨을 잃은 전남대의 열사 스무 분을 기리는 자리다. 5·18 당시 희생된 학생부터 그 뒤 민주화운동에 몸 바친 이들까지 이름이 새겨져 있다. 잠시 걸음을 멈추고, 각자 국화 한 송이를 올려 마음을 전하자.";
   const template = { prompt: "[합성] 낱말 세 개를 골라 공동 문장과 근거를 작성하라.",
     wordChoices: ["[합성] 살피기", "[합성] 비교하기", "[합성] 이어가기", "[합성] 질문하기"], wordCount: 3 };
   const wall: Stage = {
@@ -32,7 +33,7 @@ export function fullDemoV2Input(id: string) {
       scenes: [], digit: false, steps: steps[role] }])) as unknown as Stage["roles"],
     completion: { type: "tribute", label: "국화 올리기" },
     sacho: { id: "sacho-wall", name: "사초③ · 추모의 기록", sections: ["헌화"],
-      char: "念", body: "네 사람이 추모의 벽 앞에 국화 한 송이씩을 올리고 그날을 기억했다." },
+      char: "念", body: "네 사람이 용봉열사 추모의 벽 앞에 국화 한 송이씩을 올리고 열사들을 기억했다." },
   };
   const bongji: Stage = {
     id: "bongji", seq: wall.seq + 1, kind: "epilogue", name: "봉지", confirmed: false, quiet: false,

@@ -1,5 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import "@fontsource/bagel-fat-one/400.css";
+// 본문 글꼴 Pretendard(가변 굵기, 글자 범위별로 나눠 필요한 묶음만 받는다)와 한글 제목 글꼴
+import "pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css";
+import "./hoguk-heading.css";
 import "./globals.css";
 import { mockupBootScript } from "@/components/mockup-view";
 export const metadata: Metadata = {
