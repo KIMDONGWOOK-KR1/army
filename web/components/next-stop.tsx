@@ -45,7 +45,8 @@ export function NextStopCard({ next }: { next: Pick<Site, "id" | "name"> }) {
     <div className="next-stop" data-testid="next-stop">
       <MapPin size={20} aria-hidden="true" />
       <div>
-        <b>다음 · {plain(next.name)}{info ? ` · ${info.walk}` : ""}</b>
+        {/* 거리('걸어서 약 350m')는 한 덩어리로 줄바꿈한다 */}
+        <b>다음 · {plain(next.name)}{info && <> · <span className="nowrap">{info.walk}</span></>}</b>
         {info && <p>{info.note}</p>}
       </div>
     </div>
