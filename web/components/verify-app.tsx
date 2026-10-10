@@ -1,4 +1,5 @@
 "use client";
+import { ResultV2 } from "./closing-v2";
 
 import { useState } from "react";
 import { useGameV2 } from "./use-game";
@@ -31,7 +32,7 @@ export default function VerifyApp() {
     <div className="verify-page">
       <main id="main-content" className="verify-stack verify-container">
         <header className="verify-card verify-stack">
-          <h1>정문·용봉관 v2 확인용 화면</h1>
+          <h1>전체 코스 v2 확인용 화면</h1>
           <p>
             합성 코스로 4인 흐름을 확인하는 임시 화면이다. 모의 도착은 실제 현장
             GPS 검증에 해당하지 않는다.
@@ -141,7 +142,7 @@ export default function VerifyApp() {
                   </strong>
                 </p>
                 <p>
-                  점수 {s.game.score} · {s.game.members.length}/4명 ·{" "}
+                  {s.stage.kind !== "memorial" && <>점수 {s.game.score} · </>}{s.game.members.length}/4명 ·{" "}
                   {s.game.status === "lobby"
                     ? "합류 대기"
                     : s.game.status === "briefing"
@@ -261,6 +262,7 @@ export default function VerifyApp() {
                     send={send}
                   />
                 )}
+              {s.game.status === "done" && <ResultV2 snapshot={s} />}
               <footer className="verify-card verify-stack">
                 <p>
                   화면을 새로고침하면 서버 진행 상태를 복구한다. 제출 전

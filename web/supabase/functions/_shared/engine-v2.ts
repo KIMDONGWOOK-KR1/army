@@ -9,6 +9,7 @@ import {
 import { ROLES } from "./types.ts";
 import { projectJournalV2 } from "./project-journal-v2.ts";
 import { researchV2, sharedRecordsV2, visitV2 } from "./yongbong-v2.ts";
+import { closingProjectionV2, draftV2, requireDraftVersion, resultV2 } from "./closing-v2.ts";
 import type {
   Command,
   Course,
@@ -215,13 +216,13 @@ export function projectGameV2(
     ended_at: game.endedAt,
     report_mask: ROLES.map((r) => progress[r].reported),
     locked_mask: lock.digits.map((d) => d !== null),
-    attempts_left: lock.attempts < 3
+    attempts_left: stage.completion.type !== "lock" ? 0 : lock.attempts < 3
       ? 3 - lock.attempts
       : lock.nextAttemptAt !== null && now >= lock.nextAttemptAt
       ? 1
       : 0,
     next_attempt_at: lock.nextAttemptAt,
-    acquired_sites: course.stages.filter((s) => state.completed[s.id]).map(
+    acquired_sites: course.stages.filter((s) => s.sacho && state.completed[s.id]).map(
       (s) => siteInfoV2(s, true),
     ),
     members: game.members.map((m) => ({
@@ -254,10 +255,13 @@ export function projectGameV2(
       completion: completed ? {
         at: completed.at,
         method: completed.method,
-        label: completed.method === "explained" ? "해설 확인 후 복원" : "조사 후 복원",
+        label: stage.kind === "memorial" ? "공동 확인 완료" : stage.kind === "epilogue" ? "공동 기록 완료" : completed.method === "explained" ? "해설 확인 후 복원" : "조사 후 복원",
         ...(visitV2(stage, state) ? { visit: visitV2(stage, state) } : {}),
       } : null,
       ...(stage.altModes?.length ? { visit: visitV2(stage, state) } : {}),
+      ...(stage.completion.type === "joint-record" ? {
+        retro_mask: ROLES.map((r) => !!state.retros?.[stage.id]?.[r]),
+      } : {}),
       step_done_count: Object.fromEntries(
         ROLES.map(
           (r) => [r, Object.values(progress[r].steps).filter(done).length],
@@ -288,7 +292,7 @@ export function projectGameV2(
         ? secret!.roles[member.role!]!.digit ?? null
         : null,
       clue: null,
-      lock: visible && member.role === "commander"
+      lock: visible && stage.completion.type === "lock" && member.role === "commander"
         ? structuredClone(lock)
         : null,
       mission: personal?.self.mission ?? null,
@@ -301,6 +305,8 @@ export function projectGameV2(
       explanations,
       rewards,
       journal: projectJournalV2(course, state, member.role),
+      ...(member.role ? closingProjectionV2(state, stage, member.role, visible || game.status === "done") : {}),
+      ...(game.status === "done" ? { result: resultV2(game, course) } : {}),
       ...(visible && stage.roles[member.role!]?.steps.some((s) => s.recordFrom)
         ? { shared_records: sharedRecordsV2(stage, state, member.role!) } : {}),
     },
@@ -322,6 +328,7 @@ const writes = new Set([
   "open-after-explanation",
   "depart-next-site",
   "select-alt-mode",
+  "draft-memorial-record", "confirm-stage", "submit-retro", "draft-joint-record", "consent-joint-record",
 ]);
 export type SnapshotV2 = ReturnType<typeof projectGameV2>;
 function recordInput(step: Step, value: unknown) {
@@ -418,9 +425,11 @@ function finish(
   state.completed[stage.id] = { at: now, method };
   state.stagePhase = "done";
   game.phase = "cleared";
-  const lock = game.locks[stage.id] ??= blankLock();
-  lock.openedAt = now;
-  lock.nextAttemptAt = null;
+  if (stage.completion.type === "lock") {
+    const lock = game.locks[stage.id] ??= blankLock();
+    lock.openedAt = now;
+    lock.nextAttemptAt = null;
+  }
   if (
     method !== "explained" && stage.scoring.enabled &&
     ROLES.every((r) => progress[r].hintLevel === 0)
@@ -467,7 +476,7 @@ async function execute(
   events: GameEvent[],
 ): Promise<Record<string, unknown>> {
   const mutating = writes.has(cmd.action);
-  if (!mutating && !["get-game", "get-stage"].includes(cmd.action)) {
+  if (!mutating && !["get-game", "get-stage", "get-result"].includes(cmd.action)) {
     fail("INVALID_ACTION", "이 버전에서 지원하지 않는 요청이다.");
   }
   if (
@@ -535,6 +544,10 @@ async function execute(
     prepared(course, stage);
   }
   if (!mutating) {
+    if (cmd.action === "get-result") {
+      phase("done");
+      return resultV2(game, course)!;
+    }
     if (member && now - member.lastSeen >= 15000) {
       member.lastSeen = now;
       game.version++;
@@ -544,7 +557,79 @@ async function execute(
   if (game.status === "done") {
     fail("WRONG_PHASE", "종료된 작전은 변경할 수 없다.");
   }
+  if (stage.completion.type !== "lock" && ["confirm-explanation", "open-after-explanation", "open-lock"].includes(cmd.action)) {
+    fail("WRONG_PHASE", "공동 기록 단계에는 자물쇠 개방을 사용할 수 없다.");
+  }
+  if (stage.completion.type === "joint-record" && ["submit-step", "submit-report", "request-hint"].includes(cmd.action)) {
+    fail("WRONG_PHASE", "회고 작성과 공동 동의로 진행하라.");
+  }
   switch (cmd.action) {
+    case "draft-memorial-record":
+    case "draft-joint-record": {
+      stageAction(); phase("playing", "mission"); commander();
+      const memorial = cmd.action === "draft-memorial-record";
+      if (stage.completion.type !== (memorial ? "confirm" : "joint-record")) {
+        fail("WRONG_PHASE", "현재 단계의 공동 기록 요청을 사용하라.");
+      }
+      reports();
+      if (!memorial && !ROLES.every((r) => state.retros?.[stage.id]?.[r])) {
+        fail("RETROS_REQUIRED", "전원의 회고 작성이 필요하다.");
+      }
+      const records = memorial ? state.memorialRecords ??= {} : state.jointRecords ??= {};
+      const draft = records[stage.id] = draftV2(cmd, stage, records[stage.id]);
+      result = { draft_version: draft.version };
+      metadata = { draft_version: draft.version };
+      break;
+    }
+    case "confirm-stage":
+    case "consent-joint-record": {
+      stageAction(); phase("playing", "mission");
+      const memorial = cmd.action === "confirm-stage";
+      if (stage.completion.type !== (memorial ? "confirm" : "joint-record")) {
+        fail("WRONG_PHASE", "현재 단계의 확인 요청을 사용하라.");
+      }
+      reports();
+      if (!memorial && !ROLES.every((r) => state.retros?.[stage.id]?.[r])) {
+        fail("RETROS_REQUIRED", "전원의 회고 작성이 필요하다.");
+      }
+      const draft = (memorial ? state.memorialRecords : state.jointRecords)?.[stage.id];
+      if (!draft) fail("RECORD_REQUIRED", "공동 문장과 근거를 먼저 작성하라.");
+      requireDraftVersion(cmd, draft.version);
+      draft.confirms[member!.role!] ??= now;
+      if (ROLES.every((r) => draft.confirms[r] !== undefined)) {
+        if (memorial) finish(game, course, now, "field");
+        else {
+          state.completed[stage.id] = { at: now, method: "field" };
+          state.stagePhase = "done";
+          game.phase = "cleared";
+          game.status = "done";
+          game.endedAt = now;
+        }
+      }
+      result = { confirmed: true, draft_version: draft.version };
+      metadata = { draft_version: draft.version };
+      break;
+    }
+    case "submit-retro": {
+      stageAction(); phase("playing", "mission");
+      if (stage.completion.type !== "joint-record") fail("WRONG_PHASE", "회고 단계가 아니다.");
+      let text: string;
+      try { text = normalizeTextV2(cmd.text, 600); }
+      catch { return fail("BAD_RECORD", "회고를 1~600자로 작성하라."); }
+      const role = member!.role!;
+      const retros = (state.retros ??= {})[stage.id] ??= {};
+      if (retros[role]?.text !== text) {
+        retros[role] = { text, at: now };
+        const draft = state.jointRecords?.[stage.id];
+        if (draft) { draft.version++; draft.confirms = {}; }
+      }
+      for (const p of Object.values(progress[role].steps)) {
+        p.status = "done"; p.lastAt = now;
+      }
+      progress[role].reported = true;
+      result = { saved: true };
+      break;
+    }
     case "join-game": {
       if (!member) {
         phase("lobby");
@@ -842,7 +927,7 @@ async function execute(
       phase("playing", "cleared");
       commander();
       const index = state.stageIndex + 1, next = course.stages[index];
-      if (!next || next.kind !== "mission") {
+      if (!next || !["mission", "memorial", "epilogue"].includes(next.kind)) {
         fail("NO_STAGE", "다음 단계 연결이 필요하다.");
       }
       prepared(course, next);

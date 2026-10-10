@@ -1,3 +1,4 @@
+import { fullDemoCourseV2 } from "@/supabase/functions/_shared/wall-bongji-course-v2";
 import "server-only";
 import { readFile, mkdir, writeFile, rename } from "node:fs/promises";
 import { join } from "node:path";
@@ -64,9 +65,9 @@ async function operation(session: string, cmd: Command): Promise<Snapshot> {
     db.courses ??= {};
     if (db.courses[id]) return db.courses[id];
     const preset = process.env.LOCAL_V2_PRESET ?? "synthetic";
-    if (!["synthetic", "v1-gate", "v1-gate-gps", "gate-yongbong", "gate-yongbong-gps"].includes(preset))
+    if (!["synthetic", "v1-gate", "v1-gate-gps", "gate-yongbong", "gate-yongbong-gps", "full-course"].includes(preset))
       throw new DomainError("SERVER_ERROR", "로컬 v2 preset 설정을 확인하라.");
-    const build = preset.startsWith("gate-yongbong") ? yongbongDemoCourseV2 : preset !== "synthetic" ? legacyDemoCourseV2 : demoCourseV2;
+    const build = preset === "full-course" ? fullDemoCourseV2 : preset.startsWith("gate-yongbong") ? yongbongDemoCourseV2 : preset !== "synthetic" ? legacyDemoCourseV2 : demoCourseV2;
     return db.courses[id] = await build(id, salt ?? "", preset.endsWith("-gps"));
   };
   let course: Course | CourseV2 = await demoCourse();

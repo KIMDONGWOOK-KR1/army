@@ -31,6 +31,9 @@ export function domainHttpStatus(code: string) {
     [
       "WRONG_PHASE",
       "STALE_STAGE",
+      "STALE_DRAFT",
+      "RECORD_REQUIRED",
+      "RETROS_REQUIRED",
       "STEP_LOCKED",
       "REPORTS_REQUIRED",
       "HINT_ORDER",

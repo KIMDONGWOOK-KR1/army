@@ -18,6 +18,7 @@ import { emptyStepAnswer, VerifyInput } from "./verify-input";
 import { isLegacyMissionStep, LegacyMissionInput } from "./legacy-mission-input";
 import { useLockDraft } from "./use-lock-draft";
 import styles from "./mission-v2.module.css";
+import { RetroPanel, SharedDraftPanel } from "./closing-v2";
 import { YongbongPanel } from "./yongbong-panel";
 
 type Props = {
@@ -79,7 +80,7 @@ function StepCard(
     if (!next || !isV2Response(next)) return;
     if (next.result?.accepted === false) {
       setFeedback(
-        "단서를 다시 살펴라. 문제 오답은 자물쇠 시도 횟수를 줄이지 않는다.",
+        snapshot.stage.kind === "memorial" ? "자료를 다시 확인하라." : "단서를 다시 살펴라. 문제 오답은 자물쇠 시도 횟수를 줄이지 않는다.",
       );
     } else {
       setAnswer(emptyStepAnswer(step));
@@ -97,7 +98,7 @@ function StepCard(
     >
       <div className="section-label">
         <span>{labels[progress?.status ?? "locked"]}</span>
-        <span>제출 {progress?.attempts ?? 0}회</span>
+        {snapshot.stage.kind !== "memorial" && <span>제출 {progress?.attempts ?? 0}회</span>}
       </div>
       <h3>{step.prompt}</h3>
       {!!step.requiresReports?.length && (
@@ -200,6 +201,7 @@ export function MissionV2({ snapshot, busy, send, onShowDigit }: Props & { onSho
   const { self, game, stage } = snapshot;
   const { mission, role } = self;
   if (!mission || !role) return <p role="status">본인 조사를 불러오는 중…</p>;
+  if (stage.completion.type === "joint-record") return <RetroPanel snapshot={snapshot} busy={busy} send={send} />;
   const cleared = game.stage_phase === "done" || game.site_phase === "cleared";
   const complete = (step: Step) =>
     ["done", "explained"].includes(self.step_progress[step.id]?.status);
@@ -220,6 +222,7 @@ export function MissionV2({ snapshot, busy, send, onShowDigit }: Props & { onSho
   return (
     <div className={styles.root}>
       <YongbongPanel snapshot={snapshot} busy={busy} send={send} />
+      {stage.completion.type === "confirm" && <SharedDraftPanel snapshot={snapshot} busy={busy} send={send} />}
       <div className={styles.card}>
         <div className="section-label">
           <span>{ROLE_NAMES[role]}의 조사</span>
@@ -262,8 +265,8 @@ export function MissionV2({ snapshot, busy, send, onShowDigit }: Props & { onSho
           ? (
             <div className="digit-result">
               <span className="eyebrow">REPORT COMPLETE</span>
-              <p>내 숫자를 지휘관에게 말로 전하라.</p>
-              {onShowDigit ? <button type="button" className="button primary full" onClick={onShowDigit}>
+              <p>{mission.digit ? "내 숫자를 지휘관에게 말로 전하라." : "조사 결과를 팀에 말로 전달하고 공동 기록을 함께 확인하라."}</p>
+              {mission.digit && onShowDigit ? <button type="button" className="button primary full" onClick={onShowDigit}>
                 내 숫자 확인 <Check size={17} />
               </button> : self.digit !== null && (
                 <div
@@ -314,7 +317,7 @@ export function MissionV2({ snapshot, busy, send, onShowDigit }: Props & { onSho
             return (
               <div className={styles.hint} key={target}>
                 <p>
-                  {ROLE_NAMES[target]} · {level}/3{next <= 3
+                  {ROLE_NAMES[target]} · {level}/3{stage.kind !== "memorial" && next <= 3
                     ? ` · 다음 감점 ${
                       stage.scoring.enabled ? penalty ?? "미확정" : 0
                     }`
@@ -342,7 +345,7 @@ export function MissionV2({ snapshot, busy, send, onShowDigit }: Props & { onSho
           })}
         </section>
       )}
-      {!cleared && (
+      {!cleared && stage.completion.type === "lock" && (
         <section className={styles.card}>
           <h3>
             <BookOpen size={18} /> 해설 읽음 확인

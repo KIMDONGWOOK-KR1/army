@@ -109,6 +109,10 @@ export type Command = {
   method?: VerifyMethod | "gps" | "manual" | "qr";
   source?: { text: string; source_id?: string };
   mode_id?: string;
+  text?: string;
+  reason?: string;
+  words?: string[];
+  draft_version?: number;
 };
 export type PublicGame = {
   id: string;
@@ -278,6 +282,7 @@ export type Stage = {
   // Optional public reward text. Released only after this stage is completed.
   sacho?: { id: string; name: string; sections: string[]; char?: string; body?: string };
   altModes?: { id: string; label: string }[];
+  recordTemplate?: { prompt: string; wordChoices: string[]; wordCount: number };
 };
 export type CourseV2Content = {
   schemaVersion: 2;
@@ -354,6 +359,10 @@ export type GameV2State = {
   completed: Record<string, { at: number; method: "field" | "explained" }>;
   // Optional for stored PR-2 games. Selecting outdoor never resets progress or penalties.
   altMode?: Record<string, "outdoor">;
+  // Independent namespaces: memorial confirmations never count as final consent.
+  memorialRecords?: Record<string, SharedDraftV2>;
+  jointRecords?: Record<string, SharedDraftV2>;
+  retros?: Record<string, Partial<Record<Role, { text: string; at: number }>>>;
   sacho: Record<string, {
     completedAt: number;
     eventOrder: { stepId: string; method: VerifyMethod; verified: boolean }[];
@@ -381,6 +390,13 @@ export type GameV2State = {
       revision: Record<string, string> | null;
     };
   }>;
+};
+export type SharedDraftV2 = {
+  version: number;
+  words: string[];
+  text: string;
+  reason: string;
+  confirms: Partial<Record<Role, number>>;
 };
 export type GameEvent = {
   request_id: string;

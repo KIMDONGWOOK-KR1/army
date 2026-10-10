@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import {
   bgmLevelForScene,
   installSoundListeners,
@@ -7,6 +7,7 @@ import {
   moodForScene,
   play,
   setBgmLevel,
+  setSceneQuiet,
   startBgm,
 } from "@/lib/sound";
 import { judgeCue } from "@/lib/judge-cue";
@@ -34,6 +35,7 @@ export function useSoundCues({
   scene,
   reverent,
   hushed = false,
+  silent = false,
   narration,
   reportKey,
   reported,
@@ -43,12 +45,15 @@ export function useSoundCues({
   reverent: boolean;
   // 이동 중 5·18 조용한 구역 안(배경음을 추모 숨결로 낮춘다)
   hushed?: boolean;
+  silent?: boolean;
   narration: boolean;
   // 같은 거점·보직인지 가리는 열쇠(보고가 막 끝났을 때만 숫자 획득 소리를 낸다)
   reportKey: string;
   reported: boolean;
   digits: string[];
 }) {
+  useLayoutEffect(() => { setSceneQuiet(silent); }, [silent]);
+  useEffect(() => () => setSceneQuiet(false), []);
   useEffect(() => {
     const off = installSoundListeners();
     const onClick = (e: MouseEvent) => {

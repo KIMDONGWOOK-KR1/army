@@ -66,6 +66,7 @@ const state = {
   primed: false,
   resumeAt: -Infinity,
   muted: null as boolean | null,
+  sceneQuiet: false,
   desired: null as Mood | null,
   level: 1,
   style: null as BgmStyle | null,
@@ -126,16 +127,22 @@ function applyMute() {
   try {
     const now = ctx.currentTime;
     chain.master.gain.cancelScheduledValues(now);
-    chain.master.gain.setTargetAtTime(state.muted ? 0 : 1, now, 0.04);
-    if (state.muted)
+    chain.master.gain.setTargetAtTime(state.muted || state.sceneQuiet ? 0 : 1, now, 0.04);
+    if (state.muted || state.sceneQuiet)
       // 끈 뒤에는 오디오 처리를 멈춰 전지를 아낀다
       window.setTimeout(() => {
-        if (state.muted && state.ctx?.state === "running")
+        if ((state.muted || state.sceneQuiet) && state.ctx?.state === "running")
           void state.ctx.suspend().catch(() => {});
       }, 300);
     else resume();
   } catch {}
   syncBgm();
+}
+// Stage policy is independent of the user's persisted audio preference.
+export function setSceneQuiet(quiet: boolean) {
+  if (state.sceneQuiet === quiet) return;
+  state.sceneQuiet = quiet;
+  applyMute();
 }
 
 // ── 오디오 열기 ───────────────────────────────────────────────────────
@@ -168,13 +175,13 @@ function context(): AudioContext | null {
   try {
     const ctx = new AC({ latencyHint: "interactive" });
     const chain = buildChain(ctx);
-    chain.master.gain.value = isMuted() ? 0 : 1;
+    chain.master.gain.value = isMuted() || state.sceneQuiet ? 0 : 1;
     chain.bgm.gain.value = state.level;
     state.ctx = ctx;
     state.chain = chain;
     state.deck = createBgmDeck(ctx, chain.bgm);
     // 꺼 둔 채 열었으면 처리도 멈춰 둔다(켜면 resume)
-    if (isMuted()) void ctx.suspend().catch(() => {});
+    if (isMuted() || state.sceneQuiet) void ctx.suspend().catch(() => {});
   } catch {
     state.broken = true;
     return null;
@@ -183,7 +190,7 @@ function context(): AudioContext | null {
 }
 function resume() {
   const ctx = state.ctx;
-  if (!ctx || isMuted() || ctx.state === "running" || ctx.state === "closed")
+  if (!ctx || isMuted() || state.sceneQuiet || ctx.state === "running" || ctx.state === "closed")
     return;
   try {
     state.resumeAt = performance.now();
@@ -263,7 +270,7 @@ function audible(ctx: AudioContext) {
   );
 }
 export function play(name: SoundName, opts: SoundOptions = {}) {
-  if (isMuted() || !isSoundName(name)) return;
+  if (isMuted() || state.sceneQuiet || !isSoundName(name)) return;
   const ctx = context();
   if (!ctx || !state.chain) return;
   try {
@@ -288,6 +295,7 @@ export function play(name: SoundName, opts: SoundOptions = {}) {
 export type StaticHandle = { setSignal(v: number): void; stop(): void };
 const SILENT: StaticHandle = { setSignal() {}, stop() {} };
 export function staticNoise(): StaticHandle {
+  if (state.sceneQuiet) return SILENT;
   const ctx = context();
   if (!ctx || !state.chain) return SILENT;
   try {
@@ -350,7 +358,7 @@ export function setBgmLevel(level: number) {
 function syncBgm() {
   const { ctx, deck } = state;
   if (!ctx || !deck) return;
-  const want = isMuted() ? null : state.desired;
+  const want = isMuted() || state.sceneQuiet ? null : state.desired;
   let changed = false;
   try {
     const style = bgmStyle();

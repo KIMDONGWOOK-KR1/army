@@ -1,3 +1,4 @@
+import { fullDemoCourseV2 } from "../supabase/functions/_shared/wall-bongji-course-v2";
 import { parseArgs } from "node:util";
 import { pathToFileURL } from "node:url";
 import { createClient } from "@supabase/supabase-js";
@@ -46,14 +47,14 @@ export async function prepareDemoSeed(
   if (!["1", "2"].includes(values["schema-version"]!)) {
     throw new Error("schema-version은 1 또는 2여야 한다.");
   }
-  if (!["synthetic", "v1-gate", "v1-gate-gps", "gate-yongbong", "gate-yongbong-gps"].includes(values.preset!)) {
-    throw new Error("preset은 synthetic, v1-gate, v1-gate-gps, gate-yongbong, gate-yongbong-gps 중 하나여야 한다.");
+  if (!["synthetic", "v1-gate", "v1-gate-gps", "gate-yongbong", "gate-yongbong-gps", "full-course"].includes(values.preset!)) {
+    throw new Error("preset은 synthetic, v1-gate, v1-gate-gps, gate-yongbong, gate-yongbong-gps, full-course 중 하나여야 한다.");
   }
   if (values.preset !== "synthetic" && values["schema-version"] !== "2") {
     throw new Error("정문·용봉관 preset은 schema-version 2에만 허용한다.");
   }
   const course = values["schema-version"] === "2"
-    ? await (values.preset!.startsWith("gate-yongbong") ? yongbongDemoCourseV2 : values.preset !== "synthetic" ? legacyDemoCourseV2 : demoCourseV2)(
+    ? await (values.preset === "full-course" ? fullDemoCourseV2 : values.preset!.startsWith("gate-yongbong") ? yongbongDemoCourseV2 : values.preset !== "synthetic" ? legacyDemoCourseV2 : demoCourseV2)(
       id,
       salt,
       values.preset!.endsWith("-gps"),

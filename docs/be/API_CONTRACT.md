@@ -1,6 +1,8 @@
-# BE v2 API 계약 — 정문·용봉관 구현 / 후속 액션 초안
+# BE v2 API 계약 — 정문·용봉관·추모의 벽·봉지
 
-2026-10-09 갱신 · FE: 이환희 / BE·Infra: 김종연 / 리뷰·머지: 김동욱
+2026-10-10 갱신 · FE: 이환희 / BE·Infra: 김종연 / 리뷰·머지: 김동욱
+
+**PR-5에서 추모의 벽 공동 확인·봉지 회고·최종 결과를 연결했다.** [PR-5 적용 안내](PR_5_APPLY.md)를 따른다.
 
 **PR-4에서 용봉관 이동·조사·자료 전달·외부 대체 모드·사초②를 추가했다.** 상세 계약은 11절, 수동 DB·Edge·코스·웹 적용은 [용봉관 적용 안내](YONGBONG_APPLY.md)를 따른다. 기존 정문 fixtures는 유지하며 용봉관의 전체 응답 예시로 사용하지 않는다.
 
@@ -8,7 +10,7 @@
 
 정식 디자인 전 합성 코스로 요청 흐름을 확인하는 `/verify` UI와 실행 방법은 [정문 확인용 UI 안내](../fe/VERIFY_UI.md)를 참고한다. 이 화면은 실제 API를 호출하며 아래 mock·서버 계약을 변경하지 않는다.
 
-**PR-2는 정문 서버 액션을 구현한다.** 로컬 `/api/game`과 Supabase Edge `game`이 같은 v2 엔진을 사용하며, 배포·DB 적용은 사용자가 별도로 수행한다. 실제 배포 완료를 의미하지 않는다. 2026-10-09 GPS 필수 도착을 추가했고 역할 교환은 사용자 결정으로 금지한다. PR-5의 추모·봉지 액션은 아직 구현하지 않았다. 기존 v1 `Snapshot`, 엔진, 데모는 유지한다. 예제의 주파수·숫자·문제·본문은 합성이며 실제 시나리오 값이 아니다.
+**PR-2는 정문 서버 액션을 구현한다.** 로컬 `/api/game`과 Supabase Edge `game`이 같은 v2 엔진을 사용하며, 배포·DB 적용은 사용자가 별도로 수행한다. 실제 배포 완료를 의미하지 않는다. 2026-10-09 GPS 필수 도착을 추가했고 역할 교환은 사용자 결정으로 금지한다. PR-5의 추모·봉지·최종 결과는 12절의 구현 계약을 따른다. 시간 점수·랭킹은 별도 확정 후 추가한다. 기존 v1 `Snapshot`, 엔진, 데모는 유지한다. 예제의 주파수·숫자·문제·본문은 합성이며 실제 시나리오 값이 아니다.
 
 ### 2026-10-09 GPS 도착 계약
 
@@ -251,9 +253,9 @@ const snapshot = structuredClone(signalAfterHint);
 
 별도 개방 결과는 `{"opened":true,"method":"explained","label":"해설 확인 후 복원","sacho_id":"<현재 사초 ID>"}`다. 각 역할은 본인 모든 문제가 done/explained로 해설이 공개된 뒤 confirm-explanation을 호출한다. 서버는 읽음 버튼 확인 사실을 저장하며 실제 독해를 판별하지 않는다. 공개 game.confirm_mask는 commander/scout/signal/cipher 순이다. 개방에는 전원 조사·보고와 네 역할 확인이 모두 필요하다. 별도 개방은 자물쇠 시도·감점·무힌트 보너스를 추가하지 않는다. 일반 개방은 3회/오답 −10/소진 후 60초마다 1회를 그대로 적용한다.
 
-사초①은 `games_private.state.v2.sacho.gate`에 저장한다. `eventOrder`는 순서 검증 여부·확인 방식만 저장하고 정답 배열은 저장하지 않는다(사용자 확정). 정찰원의 조형물 관찰은 `observations`, 사건 기록은 `eventRecords`, 사용 자료·확인 방식은 `sources`로 분리한다. 개인 기록 본문은 game_public·타 역할 self·game_events에 포함하지 않는다. 정문 완료 후 `self.journal`은 본인 역할의 검증 결과·기록·출처·해설만 조회한다. 공통 사초 보상 본문은 별도의 공개 콘텐츠다. 여러 거점의 공동 기록·전체 코스 최종 결과는 후속 PR 범위다.
+사초①은 `games_private.state.v2.sacho.gate`에 저장한다. `eventOrder`는 순서 검증 여부·확인 방식만 저장하고 정답 배열은 저장하지 않는다(사용자 확정). 정찰원의 조형물 관찰은 `observations`, 사건 기록은 `eventRecords`, 사용 자료·확인 방식은 `sources`로 분리한다. 개인 기록 본문은 game_public·타 역할 self·game_events에 포함하지 않는다. 정문 완료 후 `self.journal`은 본인 역할의 검증 결과·기록·출처·해설만 조회한다. 공통 사초 보상 본문은 별도의 공개 콘텐츠다. 추모의 벽·봉지 공동 기록과 전체 코스 최종 결과는 아래 12절의 PR-5 계약을 따른다.
 
-## 6. 후속 액션 계약 초안
+## 6. 추가 액션 계약
 
 **참가자 간 역할 교환 금지:** 최초 배정 역할을 유지한다. `propose-swap`/`respond-swap`은 구현 목록에서 제외했고 현재 v2 서버도 지원하지 않는다(`INVALID_ACTION`). `game.swap`은 비활성 호환 필드로 유지한다. 로컬 v1 혼자 시연의 보직 전환과 구분한다.
 
@@ -267,15 +269,15 @@ const snapshot = structuredClone(signalAfterHint);
 | 구현 report-arrival | `{"method":"gps"}` | 본인 도착만 기록. 전원 도착 후 미션, 원시 좌표 없음 / `{arrived:true}` |
 | 기존 depart-next-site | 없음 | 지휘관·현재 단계 완료. 다음 이동으로 전환, 문제 화면 잠금 |
 | PR-4 select-alt-mode — 구현 | `{"mode_id":"outdoor"}` | 지휘관·용봉관 전원 도착 후 완료 전. 이전 초안의 outside는 사용하지 않는다. 아래 11절 참고 |
-| PR-5 draft-memorial-record | `{"text":"팀이 함께 남길 추모 기록"}` | 지휘관 초안, 수정 때 추모 확인 초기화 / `{draft_version:1}` |
+| PR-5 draft-memorial-record — 구현 | `draft_version:0, words:[…], text, reason` | 지휘관·전원 보고 후. 문장 변경 시 확인 초기화 / `{draft_version:1}` |
 | PR-5 confirm-stage | `{"draft_version":1}` | 본인이 현재 추모 기록 읽음 확인. 4명 확인 후 사초③ |
 | PR-5 submit-retro | `{"text":"확인한 기록과 남은 질문"}` | 본인의 봉지 회고 / `{saved:true}` |
-| PR-5 draft-joint-record | `{"words":["가치 가","가치 나"],"text":"공동 문장","reason":"선택 이유"}` | 지휘관, 봉지 초안 변경마다 동의 초기화 / `{draft_version:1}` |
+| PR-5 draft-joint-record — 구현 | `draft_version:0, words:[…], text, reason` | 지휘관·전원 회고 후. 변경 시 동의 초기화 / `{draft_version:1}` |
 | PR-5 consent-joint-record | `{"draft_version":1}` | 본인·현재 초안 버전 동의. 4명 동의 후 종료 |
 | PR-5 get-result | 없음(request_id 불필요) | 종료 후. 사초·확인 방식·힌트·보고·개방 통계, 정답 평문 없음 |
 | PR-6 create-upload-url | 미확정 | D3·D6 확정 전 요청·저장·업로드 기능 없음 |
 
-추모의 벽은 `memorial_record:{draft_version,text,confirm_mask}` 전용 상태를 사용한다. 봉지의 `joint_record`와 공유하지 않는다. 봉지에만 joint_record를 공개한다. 추모에서는 점수·감점·숫자·자물쇠·카운트다운·진동을 표시하지 않는다. 정책 미확정 사진 업로드를 준비 완료의 필수 조건으로 삼지 않는다(D6).
+추모의 벽은 `self.memorial_record` 전용 상태를 사용한다. 봉지의 `self.joint_record`와 공유하지 않는다. 양쪽 모두 문장·근거·낱말·버전·확인 상태를 포함하며 도착 후 해당 거점에서만 제공한다. 완료 결과·기록첩의 공통 기록 재조회는 아래 12절을 따른다. 추모에서는 점수·감점·숫자·자물쇠·카운트다운·진동을 표시하지 않는다. 정책 미확정 사진 업로드를 준비 완료의 필수 조건으로 삼지 않는다(D6).
 
 ## 7. 오류와 FE 처리
 
@@ -285,11 +287,11 @@ const snapshot = structuredClone(signalAfterHint);
 {"code":"STEP_LOCKED","message":"선행 단계 또는 보고가 완료되지 않았다.","retry_at":null}
 ```
 
-아래 HTTP 상태는 PR-2에서 공통 오류 매핑으로 연결했다. SWAP_CLOSED/SWAP_USED/STALE_DRAFT는 후속 PR의 초안이다. FE는 code를 우선 사용하며 retry_at은 대기 시간이 있을 때만 제공된다. 비공개 거점·역할·판정 자료 누락은 답안이나 내부 예외를 반사하지 않는 CONTENT_UNCONFIRMED(503)로 처리한다.
+아래 HTTP 상태는 PR-2에서 공통 오류 매핑으로 연결했다. STALE_DRAFT는 PR-5에서 연결했다. 역할 교환은 지원하지 않는다. FE는 code를 우선 사용하며 retry_at은 대기 시간이 있을 때만 제공된다. 비공개 거점·역할·판정 자료 누락은 답안이나 내부 예외를 반사하지 않는 CONTENT_UNCONFIRMED(503)로 처리한다.
 
 | HTTP | code | FE 처리 |
 |---|---|---|
-| 400 | BAD_REQUEST / BAD_ANSWER / SOURCE_REQUIRED | 입력 형식·필수 항목 안내. 원문 답안 반사 금지 |
+| 400 | BAD_REQUEST / BAD_ANSWER / BAD_RECORD / SOURCE_REQUIRED | 입력 형식·필수 항목 안내. 원문 답안 반사 금지 |
 | 401 | UNAUTHENTICATED | 익명 세션 복원 후 같은 요청 재전송 |
 | 403 | FORBIDDEN | 권한 없는 액션 숨김. role 변경 요청으로 재시도 금지 |
 | 404 | NO_GAME / NO_STAGE / NO_STEP | 현재 게임 조회, 만료/잘못된 ID 안내 |
@@ -297,7 +299,8 @@ const snapshot = structuredClone(signalAfterHint);
 | 409 | STEP_LOCKED / REPORTS_REQUIRED | 선행 진행·구두 보고 완료 기다림 |
 | 409 | HINT_ORDER / EXPLANATION_REQUIRED | 현재 힌트 단계·해설 읽음 상태 다시 조회 |
 | 409 | IDEMPOTENCY_CONFLICT | 다른 본문 재사용 오류. 새 사용자 동작만 새 ID로 전송 |
-| 409 | SWAP_CLOSED / SWAP_USED / STALE_DRAFT | 서버 창·교환 여부·초안 버전 재조회 |
+| 409 | STALE_DRAFT | 최신 공동 문장·근거·버전을 다시 읽고 확인 |
+| 409 | RECORD_REQUIRED / RETROS_REQUIRED | 공동 기록·전원 회고 저장 완료 대기 |
 | 429 | COOLDOWN / RATE_LIMITED | retry_at이 있으면 서버 기준 대기. 새로고침으로 초기화 금지 |
 | 503 | CONTENT_UNCONFIRMED | 운영 콘텐츠 미확정. 임의 대체 정답·수치 사용 금지 |
 | 500 | SERVER_ERROR | 답안/개인 단서를 로그에 남기지 않고 재조회·재시도 |
@@ -344,11 +347,11 @@ courseId는 소문자로 시작하는 ID, stepId는 `G-03.freq` 형태의 대문
 
 현재 v2는 기존 4인 로비→역할 배정→준비→출발 흐름으로 정문에 진입한다. 최초 역할을 유지하며 역할 교환은 금지한다. `report-arrival`은 본인 도착만 기록한다. 2026-10-09 추가 구현은 위 GPS 도착 계약을 따른다. 지정 GPS 코스는 네 명 모두 GPS 도착이 필요하며 수동·QR·모의 도착으로 우회하지 않는다. GPS 미확정 dev 시연만 모의 도착을 제공한다.
 
-정문 완료 뒤 get-stage는 출발 전까지 정문을 반환한다. 기존 정문 전용 코스는 다음 거점이 없고, PR-4의 새 `gate-yongbong` / `gate-yongbong-gps` 코스는 지휘관의 `depart-next-site`로 용봉관에 진입한다. 전체 코스 종료·랭킹·시간 점수·추모·봉지는 후속 범위다. 서버 이벤트에는 시각·역할·액션과 제한된 판정 메타데이터만 저장한다. 합성 수치는 정책 확정을 뜻하지 않는다.
+정문 완료 뒤 get-stage는 출발 전까지 정문을 반환한다. 기존 정문 전용 코스는 다음 거점이 없고, PR-4의 새 `gate-yongbong` / `gate-yongbong-gps` 코스는 지휘관의 `depart-next-site`로 용봉관에 진입한다. PR-5의 새 full-course는 추모·봉지·전체 종료까지 이어진다. 랭킹·시간 점수는 별도 확정 후 구현한다. 서버 이벤트에는 시각·역할·액션과 제한된 판정 메타데이터만 저장한다. 합성 수치는 정책 확정을 뜻하지 않는다.
 
 ## 11. PR-4 용봉관
 
-정문 완료 후 `{"action":"depart-next-site","stage_id":"gate","request_id":"<새 ID>"}`를 보낸다. 용봉관 이동 상태가 되며 본인 문제·힌트·숫자는 다시 숨긴다. 기존 정문 도착은 용봉관 도착으로 인정하지 않는다. 지정 GPS 코스는 용봉관 10m 안 5초·네 명 도착을 요구하고 개발용 코스는 각자 모의 도착한다. 이후 단계 요청의 `stage_id`는 `yongbong`이다. 용봉관 완료 후 현재 코스에 다음 미션은 없으며 `depart-next-site`는 `NO_STAGE`다.
+정문 완료 후 `{"action":"depart-next-site","stage_id":"gate","request_id":"<새 ID>"}`를 보낸다. 용봉관 이동 상태가 되며 본인 문제·힌트·숫자는 다시 숨긴다. 기존 정문 도착은 용봉관 도착으로 인정하지 않는다. 지정 GPS 코스는 용봉관 10m 안 5초·네 명 도착을 요구하고 개발용 코스는 각자 모의 도착한다. 이후 단계 요청의 `stage_id`는 `yongbong`이다. 기존 두 거점 코스는 용봉관 완료 후 `NO_STAGE`다. PR-5 full-course는 추모의 벽으로 이어진다.
 
 | 역할 | 단계 ID / 동작 |
 |---|---|
@@ -391,3 +394,53 @@ courseId는 소문자로 시작하는 ID, stepId는 `G-03.freq` 형태의 대문
 대체 모드 지원 거점에만 `game.visit:{mode:"onsite"|"outdoor",label}`을 추가한다. 선택 전 label은 `현장 조사`로, 실내 관람 완료를 보장하지 않는다. 외부 모드 label은 `외부 대체 조사 · 실내 관람 아님`이다. 완료 결과·`game.completion.visit`·해당 `self.journal[].visit`에도 표시하고 재접속 후 유지한다. 개방 방식 label(`조사 후 복원`/`해설 확인 후 복원`)과 구분한다.
 
 사초②는 private `v2.sacho.yongbong`에 기존 출처·기록과 함께 `visitMode`, `research:{material,assessment,revision}`을 저장한다. 각각 통신원 자료 정보, 암호해독관 확인 범위·추가 질문, 지휘관 수정 기록이다. 기록 없이 해설 완료한 부분은 null이다. 전체 research를 공개하거나 지휘관 self에 제공하지 않는다. `game_events`에는 `select-alt-mode`의 `mode_id`만 남긴다. [새 마이그레이션·적용 절차](YONGBONG_APPLY.md)를 따른다.
+
+
+## 12. PR-5 추모의 벽·봉지·결과 — 구현 계약
+
+2026-10-10 사용자 확정: **개인 조사·회고 본문은 본인만**, 공동 낱말·문장·근거는 같은 팀에 공개한다. 용봉관 signal→cipher 명시적 전달 예외는 그대로이며 추모 단계에는 적용하지 않는다. 추모·봉지 상태는 독립 저장소다. [적용 안내](PR_5_APPLY.md)를 따른다.
+
+### 추모의 벽
+
+`stage_id:"wall"`, `kind:"memorial"`, `quiet:true`, `scoring.enabled:false`, `completion.type:"confirm"`이다. 단계별 개인 조사→보고는 기존 submit-step/submit-report를 사용한다. 정찰원 두 인물 이름은 해시 검증 후 평문을 저장하지 않는다. 개인 기록은 인물 A/B의 활동·출처를 기록한다. 통신원의 활동·가치 연결은 자유 기록이며 1:1 map-hash 정답으로 제한하지 않는다. 선행 보고를 기다리는 유형과 의존성은 self.mission에서 읽는다.
+
+전원 보고 후 지휘관이 `draft-memorial-record`로 공동 기록을 작성한다. `stage.recordTemplate`은 `prompt, wordChoices, wordCount`이며 이번 코스는 낱말 세 개다. 답이 정해진 채점 문제가 아니고 선택·필수 본문 형식만 검사한다. words는 템플릿 선택지의 문자열 배열(순서 유지, 반복 허용), text/reason은 각각 1~600자다. **최초 작성도 `draft_version:0`을 전송**한다. 수정은 현재 버전을 보낸다. 정규화한 본문·근거·낱말이 같으면 버전·확인을 유지하고, 달라지면 버전 +1 및 네 확인 초기화다.
+
+각 역할은 `confirm-stage`에 자신이 읽은 `draft_version`을 전송한다. 전원 조사·보고 및 동일 버전 네 확인 후 사초③를 저장하고 `playing/cleared`가 된다. 완료 후 초안 수정은 거절한다. 공통 기록의 self 예시(합성):
+
+```json
+{
+  "memorial_record": {
+    "draft_version": 1,
+    "words": ["[합성] 살피기", "[합성] 비교하기", "[합성] 이어가기"],
+    "text": "[합성] 팀이 함께 작성한 문장",
+    "reason": "[합성] 서로 비교한 근거",
+    "confirm_mask": [true, false, false, false]
+  }
+}
+```
+
+확인 배열 순서는 commander/scout/signal/cipher다. 초안 전에는 `null`. 본문은 game_public·game_events에 포함하지 않는다. `self.journal[].memorial_record`는 해당 추모 완료 후 팀 공통 기록을 제공하고, 개인 entries는 계속 본인만 조회한다.
+
+추모 단계에는 숫자·자물쇠·감점·점수·카운트다운·진동을 표시하지 않는다. `self.lock:null`, `self.digit:null`, 호환 필드 `attempts_left:0`이며 개방 액션과 confirm-explanation은 거절한다. 역할별 힌트는 무료이고 해설 처리 후에도 전원 보고·공동 확인이 필요하다. 화면의 10초 머무르기는 선택형 로컬 휴식으로 언제든 끝낼 수 있고 숫자 카운트다운이나 서버 완료 조건이 아니다. 도착부터 자동 효과음·배경음을 차단하고 이후 봉지에서도 자동으로 음량을 복구하지 않는다.
+
+### 봉지
+
+`stage_id:"bongji"`, `kind:"epilogue"`, `completion.type:"joint-record"`다. 새 전원 도착 후 역할별 본인 회고를 `submit-retro:{text}`로 저장·수정한다(1~600자). `self.retro`는 본문 또는 null, `game.retro_mask`는 네 역할 작성 상태다. 타인에게 본문을 보내지 않는다. 이 단계는 submit-step/submit-report/request-hint를 사용하지 않는다. 저장 시 본인 단계·보고 상태를 함께 완료한다.
+
+전원 회고 후 지휘관이 `draft-joint-record`를 작성한다. 입력·버전 정책은 위와 같다. `self.joint_record`의 형태도 동일하며 **추모의 벽 기록을 재사용하지 않는다**. 회고 본문이 달라지면 기존 공동 초안이 있는 경우 버전 +1 및 전체 동의를 초기화한다. 같은 본문의 재저장은 동의를 초기화하지 않는다. 기존 공동 문장은 남겨 두므로 새 회고를 구두로 반영해 필요하면 지휘관이 다시 수정한다.
+
+각자가 `consent-joint-record:{draft_version}`로 읽은 버전에 동의한다. 네 명 동의 후 `game.status:"done"`, `site_phase:"cleared"`, `stage_phase:"done"`, `ended_at`이 설정된다. 봉지는 사초 네 번째를 만들지 않는다. 이후 새 쓰기는 WRONG_PHASE. 이미 성공한 동일 request_id/본문 재전송은 저장된 영수증만 반환하고 종료 상태를 변경하지 않는다.
+
+### 최종 결과
+
+종료된 팀의 인증 멤버만 `get-result`로 조회한다(쓰기 아님, request_id 불필요). 응답은 Snapshot + `result`이며, 새로고침 복원을 위해 동일한 결과가 **완료 상태의 `self.result`**에도 있다. 종료 전 get-result는 WRONG_PHASE, 타팀은 FORBIDDEN이다. get-stage는 진행 중에만 사용하고 종료 상태에서는 get-game/get-result를 사용한다.
+
+- `investigation:{completed,total}`, `sacho:{completed,total}`: 전체 개발 코스는 각각 3/3. 시작 안내·봉지 회고는 조사·사초 개수에 포함하지 않는다.
+- `stages[]`: stage_id/name/summary/quiet/completion/visit_mode/arrival_method, 역할별 통계 `roles[]`, 공통 `memorial_record` 또는 null. summary는 완료 공개 사초 설명이다.
+- `roles[]`: role, completed/total, reported, hint_level, explained, records, cross_checks, methods. records는 자유 기록을 제출한 **문제 수**이며 칸 수가 아니다. cross_checks는 선행 보고 또는 recordFrom 연결이 있는 문제를 **직접 done으로 완료한 수**다. 의미의 적절성을 자동 평가한 점수가 아니다. explained는 교차 확인 건수에서 제외한다.
+- `methods`: field/official_digital/explained/simulated 등 실제 저장된 방식의 중복 없는 목록. `arrival_method`는 gps 또는 simulated. `visit_mode`는 onsite/outdoor다.
+- `joint_records[]`: stage_id와 최종 draft_version/words/text/reason/confirm_mask, retro_mask. 개인 본문은 없으며 본인의 회고만 self.retro에서 조회한다.
+- `supplementary_score`: 기존 잠금 단계 점수. `time_score:null`, `ranking:null`은 미구현 표시로 0점·순위 없음이라는 확정 정책을 뜻하지 않는다. D8/D9 확정 후 별도 추가한다.
+
+CAS 충돌 시 서버는 최신 상태로 다시 판정한다. 초안 버전이 달라지면 STALE_DRAFT(409)를 반환하며 FE는 갱신된 문장·근거를 다시 보여준 후 사용자가 확인하도록 한다. 새 쓰기마다 새 request_id, 응답 유실 재전송에는 기존 ID와 본문을 그대로 사용한다. 이벤트는 확인/초안의 draft_version만, 회고 저장은 빈 data만 기록한다.

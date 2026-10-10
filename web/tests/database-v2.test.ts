@@ -20,7 +20,7 @@ beforeAll(async () => {
     grant usage on schema realtime to authenticated;
     alter table realtime.messages enable row level security;create publication supabase_realtime;`,
   );
-  for (const name of ["202610060001_game.sql", "202610080001_game_v2.sql", "202610090001_yongbong_alt_mode.sql"]) {
+  for (const name of ["202610060001_game.sql", "202610080001_game_v2.sql", "202610090001_yongbong_alt_mode.sql", "202610100001_wall_bongji.sql"]) {
     await db.exec(
       await readFile(
         new URL(`../supabase/migrations/${name}`, import.meta.url),
@@ -77,6 +77,27 @@ async function commit(
   );
 }
 describe("v2 transaction and append-only events", () => {
+  it.each(["draft-memorial-record", "confirm-stage", "draft-joint-record", "consent-joint-record", "submit-retro"])(
+    "commits %s metadata once under CAS and rolls back prose or forged draft versions", async (action) => {
+      const { game, course, user, event } = await fixture();
+      game.version = 2;
+      const memorial = ["draft-memorial-record", "confirm-stage"].includes(action);
+      const stage_id = memorial ? "wall" : "bongji";
+      const draft = { version: 1, words: ["[합성] 선택"], text: "[합성] 공동 문장", reason: "[합성] 근거", confirms: {} };
+      game.v2!.memorialRecords = { wall: draft }; game.v2!.jointRecords = { bongji: draft };
+      const data: GameEvent["data"] = action === "submit-retro" ? {} : { draft_version: 1 };
+      const next = { ...event, action, stage_id, data };
+      const pub = project(game, course, user, 100000).game;
+      await expect(commit(game, 1, pub, [{ ...next, data: { ...data, text: "SYNTHETIC-PRIVATE" } }])).rejects.toThrow("INVALID_GAME_EVENT");
+      if (action !== "submit-retro") {
+        await expect(commit(game, 1, pub, [{ ...next, data: { draft_version: 2 } }])).rejects.toThrow("INVALID_GAME_EVENT");
+      }
+      expect((await db.query<{ version: number }>("select version::int from games_private where id=$1", [game.id])).rows[0].version).toBe(1);
+      expect((await commit(game, 1, pub, [next])).rows[0].ok).toBe(true);
+      expect((await commit(game, 1, pub, [next])).rows[0].ok).toBe(false);
+      expect((await db.query("select data from game_events where game_id=$1", [game.id])).rows).toEqual([{ data }]);
+    },
+  );
   it("commits the outdoor event atomically and rejects stale retries", async () => {
     const { game, course, user, event } = await fixture();
     game.version = 2; game.v2!.altMode = { yongbong: "outdoor" };
