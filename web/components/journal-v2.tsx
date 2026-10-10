@@ -13,7 +13,7 @@ const methods: Record<string, string> = {
 export function JournalV2({ snapshot }: { snapshot: V2Response }) {
   return (
     <div className={`record-grid ${styles.journal}`} data-testid="journal-v2">
-      {snapshot.course.sites.map((site) => {
+      {snapshot.course.sites.filter((site) => site.id !== "bongji").map((site) => {
         const acquired = snapshot.game.acquired_sites.find((s) =>
           s.id === site.id
         );
@@ -42,6 +42,7 @@ export function JournalV2({ snapshot }: { snapshot: V2Response }) {
                     ? "해설 확인 후 복원"
                     : "조사 후 복원"}
                 </p>
+                {journal.memorial_record && <section className={styles.note}><h4>추모의 벽 공동 기록</h4><p>{journal.memorial_record.text}</p><p>근거: {journal.memorial_record.reason}</p></section>}
                 <h4>내 조사 기록</h4>
                 {journal.visit && <p>{journal.visit.label}</p>}
                 {!!journal.shared_records?.length && <SharedRecords records={journal.shared_records} />}

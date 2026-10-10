@@ -11,6 +11,8 @@ import {
 } from "@/supabase/functions/_shared/types";
 import { emptyStepAnswer, VerifyInput } from "./verify-input";
 import { useLockDraft } from "./use-lock-draft";
+import { MissionV2 } from "./mission-v2";
+import { MemorialDeparture } from "./closing-v2";
 import { NextStageAction, YongbongPanel } from "./yongbong-panel";
 
 type Send = (command: Command) => Promise<V2Response | null>;
@@ -263,6 +265,10 @@ export function VerifyMission({ snapshot, busy, now, send }: {
   send: Send;
 }) {
   const [completionLabel, setCompletionLabel] = useState("");
+  if (snapshot.stage.completion.type !== "lock") return <>
+    <MissionV2 snapshot={snapshot} busy={busy} now={now} send={send} />
+    {snapshot.game.site_phase === "cleared" && <MemorialDeparture snapshot={snapshot} busy={busy} send={send} />}
+  </>;
   const { self, game, stage } = snapshot;
   const mission = self.mission;
   const role = self.role;

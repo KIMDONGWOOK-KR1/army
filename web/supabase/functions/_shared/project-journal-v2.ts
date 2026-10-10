@@ -1,5 +1,6 @@
 import type { CourseV2, GameV2State, Role } from "./types.ts";
 import { sharedRecordsV2, visitV2 } from "./yongbong-v2.ts";
+import { projectDraftV2 } from "./closing-v2.ts";
 
 /** Completed public rewards plus the authenticated role's records only. */
 export function projectJournalV2(
@@ -10,7 +11,7 @@ export function projectJournalV2(
   if (!role) return [];
   return course.stages.flatMap((stage) => {
     const completed = state.completed[stage.id];
-    if (!completed) return [];
+    if (!completed || !stage.sacho) return [];
     const progress = state.progress[stage.id]?.[role];
     const secret = course.private.stages[stage.id];
     return [{
@@ -22,6 +23,7 @@ export function projectJournalV2(
       ...(stage.roles[role]?.steps.some((step) => step.recordFrom)
         ? { shared_records: sharedRecordsV2(stage, state, role) } : {}),
       sections: [...(stage.sacho?.sections ?? [])],
+      ...(stage.kind === "memorial" ? { memorial_record: projectDraftV2(state.memorialRecords?.[stage.id]) } : {}),
       entries: (stage.roles[role]?.steps ?? []).flatMap((step) => {
         const p = progress?.steps[step.id];
         if (!p || !["done", "explained"].includes(p.status)) return [];

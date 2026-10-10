@@ -56,6 +56,24 @@ afterEach(() => {
 });
 
 describe("소리 끄기 저장", () => {
+  it("추모 단계는 사용자 음향 설정과 독립적으로 효과음·잡음을 차단한다", async () => {
+    const store = memoryStorage({ [SOUND_KEY]: "on" });
+    let contexts = 0;
+    class UnavailableAudio {
+      constructor() { contexts++; throw new Error("test audio unavailable"); }
+    }
+    vi.stubGlobal("window", { localStorage: store, AudioContext: UnavailableAudio });
+    vi.stubGlobal("navigator", { userActivation: { hasBeenActive: true, isActive: true } });
+    const engine = await freshEngine();
+    engine.setSceneQuiet(true);
+    engine.setMuted(false);
+    engine.play("confirm"); engine.play("sacho"); engine.staticNoise();
+    expect(contexts).toBe(0);
+    expect(store.data.get(SOUND_KEY)).toBe("on");
+    engine.setSceneQuiet(false);
+    engine.play("confirm");
+    expect(contexts).toBe(1);
+  });
   it("값이 없으면 켠 상태이고 'off'만 끈 상태다", () => {
     expect(readMuted(null)).toBe(false);
     expect(readMuted(memoryStorage())).toBe(false);

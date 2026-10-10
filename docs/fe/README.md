@@ -1,13 +1,18 @@
-# FE 인수인계 — 정문·용봉관 v2
+# FE 인수인계 — 전체 코스 v2
 
-2026-10-09 통합 브랜치 갱신 · FE 이환희 / BE·Infra 김종연 / 리뷰·머지 김동욱
+2026-10-10 통합 브랜치 갱신 · FE 이환희 / BE·Infra 김종연 / 리뷰·머지 김동욱
 
 **`feat/stage-yongbong`에서는 `/`와 `/verify` 모두 정문→용봉관 v2를 지원한다.** 메인 화면은 서버 응답에 따라 v1/v2를 구분한다. 기존 [UI 통합 안내](UI_INTEGRATION.md)에 더해 [용봉관 계약](../be/API_CONTRACT.md#11-pr-4-용봉관)과 [적용 안내](../be/YONGBONG_APPLY.md)를 확인한다. 아래 정문 계약과 12개 mock은 계속 사용한다. 새 DB·Edge·합성 코스와 웹의 dev 적용을 맞춘 뒤 새 방을 만든다. 이 문서는 배포 완료를 의미하지 않는다.
+
+**2026-10-10 PR-5 추가:** `feat/stage-wall-bongji`는 병합된 PR #12 다음 작업이다. `/`·`/verify`에 추모의 벽 공동 확인, 봉지 개인 회고·팀 동의, 전체 결과를 연결했다. 사용자 확인으로 용봉관 배포·개발 코스 연결은 완료했다. PR-5는 별도 적용이 필요하며 [API 12절](../be/API_CONTRACT.md#12-pr-5-추모의-벽봉지결과--구현-계약)과 [수동 적용 안내](../be/PR_5_APPLY.md)가 최신 기준이다.
+
+FE는 `stage.completion.type`으로 잠금/공동 확인/회고 화면을 구분한다. 공동 초안·동의 요청에는 읽은 `draft_version`을 보내고 STALE_DRAFT 때 새 내용을 다시 읽게 한다. 개인 본문은 self에만 있으며 game_public을 통해 공유하지 않는다. 봉지 회고 수정 시 전원 동의가 초기화된다. done 이후 get-stage 대신 get-game/get-result로 복원하며 `self.result`를 표시한다. 기존 정문 mock 12개는 그대로 사용한다.
 
 ## 1. 먼저 볼 자료
 
 | 자료 | 용도 |
 |---|---|
+| [PR-5 적용 안내](../be/PR_5_APPLY.md) / [합성 최종 공동 기록 화면](images/full-result-synthetic.png) | 추모·봉지·결과 계약과 네 세션 시험 캡처 |
 | [메인 UI 통합 안내](UI_INTEGRATION.md) | PR #8 디자인과 PR #9 API의 연결 범위·로컬 실행·dev 적용 조건 |
 | [GPS 적용·개발용 모드 전환](../be/GPS_APPLY.md) | 같은 Vercel 주소에서 실내 모의 도착/GPS 현장 시험, Supabase 코스 전환과 새 방 생성 |
 | [용봉관 적용 안내](../be/YONGBONG_APPLY.md) | 두 거점 새 preset, DB 마이그레이션·재배포, 실제 콘텐츠 등록 준비와 미확정 항목 |
@@ -34,7 +39,7 @@ PR-2 서버 기준 브랜치는 `feat/engine-v2-gate`이며 PR-0 #6·PR-1 #7을 
 | PR-2 검증 | 단위·DB·계약 테스트 94개, 타입 검사·빌드·Deno 검사/lint 통과. 기존 v1 E2E 9개 시나리오 통과 |
 | UI 연결 | `/verify`를 유지하고 통합 브랜치의 `/`에도 v2 문제·별도 보고·힌트·읽음 확인·두 개방 경로 연결. [통합 안내](UI_INTEGRATION.md) 참고 |
 | 별도 확인할 것 | 현재 활성 코스와 새 방의 모드, 클라우드 4인 정문 완주, 실기기 GPS 현장 시험. 웹 배포 성공과 전체 흐름 검증을 구분한다 |
-| 후속 범위 | 실제 콘텐츠 확정·등록, 프롤로그 문구 연결의 잔여 부분, 추모·봉지·최종 결과, 시간 점수·랭킹. 역할 교환·QR·수동 도착은 사용자 결정으로 제외 |
+| 후속 범위 | 실제 콘텐츠 확정·등록, 프롤로그 문구 연결의 잔여 부분, 시간 점수·랭킹, 추모의 벽 GPS 확정. 역할 교환·QR·수동 도착은 사용자 결정으로 제외 |
 
 처음 연결하는 환경은 [PR-2 적용 안내](../be/PR_2_APPLY.md)를 따른다. 기존 dev 환경은 [GPS 적용 안내](../be/GPS_APPLY.md)대로 등록된 개발용/GPS 코스 사이에서 `ACTIVE_COURSE_ID`를 전환하고 **새 방**을 만든다. 기존 방은 기존 코스에 고정되며 행을 덮어쓰지 않는다. FE가 임의로 DB·시드·Edge 비밀값을 바꿀 필요는 없다. 전환은 BE 담당과 맞추며 두 모드 모두 같은 Vercel 주소를 사용한다.
 
@@ -71,7 +76,7 @@ type V2ActionResponse = SnapshotV2 & { result?: Record<string, unknown> };
 4. self.step_progress[stepId].status가 open인 문제를 submit-step으로 제출한다. locked는 선행 문제/보고를 기다린다. HTTP 200이어도 result.accepted=false이면 채점 오답이다.
 5. 본인의 모든 문제가 done/explained이고 선행 보고 조건을 충족하면 submit-report를 보낸다. 본인 숫자를 표시하고 구두 전달을 안내한다. 타인 화면에는 보고 ✓만 표시한다.
 6. 일반 경로는 지휘관이 네 숫자를 직접 입력해 open-lock. 해설 경로는 각자 confirm-explanation→전원 confirm_mask 확인→지휘관 open-after-explanation이다. 두 버튼을 별도로 둔다.
-7. 완료 후에도 get-stage로 현재 정문 상태를 복구한다. 별도 개방 result.label은 `해설 확인 후 복원`이다. 사초 본문 통합 조회와 최종 결과 화면은 후속 PR 범위다.
+7. 완료 후에도 get-stage로 현재 정문 상태를 복구한다. 별도 개방 result.label은 `해설 확인 후 복원`이다. 본인 기록첩은 self.journal에서, 전체 코스 완료 결과는 PR-5 self.result에서 조회한다.
 
 아래 예시의 `<...>`는 실제 ID로 바꾼다. 조회 요청 예시:
 

@@ -44,6 +44,7 @@ import { DevControls } from "./dev-controls";
 import { DemoScenes } from "./demo-scenes";
 import { SoundToggle } from "./sound-toggle";
 import { play } from "@/lib/sound";
+import { MemorialDeparture, ResultV2 } from "./closing-v2";
 import { useCueSend, useSoundCues } from "./use-sound-cues";
 import { Narration } from "./narration";
 import { TravelHud } from "./travel-hud";
@@ -231,7 +232,7 @@ export default function GameApp({
   const send = useCallback(async (command: Command) => {
     const next = await cueSend(command);
     rememberCompletion(next);
-    if (command.action === "submit-report" && next && isV2Response(next) && next.self.reported)
+    if (command.action === "submit-report" && next && isV2Response(next) && next.self.reported && next.stage.completion.type === "lock")
       setPane("report");
     return next;
   }, [cueSend, rememberCompletion]);
@@ -436,7 +437,7 @@ export default function GameApp({
                   : s.game.site_phase === "cleared"
                     ? v2 && pane === "summary" ? "done" : "sacho"
                     : v2
-                      ? pane === "lock" && s.self.role === "commander"
+                      ? v2.stage.completion.type !== "lock" ? "mission" : pane === "lock" && s.self.role === "commander"
                         ? "lock"
                         : !s.self.reported || pane === "mission"
                           ? "mission"
@@ -538,6 +539,7 @@ export default function GameApp({
     scene,
     reverent: !!site?.reverent,
     hushed,
+    silent: !!v2 && (v2.stage.kind === "memorial" || v2.self.journal.some((j) => j.memorial_record)),
     narration: !!narration,
     reportKey: `${gameId}:${site?.id}:${role}`,
     reported: !!s?.self.reported,
@@ -697,7 +699,7 @@ export default function GameApp({
                 <span className="hud-auto-short">{auto ? "정지" : "시연"}</span>
               </button>
             )}
-            {s && (
+            {s && v2?.stage.kind !== "memorial" && (
               <span className="hud-score">
                 {s.game.score}
                 <small>점</small>
@@ -1176,7 +1178,7 @@ export default function GameApp({
                   auto={auto && !narration && !stop ? autoAnswer(s) : undefined}
                 />}
               </div>
-              {v2 && role === "commander" && (
+              {v2 && v2.stage.completion.type === "lock" && role === "commander" && (
                 <section className="game-console slim">
                   {reports}
                   <button className="button primary" disabled={busy} onClick={() => setPane("lock")}>
@@ -1307,7 +1309,7 @@ export default function GameApp({
                   {v2 ? `함께 복원한 ${site!.name} 기록을 보관했다.` : "다음 거점에 또 하나의 기억이 기다린다."}
                 </p>
                 {v2 ? (
-                  <><NextStageAction snapshot={v2} busy={busy} send={send} />
+                  <><MemorialDeparture key={`${v2.game.id}:${v2.stage.id}`} snapshot={v2} busy={busy} send={send} />
                   <button className="button primary" onClick={() => setPane("summary")}>
                     {site!.name} 결과 보기 <ArrowRight size={18} />
                   </button><button className="button secondary" onClick={() => setModal("records")}>
@@ -1334,6 +1336,8 @@ export default function GameApp({
                 )}
               </section>
             </>
+          ) : scene === "done" && v2?.game.status === "done" ? (
+            <><ResultV2 snapshot={v2} /><button className="button secondary" onClick={home}>새 작전 준비하기</button></>
           ) : scene === "done" ? (
             <>
               <div className="completion">
@@ -1361,7 +1365,7 @@ export default function GameApp({
                 </p>
                 {v2 && completionLabel && <p>{completionLabel}</p>}
                 {v2?.game.completion?.visit && <p>{v2.game.completion.visit.label}</p>}
-                <div className="completion-score">
+                {v2?.stage.kind !== "memorial" && <div className="completion-score">
                   <span>
                     <b>{s!.game.score}</b> 기록 점수
                   </span>
@@ -1371,7 +1375,7 @@ export default function GameApp({
                   <span>
                     <b>{elapsed}</b> 활동 시간 · 분
                   </span>
-                </div>
+                </div>}
               </div>
               <section className="game-console">
                 {v2 && <button className="button secondary" onClick={() => setPane("report")}>

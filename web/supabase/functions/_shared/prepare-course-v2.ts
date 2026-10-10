@@ -344,6 +344,7 @@ export function validateCourseV2Content(input: unknown): CourseV2Content {
       "completion",
       "sacho",
       "altModes",
+      "recordTemplate",
     ], "stage");
     const stageId = id(a.id, "stage.id");
     if (seen.has(stageId)) fail(stageId, "중복 ID가 있다.");
@@ -544,6 +545,16 @@ export function validateCourseV2Content(input: unknown): CourseV2Content {
         fail(stageId, "현재 대체 모드는 용봉관 outdoor만 지원한다.");
       }
     }
+    if (a.recordTemplate !== undefined) {
+      const t = obj(a.recordTemplate, stageId);
+      exact(t, ["prompt", "wordChoices", "wordCount"], stageId);
+      stage.recordTemplate = { prompt: str(t.prompt, stageId),
+        wordChoices: strings(t.wordChoices, stageId, 1, 30), wordCount: integer(t.wordCount, stageId, 1, 8) };
+      unique(stage.recordTemplate.wordChoices, stageId);
+      if (completion.type === "lock") fail(stageId, "공동 기록 양식은 확인·회고 단계에만 사용한다.");
+    }
+    if (stage.kind === "epilogue" && (scoring.enabled || completion.type !== "joint-record" ||
+      ROLES.some((role) => roles[role]?.digit))) fail(stageId, "회고에는 점수·숫자·자물쇠를 둘 수 없다.");
     return stage;
   });
   validateDependencies(stages);
@@ -582,6 +593,9 @@ function validateDependencies(stages: Stage[]) {
   const graph = new Map<string, string[]>();
   for (const [id, node] of nodes) {
     if (node.step.recordFrom) {
+      if (node.stage.kind === "memorial" || node.stage.kind === "epilogue") {
+        fail(id, "추모·회고의 개인 기록은 다른 역할에 전달할 수 없다.");
+      }
       const ref = node.step.recordFrom, source = nodes.get(ref.stepId);
       if (!source || source.role !== ref.role || source.stage.id !== node.stage.id ||
         source.role === node.role || source.step.grading !== "record" || !source.step.fields?.length) {

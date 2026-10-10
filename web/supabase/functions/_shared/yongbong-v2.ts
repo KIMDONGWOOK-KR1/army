@@ -8,6 +8,8 @@ export function visitV2(stage: Stage, state: GameV2State) {
 
 /** Explicit course-declared exception: a free-form record, never a graded answer or digit. */
 export function sharedRecordsV2(stage: Stage, state: GameV2State, role: Role) {
+  // Personal memorial/reflection prose never inherits a course-declared relay exception.
+  if (stage.kind === "memorial" || stage.kind === "epilogue") return [];
   return (stage.roles[role]?.steps ?? []).flatMap((step) => {
     const ref = step.recordFrom;
     if (!ref) return [];
