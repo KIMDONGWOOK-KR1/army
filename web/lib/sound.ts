@@ -79,6 +79,7 @@ const state = {
   // 추모의 벽(사초 소리를 1/3로)과 묵념 중(사초 소리를 틀지 않는다)
   wall: false,
   bowing: false,
+  firstFetched: false,
   broken: false,
   unlocked: false,
   primed: false,
@@ -377,7 +378,10 @@ export function startBgm(mood: Mood | null, track?: LoopTrack | null) {
   state.desired = mood && (MOODS as readonly string[]).includes(mood) ? mood : null;
   state.track = track;
   // 첫 곡(01)과 보직 공개(02)는 오디오가 열리기 전부터 받아 둔다
-  if (track !== undefined) for (const t of FIRST) void fetchTrack(t);
+  if (track !== undefined && !state.firstFetched) {
+    state.firstFetched = true;
+    for (const t of FIRST) void fetchTrack(t);
+  }
   // 화면 이동으로 주소의 ?bgm=이 사라지기 전에 읽어 둔다
   bgmStyle();
   syncBgm();

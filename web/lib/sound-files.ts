@@ -158,7 +158,11 @@ export function createFileDeck(
         .catch(() => null)
         .then((buf) => {
           loading.delete(track);
-          if (buf) buffers.set(track, buf);
+          // 디코딩한 뒤에는 받은 파일 바이트를 버린다(다시 필요하면 브라우저 캐시에서 받는다)
+          if (buf) {
+            buffers.set(track, buf);
+            bytes.delete(track);
+          }
           else if (!broken.has(track)) {
             broken.add(track);
             hooks.onFail?.(track);

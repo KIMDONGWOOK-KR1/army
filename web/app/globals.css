@@ -1458,7 +1458,7 @@ html[data-mockup] .game-viewport {
 }
 .dialog-body > p,
 .invite-dialog > p {
-  font-size: 14px;
+  font-size: 16px;
   margin-top: 20px;
   color: var(--muted);
 }
@@ -4438,4 +4438,27 @@ html[data-mockup] .game-viewport {
   0% { opacity: 0; }
   12%, 80% { opacity: 1; }
   100% { opacity: 0; }
+}
+
+/* 사초·결과 보기 화면: 글이 화면보다 길면 가운데 정렬이 위쪽을 잘라 스크롤해도 맨 위(사초③ · …)가 안 보였다.
+   위에서부터 쌓고, 짧을 때만 위아래 여백(auto)으로 가운데에 둔다 */
+.sacho-scene,
+.completion {
+  justify-content: flex-start;
+}
+.sacho-scene > :first-child,
+.completion > :first-child {
+  margin-top: auto;
+}
+.sacho-scene > :last-child,
+.completion > :last-child {
+  margin-bottom: auto;
+}
+/* 보고 현황은 한 줄에 '보직 · 보고 완료'가 다 들어가게(좁으면 한 칸씩 세로로) */
+.report-roll ul {
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  justify-items: start;
+}
+.report-roll li {
+  white-space: nowrap;
 }

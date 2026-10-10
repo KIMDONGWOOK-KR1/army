@@ -598,7 +598,8 @@ export default function GameApp({
     wall: v2?.stage.completion.type === "tribute",
     narration: !!narration,
     reportKey: `${gameId}:${site?.id}:${role}`,
-    reported: !!s?.self.reported,
+    // 헌화는 보고(숫자 획득)가 아니라 '숫자를 찾았다' 소리를 내지 않는다
+    reported: !!s?.self.reported && v2?.stage.completion.type !== "tribute",
     digits: lockDraft.digits,
   });
   useAutoplay({
@@ -1373,11 +1374,11 @@ export default function GameApp({
                     동료들의 기록을 기다린다.
                   </h1>
                   {v2 ? reportRoll : reports}
-                  <p>
+                  {!v2 && <p>
                     각자의 숫자를 말로 나누어라.
                     <br />
                     지휘관이 기록의 자물쇠를 연다.
-                  </p>
+                  </p>}
                 </div>
               </div>
               <section className="game-console">
@@ -1683,7 +1684,7 @@ export default function GameApp({
               {/* 개발용 안내는 메뉴 맨 아래 작은 한 줄로만 남긴다 */}
               {(s?.course.demo ?? backend === "local") && (
                 <p className="menu-demo-note">
-                  시연판 · 위치는 기기 안에서만 계산해요 · 실제 좌표와 문항은 아직 확정 전이에요
+                  시연판 · 실제 좌표와 문항은 확정 전
                 </p>
               )}
             </div>

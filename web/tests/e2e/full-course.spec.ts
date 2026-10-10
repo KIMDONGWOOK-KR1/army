@@ -69,7 +69,9 @@ test("four sessions lay flowers at the memorial, write reflections, refresh cons
     };
     for (const p of pages) {
       await expect(p.getByTestId("stage-v2-completed")).toBeVisible();
-      expect(await p.evaluate(() => (window as unknown as { heard: string[] }).heard)).toEqual([]);
+      // 헌화형 추모의 벽(hh 2026-10-10): 누름 소리·사초(07, 1/3 크기)는 나도 되지만, 맞음·자물쇠 같은 판정 소리는 없다
+      const heard = await p.evaluate(() => (window as unknown as { heard: string[] }).heard);
+      expect(heard.filter((n) => /clue|lock|digit|arrive/.test(n))).toEqual([]);
     }
     await commander.getByRole("button", { name: "조용히 머무르기", exact: true }).click();
     await expect(commander.getByTestId("depart-next-stage")).toHaveCount(0);
