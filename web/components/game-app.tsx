@@ -719,7 +719,8 @@ export default function GameApp({
           return (
             <li key={r} className={done ? "complete" : ""}>
               <Icon size={16} aria-hidden="true" />
-              {ROLE_NAMES[r]} · {done ? "보고 완료" : "보고 대기"}
+              <span className="nowrap">{ROLE_NAMES[r]}</span>{" "}
+              <span className="nowrap">· {done ? "보고 완료" : "보고 대기"}</span>
             </li>
           );
         })}

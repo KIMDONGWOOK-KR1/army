@@ -4456,9 +4456,29 @@ html[data-mockup] .game-viewport {
 }
 /* 보고 현황은 한 줄에 '보직 · 보고 완료'가 다 들어가게(좁으면 한 칸씩 세로로) */
 .report-roll ul {
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr));
   justify-items: start;
 }
 .report-roll li {
-  white-space: nowrap;
+  flex-wrap: wrap;
+  column-gap: 4px;
+  min-width: 0;
+}
+/* 숫자 화면 아래 판(가로 배치)에서도 보고 현황은 한 줄을 다 쓴다 */
+.game-console > .report-roll {
+  flex: 1 1 100%;
+  min-width: 0;
+}
+
+/* 사파리(웹킷)는 기본 모양의 고르기 칸(select)에 높이(min-height)를 적용하지 않아 29px로 작아진다.
+   기본 모양을 끄고 화살표를 직접 그려 어느 브라우저에서도 44px 이상으로 둔다 */
+select {
+  -webkit-appearance: none;
+  appearance: none;
+  min-height: 44px;
+  padding-right: 36px !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23384a3a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 13px center;
+  background-size: 12px 8px;
 }
