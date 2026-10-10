@@ -15,7 +15,7 @@
 // - iOS Safari 규칙대로 사용자가 처음 누를 때 unlock()으로 소리를 연다. 그 전의 효과음은 버리고,
 //   배경음은 원하는 분위기만 기억했다가 열리는 순간 시작한다.
 // - 끄기 상태는 localStorage "hoguk:sound"("off"=끔)에 남긴다. 아무 값이 없으면 켠 상태다.
-// - 배경음 갈래는 DEFAULT_BGM_STYLE(산책)이다. 주소에 ?bgm=a|b|c를 붙이면 그 갈래로 들어 볼 수
+// - 배경음 갈래는 DEFAULT_BGM_STYLE(명랑)이다. 주소에 ?bgm=a|b|c|d를 붙이면 그 갈래로 들어 볼 수
 //   있다(브라우저에서 처음 배경음을 고를 때 한 번만 읽고, 틀린 값은 무시한다).
 import {
   DEFAULT_BGM_STYLE,
