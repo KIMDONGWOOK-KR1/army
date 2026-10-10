@@ -1,4 +1,4 @@
-# User-run only. Registers an immutable review copy in the designated dev project.
+﻿# User-run only. Registers an immutable review copy in the designated dev project.
 # Actual content files and secrets are never copied into the Vercel archive.
 $ErrorActionPreference = 'Stop'
 $repoPath = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))

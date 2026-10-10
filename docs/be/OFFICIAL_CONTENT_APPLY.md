@@ -15,6 +15,8 @@ Set-Location 'C:\Users\kjy00\Desktop\Real\army-pr8-ui\web'
 & .\scripts\deploy-review.ps1
 ```
 
+이 스크립트는 Windows PowerShell 5.1에서도 한글 문자열을 읽도록 **UTF-8 BOM**으로 저장한다. 편집할 때 이 인코딩을 유지한다. 한글이 깨진 `ParserError`가 나면 수정된 파일로 다시 실행한다. 구문 분석에서 실패한 실행은 등록·배포를 시작하지 않는다.
+
 스크립트는 검수 seed 검증 → 새 리비전 등록 → Edge → 커밋된 전체 저장소로 Vercel dev 배포 → ACTIVE_COURSE_ID 전환 → Edge 순서로 실행한다. 실패하면 다음 단계는 멈춘다. 등록 후 웹 배포가 실패한 경우 새 행은 비활성으로 남고 기존 활성 코스는 유지된다. 원문·작성 파일·로컬 비밀 파일은 Vercel archive에 포함하지 않는다. 기존 Vercel Root Directory=`web`과 고정 dev 주소를 사용하며 Git 자동 배포는 연결하지 않는다.
 
 Edge의 기존 dev opt-in `DEV_ALLOW_SYNTHETIC_COURSE=true`가 필요하며 스크립트는 지정 dev 프로젝트에서만 설정한다. 기본 차단 정책은 그대로다. **prod에는 이 설정이나 검수 코스를 적용하지 않는다.** 앱에는 `정식 콘텐츠 검수 · 모의 도착`으로 표시한다. 새 방에서 네 명 각각 모의 도착하며 역할 교환·혼자 시연·선행 조건 우회는 허용하지 않는다. 기존 방은 이전 코스를 계속 사용한다.
