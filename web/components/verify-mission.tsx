@@ -14,6 +14,7 @@ import { useLockDraft } from "./use-lock-draft";
 import { MissionV2 } from "./mission-v2";
 import { MemorialDeparture } from "./closing-v2";
 import { NextStageAction, YongbongPanel } from "./yongbong-panel";
+import { MissionAsset } from "./mission-asset";
 
 type Send = (command: Command) => Promise<V2Response | null>;
 const statusLabels = {
@@ -264,6 +265,7 @@ export function VerifyMission({ snapshot, busy, now, send }: {
           </div>
         )}
       </section>
+      <MissionAsset asset={mission.asset} stageId={stage.id} role={role} />
       <NextStageAction snapshot={snapshot} busy={busy} send={act} />
       {role === "commander" && self.transfer_clue && (
         <section

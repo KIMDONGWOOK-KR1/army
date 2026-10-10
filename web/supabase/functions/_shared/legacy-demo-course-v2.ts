@@ -133,9 +133,9 @@ export function legacyDemoV2Input(id: string, gps = false) {
     scoring: {
       enabled: true,
       confirmed: false,
-      hintPenalty: { 1: 0, 2: 10, 3: 30 },
+      hintPenalty: { 1: 0, 2: 10, 3: 10 },
       noHintBonus: 5,
-      note: "기존 v2 시연 수치 유지. 실제 정책 확정 아님.",
+      note: "2026-10-10 사용자 지정: 힌트 2·3단계마다 10점 감점. 무힌트 보너스는 기존 시연 수치.",
     },
     roles,
     narration: [

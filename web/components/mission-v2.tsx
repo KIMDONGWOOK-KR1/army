@@ -20,6 +20,7 @@ import { useLockDraft } from "./use-lock-draft";
 import styles from "./mission-v2.module.css";
 import { RetroPanel, SharedDraftPanel } from "./closing-v2";
 import { YongbongPanel } from "./yongbong-panel";
+import { MissionAsset } from "./mission-asset";
 
 type Props = {
   snapshot: V2Response;
@@ -172,6 +173,7 @@ export function MissionV2({ snapshot, busy, send, onShowDigit }: Props & { onSho
         {mission.intro.trigger === "enter" && <p>{mission.intro.text}</p>}
         {scenes.map((scene) => <p key={scene.id}>{scene.text}</p>)}
       </div>
+      <MissionAsset asset={mission.asset} stageId={stage.id} role={role} />
       {role === "commander" && self.transfer_clue && (
         <section className={styles.clue} data-testid="mission-v2-transfer-clue">
           <h3>
