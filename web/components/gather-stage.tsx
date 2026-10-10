@@ -669,9 +669,13 @@ export function GatherStage({
             tagPoint.set(s.x, GATHER.soldierM * 0.18, s.z);
           }
           tagPoint.project(camera);
-          const x = ((tagPoint.x + 1) / 2) * w,
+          const half = tag.offsetWidth / 2,
+            raw = ((tagPoint.x + 1) / 2) * w,
+            // 이름표가 화면 가장자리 밖으로 나가지 않게 안쪽으로 민다(글자를 키운 폰에서 양 끝 이름표가 잘렸다).
+            // 장병 머리가 아예 화면 밖이면(장비 화면의 가까운 장면) 이름표를 숨긴다
+            x = Math.min(Math.max(raw, half + 4), w - half - 4),
             y = ((1 - tagPoint.y) / 2) * h;
-          tag.style.opacity = tagPoint.z < 1 ? "1" : "0";
+          tag.style.opacity = tagPoint.z < 1 && raw >= 0 && raw <= w ? "1" : "0";
           tag.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -100%)`;
         }
         if (stats) {
