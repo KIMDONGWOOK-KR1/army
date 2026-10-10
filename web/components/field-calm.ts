@@ -7,7 +7,7 @@ import type { MapData } from "./field-geom";
 export type CalmZone = { x: number; z: number; r: number };
 
 // 기본 반지름(m). 정문은 동쪽 '기억의 정원' 잔디까지 덮는다.
-export const CALM_R = { gate: 50, stone: 15, bloom: 15, hall: 35, memorial: 12 };
+export const CALM_R = { gate: 50, stone: 15, bloom: 15, hall: 35, memorial: 12, wall: 30 };
 // 혁명정신 계승비(OSM historic=memorial, 박관현언덕). 굽기가 기념물 점을 내보내기 전까지 박아 둔다.
 export const MEMORIAL_AT = { x: -36.3, z: -51.1 };
 // 거점 도착 반경(m, 코스 자료 radiusM과 같다)
@@ -41,6 +41,9 @@ export function calmZones(data: MapData, arrivalM = ARRIVAL_M): CalmZone[] {
   if (h)
     out.push(coverArrival({ x: h.c[0], z: h.c[1], r: CALM_R.hall }, A.hall, arrivalM));
   out.push({ ...MEMORIAL_AT, r: CALM_R.memorial });
+  // 용봉열사 추모의 벽: 도착 범위까지 덮는다
+  if (A.wall)
+    out.push(coverArrival({ x: A.wall[0], z: A.wall[1], r: CALM_R.wall }, A.wall, arrivalM));
   return out;
 }
 

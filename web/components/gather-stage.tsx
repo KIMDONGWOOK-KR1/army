@@ -49,6 +49,12 @@ import { ROLE_NAMES, type Role } from "@/supabase/functions/_shared/types";
 
 const MAP = jnu as unknown as MapData,
   ANCHORS = MAP.anchors;
+// 추모의 벽 기준점: 마당 가운데에서 벽 너머로 둔 거리(m). 장병 줄은 가운데에서 벽 쪽으로
+// MEMORIAL_BACK − HOME.front = 9m 들어가 벽(반지름 7m × 2배 = 14m)과 5m 떨어진다.
+const MEMORIAL_BACK = 18;
+// 묵념: 내려가기·머무르기·올라오기(초)와 숙이는 각(rad)
+// 카메라는 정면(뒤)에서 azimuth rad 비껴 elevation rad 내려다본다
+const BOW = { down: 1.6, hold: 4, up: 1.4, angle: 0.55, startAfter: 1.2, azimuth: 0.75, elevation: 0.32 };
 const xz = (p: [number, number]) => ({ x: p[0], z: p[1] });
 
 export type GatherMember = {
@@ -113,6 +119,9 @@ export function GatherStage({
   walkIn,
   hidden = false,
   fallback,
+  site = "gate",
+  bow = false,
+  onBowDone,
 }: {
   members: GatherMember[]; // 합류한 차례
   shot: GatherShot;
@@ -120,13 +129,17 @@ export function GatherStage({
   walkIn: boolean; // 새로 보이는 장병이 걸어 들어온다(로비). 아니면 제자리에 바로 선다.
   hidden?: boolean; // 위를 덮는 화면(나레이션)이 떠 있으면 그리지 않는다
   fallback: ReactNode;
+  // wall: 용봉열사 추모의 벽 앞에 벽을 보고 선다(카메라는 뒤에서 벽 쪽을 본다)
+  site?: "gate" | "wall";
+  bow?: boolean; // 다 서면 함께 고개 숙여 묵념한다(정문·로비에서는 쓰지 않는다)
+  onBowDone?: () => void;
 }) {
   const root = useRef<HTMLDivElement>(null);
   const host = useRef<HTMLDivElement>(null);
   const tags = useRef<(HTMLLIElement | null)[]>([]);
   const credit = useRef<HTMLSpanElement>(null);
-  const live = useRef({ members, shot, reveal, walkIn, hidden });
-  live.current = { members, shot, reveal, walkIn, hidden };
+  const live = useRef({ members, shot, reveal, walkIn, hidden, bow, onBowDone });
+  live.current = { members, shot, reveal, walkIn, hidden, bow, onBowDone };
   const [failed, setFailed] = useState(false);
   const [ready, setReady] = useState(false);
   // WebGL 문맥을 잃었다 되찾으면 올려 새 렌더러로 다시 띄운다
@@ -238,12 +251,27 @@ export function GatherStage({
       mount.name = "gather-mount";
       scene.add(mount);
       mount.add(warmProp());
-      const gate = xz(ANCHORS.gate),
-        axis = roadAxis(
-          gate,
-          ANCHORS.tower ? xz(ANCHORS.tower) : { x: 0, z: -1 },
+      const memorial = site === "wall" && !!ANCHORS.wall;
+      // 추모의 벽: soldierSpots는 기준점(gate)에서 바깥(−axis) 쪽 HOME.front m에 줄을 세우고
+      // 카메라도 그 바깥에 둔다. 기준점을 벽 너머(열린 쪽 반대로 MEMORIAL_BACK m)에 두고 axis를
+      // 벽에서 기준점 쪽으로 잡으면, 장병은 마당 안 벽 앞에 서고 카메라는 열린 쪽(용봉관 쪽)에서 비춘다.
+      // 장병은 카메라가 아니라 벽을 보도록 반 바퀴 돈다.
+      const wallAt = memorial ? xz(ANCHORS.wall!) : null,
+        gate = wallAt
+          ? (() => {
+              const open = roadAxis(wallAt, ANCHORS.hall ? xz(ANCHORS.hall) : { x: wallAt.x, z: wallAt.z + 1 });
+              return { x: wallAt.x - open.x * MEMORIAL_BACK, z: wallAt.z - open.z * MEMORIAL_BACK };
+            })()
+          : xz(ANCHORS.gate),
+        axis = wallAt
+          ? roadAxis(wallAt, gate)
+          : roadAxis(
+              gate,
+              ANCHORS.tower ? xz(ANCHORS.tower) : { x: 0, z: -1 },
+            ),
+        spots = soldierSpots(gate, axis, 4).map((p) =>
+          wallAt ? { ...p, ry: p.ry + Math.PI } : p,
         ),
-        spots = soldierSpots(gate, axis, 4),
         center = new THREE.Vector3(
           spots.reduce((a, s) => a + s.x, 0) / spots.length,
           0,
@@ -435,8 +463,9 @@ export function GatherStage({
             share: GATHER.share.line,
             span: GATHER.span,
           });
-          want.el = GATHER.elevation.line;
-          want.az = GATHER.azimuth.line;
+          // 추모의 벽은 옆으로 비껴 서서 비춰 고개 숙이는 모습과 벽이 함께 보이게 한다
+          want.el = memorial ? BOW.elevation : GATHER.elevation.line;
+          want.az = memorial ? BOW.azimuth : GATHER.azimuth.line;
         }
         // 그림자 기준 카메라는 구도가 바뀔 때만 옮긴다
         const ak = `${s}:${Math.round(want.dist)}:${Math.round(want.aim.x)}:${Math.round(want.aim.z)}`;
@@ -469,6 +498,10 @@ export function GatherStage({
           : null;
       if (stats) window.__gatherStats = stats;
 
+      // 묵념: 다 서고 그림이 뜬 뒤 BOW.startAfter초에 시작해 내려가기·머무르기·올라오기
+      let bowStart = -1,
+        bowDone = false;
+      const smooth = (x: number) => x * x * (3 - 2 * x);
       let last = -1,
         rate: number = GATHER.fps.active,
         // 걸음·카메라·소품이 다 멈췄으면 false: 숨쉬기만 남으니 덜 자주 그린다
@@ -531,6 +564,31 @@ export function GatherStage({
           u.s.group.rotation.y = u.heading;
           u.s.animate(dt, !!u.walk, speed);
         });
+        let bowing = false;
+        if (live.current.bow && shown && bowStart < 0)
+          bowStart = t + BOW.startAfter * 1000;
+        if (bowStart >= 0 && !bowDone) {
+          const e = (t - bowStart) / 1000,
+            end = BOW.down + BOW.hold + BOW.up,
+            k =
+              e <= 0
+                ? 0
+                : e < BOW.down
+                  ? smooth(e / BOW.down)
+                  : e < BOW.down + BOW.hold
+                    ? 1
+                    : e < end
+                      ? 1 - smooth((e - BOW.down - BOW.hold) / BOW.up)
+                      : 0;
+          // 움직임 줄이기 설정이면 숙이지 않고 같은 시간만 조용히 머문다
+          for (const u of units.values())
+            u.s.group.children[0].rotation.x = reduced ? 0 : k * BOW.angle;
+          bowing = true;
+          if (e >= end) {
+            bowDone = true;
+            live.current.onBowDone?.();
+          }
+        }
         // 카메라: 새 구도로 부드럽게 옮겨 간다(흔들지 않는다: 다 서면 덜 자주 그리게)
         const k = !cur.set || reduced ? 1 : 1 - Math.exp(-dt * GATHER.ease);
         cur.set = true;
@@ -542,7 +600,7 @@ export function GatherStage({
           cur.aim.distanceToSquared(want.aim) > 1e-4 ||
           Math.abs(want.dist - cur.dist) > 0.02 ||
           Math.abs(want.el - cur.el) + Math.abs(want.az - cur.az) > 1e-3;
-        active = moving || waiting || turning || easing || t < busyUntil;
+        active = moving || waiting || turning || easing || bowing || t < busyUntil;
         place(camera, cur.aim, cur.az, cur.dist, cur.el);
         camera.lookAt(cur.aim);
         sky.position.copy(camera.position);

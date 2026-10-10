@@ -92,6 +92,15 @@ const revealSeen = (gameId: string) => {
     return false;
   }
 };
+// 추모의 벽 묵념을 이 기기에서 이미 마쳤는지(새로고침해도 다시 띄우지 않는다)
+const bowSeenKey = (key: string) => `hoguk:bow-seen:${key}`;
+const bowSeen = (key: string) => {
+  try {
+    return sessionStorage.getItem(bowSeenKey(key)) === "1";
+  } catch {
+    return false;
+  }
+};
 // 보직 공개 소리: 카드를 섞을 때 가볍게, 내 카드가 뒤집힐 때 거문고 한 소절, 팀이 모두 드러날 때 한 음
 const revealCue = (cue: RevealCue) => {
   play(cue === "flip" ? "role-reveal" : cue === "team" ? "join" : "tap");
@@ -415,6 +424,20 @@ export default function GameApp({
     lockKey,
     !!v2,
   ]);
+  // 추모의 벽(헌화 거점)에 모두 도착하면 먼저 네 사람이 벽 앞에서 묵념한 뒤 헌화 화면으로 간다
+  const tributeKey =
+    v2 && v2.stage.completion.type === "tribute" && v2.game.site_phase === "mission"
+      ? `${v2.game.id}:${v2.stage.id}`
+      : null;
+  const [bowFor, setBowFor] = useState<string | null>(null);
+  const bowDone = !tributeKey || bowFor === tributeKey || bowSeen(tributeKey);
+  const finishBow = () => {
+    if (!tributeKey) return;
+    try {
+      sessionStorage.setItem(bowSeenKey(tributeKey), "1");
+    } catch {}
+    setBowFor(tributeKey);
+  };
   const scene = !s
     ? entry
       ? "enroll"
@@ -437,7 +460,8 @@ export default function GameApp({
                   : s.game.site_phase === "cleared"
                     ? v2 && pane === "summary" ? "done" : "sacho"
                     : v2
-                      ? v2.stage.completion.type !== "lock" ? "mission" : pane === "lock" && s.self.role === "commander"
+                      ? !bowDone ? "memorial"
+                        : v2.stage.completion.type !== "lock" ? "mission" : pane === "lock" && s.self.role === "commander"
                         ? "lock"
                         : !s.self.reported || pane === "mission"
                           ? "mission"
@@ -539,7 +563,8 @@ export default function GameApp({
     scene,
     reverent: !!site?.reverent,
     hushed,
-    silent: !!v2 && (v2.stage.kind === "memorial" || v2.self.journal.some((j) => j.memorial_record)),
+    // 추모 거점에 들어선 뒤로는(헌화형도 포함) 봉지에서도 자동으로 소리를 되살리지 않는다
+    silent: !!v2 && (v2.stage.kind === "memorial" || v2.self.journal.some((j) => "memorial_record" in j)),
     narration: !!narration,
     reportKey: `${gameId}:${site?.id}:${role}`,
     reported: !!s?.self.reported,
@@ -599,7 +624,7 @@ export default function GameApp({
     setRevealDone(true);
   };
   const gathering =
-    scene === "lobby" || scene === "briefing" || scene === "equip";
+    scene === "lobby" || scene === "briefing" || scene === "equip" || scene === "memorial";
   const gatherMembers: GatherMember[] = gathering
     ? s!.game.members
         .slice(0, rehearsing?.step === "lobby" ? rehearsing.count : 4)
@@ -732,7 +757,7 @@ export default function GameApp({
               members={gatherMembers}
               shot={scene === "equip" ? "self" : "line"}
               reveal={
-                scene === "equip"
+                scene === "equip" || scene === "memorial"
                   ? "all"
                   : scene === "briefing"
                     ? revealStep
@@ -740,6 +765,9 @@ export default function GameApp({
               }
               walkIn={scene === "lobby"}
               hidden={!!narration || !!stop}
+              site={scene === "memorial" ? "wall" : "gate"}
+              bow={scene === "memorial"}
+              onBowDone={finishBow}
               fallback={<SceneArt party={false} />}
             />
           </div>
@@ -1007,6 +1035,26 @@ export default function GameApp({
                     바로 보기
                   </button>
                 )}
+              </section>
+            </>
+          ) : scene === "memorial" ? (
+            <>
+              <div className="gather-top" data-gather-top>
+                <div className="gather-heading">
+                  <span className="eyebrow">{site?.name ?? "추모의 벽"}</span>
+                  <h1 data-scene-heading tabIndex={-1}>
+                    잠시 묵념합니다.
+                  </h1>
+                </div>
+              </div>
+              <div className="gather-gap" />
+              <section className="game-console" data-gather-bottom>
+                <p className="dialogue-line">
+                  네 사람이 벽 앞에 나란히 서서 고개를 숙인다. 묵념을 마치면 국화를 올린다.
+                </p>
+                <button className="button secondary" onClick={finishBow}>
+                  묵념 마치기
+                </button>
               </section>
             </>
           ) : scene === "equip" ? (

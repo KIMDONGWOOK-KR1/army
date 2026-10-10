@@ -28,9 +28,12 @@ export const STOP = {
 // world.sites 차례: 정문(동쪽 채 바깥 기둥 옆 잔디, 문 줄보다 2m 앞), 용봉관(가운데 길 서쪽,
 // 서쪽 날개 앞 잔디). 정문 모형은 -0.355rad 돌고 1.65배라 [12, 0]은 경비실 바로 뒤(안쪽)에
 // 숨는다. [21, 10]은 문 틀로 (23, 2), 바깥 기둥(18.6)에서 3.5m 비켜 있고 보행로와 5m 넘게 떨어진다.
+// 추모의 벽은 열린 쪽(용봉관 쪽) 오른편 잔디, 봉지는 분수 동쪽 가.
 export const STOP_OFFSET: readonly (readonly [number, number])[] = [
   [21, 10],
   [-14, 4],
+  [1, 19],
+  [8, 6],
 ];
 export const markerAt = (i: number, site: { x: number; z: number }) => {
   const o = STOP_OFFSET[i] ?? [0, 0];

@@ -3489,7 +3489,7 @@ html[data-mockup] .game-viewport {
   position: relative;
   z-index: 1;
 }
-.game-scene:is(.scene-lobby, .scene-briefing, .scene-equip) {
+.game-scene:is(.scene-lobby, .scene-briefing, .scene-equip, .scene-memorial) {
   background: transparent;
 }
 .gather-stage,
@@ -3655,6 +3655,7 @@ html[data-mockup] .game-viewport {
 }
 .scene-lobby .game-console,
 .scene-briefing .game-console,
+.scene-memorial .game-console,
 .scene-equip .game-console {
   margin: 0 10px calc(10px + env(safe-area-inset-bottom, 0px));
   min-height: 0;
@@ -3670,12 +3671,14 @@ html[data-mockup] .game-viewport {
 }
 .scene-lobby .game-console:before,
 .scene-briefing .game-console:before,
+.scene-memorial .game-console:before,
 .scene-equip .game-console:before {
   display: none;
 }
 .scene-lobby .console-copy p,
 .scene-equip .console-copy p,
-.scene-briefing .dialogue-line {
+.scene-briefing .dialogue-line,
+.scene-memorial .dialogue-line {
   font-size: 14.5px;
   line-height: 1.65;
 }
@@ -3967,15 +3970,18 @@ html[data-mockup] .game-viewport {
   }
   .scene-lobby .game-console,
   .scene-briefing .game-console,
+  .scene-memorial .game-console,
   .scene-equip .game-console {
     gap: 10px;
     padding: 12px 14px;
   }
-  .scene-briefing .game-console {
+  .scene-briefing .game-console,
+  .scene-memorial .game-console {
     flex-direction: row;
     align-items: center;
   }
-  .scene-briefing .game-console .button {
+  .scene-briefing .game-console .button,
+  .scene-memorial .game-console .button {
     flex-shrink: 0;
     min-height: 44px;
     padding: 8px 14px;
