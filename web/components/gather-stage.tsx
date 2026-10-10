@@ -50,11 +50,40 @@ import { ROLE_NAMES, type Role } from "@/supabase/functions/_shared/types";
 const MAP = jnu as unknown as MapData,
   ANCHORS = MAP.anchors;
 // 추모의 벽 기준점: 마당 가운데에서 벽 너머로 둔 거리(m). 장병 줄은 가운데에서 벽 쪽으로
-// MEMORIAL_BACK − HOME.front = 9m 들어가 벽(반지름 7m × 2배 = 14m)과 5m 떨어진다.
-const MEMORIAL_BACK = 18;
-// 묵념: 내려가기·머무르기·올라오기(초)와 숙이는 각(rad)
-// 카메라는 정면(뒤)에서 azimuth rad 비껴 elevation rad 내려다본다
-const BOW = { down: 1.6, hold: 4, up: 1.4, angle: 0.55, startAfter: 1.2, azimuth: 0.75, elevation: 0.32 };
+// MEMORIAL_BACK − HOME.front = 2m 들어가 벽(반지름 7m × 2배 = 14m)과 12m 떨어진다.
+// 더 가까우면 고개를 숙일 때 벽에 머리를 박는 것처럼 보인다(hh 2026-10-10).
+const MEMORIAL_BACK = 11;
+// 묵념: 내려가기·머무르기·올라오기(초). 발은 그대로 두고 허리(척추 두 마디)와 목만 앞으로
+// 굽힌다(bend, rad). 카메라는 정면(뒤)에서 azimuth rad 비껴 elevation rad 내려다본다.
+const BOW = {
+  down: 1.6,
+  hold: 4,
+  up: 1.4,
+  startAfter: 1.2,
+  bend: { Spine01: 0.32, Spine02: 0.3, neck: 0.28 } as Record<string, number>,
+  azimuth: 0.75,
+  elevation: 0.32,
+};
+// 애니메이션(숨쉬기)이 매 장 뼈를 다시 잡지 않는 경우에도 굽힘이 쌓이지 않도록, 굽히기 전 자세를 기억한다
+type BowBone = { bone: THREE.Object3D; bend: number; base: THREE.Quaternion; applied: THREE.Quaternion | null };
+const bowAxis = new THREE.Vector3(1, 0, 0),
+  bowTurn = new THREE.Quaternion();
+function bowBones(root: THREE.Object3D): BowBone[] {
+  return Object.entries(BOW.bend).flatMap(([name, bend]) => {
+    const bone = root.getObjectByName(name);
+    return bone ? [{ bone, bend, base: bone.quaternion.clone(), applied: null }] : [];
+  });
+}
+function applyBow(bones: BowBone[], k: number) {
+  for (const b of bones) {
+    // 지난 장에 굽힌 그대로면(애니메이션이 덮어쓰지 않았으면) 굽히기 전 자세로 돌려 놓고 다시 굽힌다
+    if (b.applied && b.bone.quaternion.equals(b.applied)) b.bone.quaternion.copy(b.base);
+    else b.base.copy(b.bone.quaternion);
+    bowTurn.setFromAxisAngle(bowAxis, b.bend * k);
+    b.bone.quaternion.multiply(bowTurn);
+    b.applied = b.bone.quaternion.clone();
+  }
+}
 const xz = (p: [number, number]) => ({ x: p[0], z: p[1] });
 
 export type GatherMember = {
@@ -501,6 +530,7 @@ export function GatherStage({
       // 묵념: 다 서고 그림이 뜬 뒤 BOW.startAfter초에 시작해 내려가기·머무르기·올라오기
       let bowStart = -1,
         bowDone = false;
+      const bowing = new Map<string, BowBone[]>();
       const smooth = (x: number) => x * x * (3 - 2 * x);
       let last = -1,
         rate: number = GATHER.fps.active,
@@ -564,7 +594,7 @@ export function GatherStage({
           u.s.group.rotation.y = u.heading;
           u.s.animate(dt, !!u.walk, speed);
         });
-        let bowing = false;
+        let bowingNow = false;
         if (live.current.bow && shown && bowStart < 0)
           bowStart = t + BOW.startAfter * 1000;
         if (bowStart >= 0 && !bowDone) {
@@ -581,9 +611,12 @@ export function GatherStage({
                       ? 1 - smooth((e - BOW.down - BOW.hold) / BOW.up)
                       : 0;
           // 움직임 줄이기 설정이면 숙이지 않고 같은 시간만 조용히 머문다
-          for (const u of units.values())
-            u.s.group.children[0].rotation.x = reduced ? 0 : k * BOW.angle;
-          bowing = true;
+          for (const [id, u] of units) {
+            let bones = bowing.get(id);
+            if (!bones) bowing.set(id, (bones = bowBones(u.s.group.children[0])));
+            applyBow(bones, reduced ? 0 : k);
+          }
+          bowingNow = true;
           if (e >= end) {
             bowDone = true;
             live.current.onBowDone?.();
@@ -600,7 +633,7 @@ export function GatherStage({
           cur.aim.distanceToSquared(want.aim) > 1e-4 ||
           Math.abs(want.dist - cur.dist) > 0.02 ||
           Math.abs(want.el - cur.el) + Math.abs(want.az - cur.az) > 1e-3;
-        active = moving || waiting || turning || easing || bowing || t < busyUntil;
+        active = moving || waiting || turning || easing || bowingNow || t < busyUntil;
         place(camera, cur.aim, cur.az, cur.dist, cur.el);
         camera.lookAt(cur.aim);
         sky.position.copy(camera.position);
