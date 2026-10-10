@@ -68,7 +68,7 @@ test("four sessions travel gate to Yongbong, relay records privately and retain 
     await expect(classify.locator("select").first()).toBeEnabled();
     const classification = input.steps["Y-04.classify"].answer as Record<string, string>;
     for (const [key, value] of Object.entries(classification)) {
-      await classify.getByLabel(`[합성] 카드 ${key.toUpperCase()}`, { exact: true }).selectOption(value);
+      await classify.getByLabel(`카드 ${key.toUpperCase()}`, { exact: true }).selectOption(value);
     }
     await classify.getByLabel("확인 방식", { exact: true }).selectOption("official_digital");
     await classify.getByLabel("확인한 출처", { exact: false }).fill("[합성] 검토 출처");
