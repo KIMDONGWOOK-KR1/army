@@ -35,6 +35,10 @@ async function clickAction(page: Page, button: Locator, action: string) {
     throw new Error(`${action}: dispatched=${dispatched}, clicked=${clicked.status}, state=${JSON.stringify(state)}`);
   }
   expect(response.value.status() === 200, `${action} succeeded`).toBe(true);
+  if (action === "submit-step") {
+    const payload = response.value.request().postDataJSON();
+    expect("method" in payload || "source" in payload).toBe(false);
+  }
   return await response.value.json() as Reply;
 }
 
@@ -87,7 +91,7 @@ async function checkFrequencyControls(page: Page, form: Locator, answer: string)
   // Preserve the invalid raw input; the UI must never round it into an answer.
   const invalid = Number(answer).toFixed(2);
   await privateInput(() => lcd.fill(invalid));
-  await form.getByLabel("확인 방식", { exact: true }).focus();
+  await form.getByRole("button", { name: "문제 제출", exact: true }).focus();
   expect((await lcd.inputValue()) === invalid).toBe(true);
   expect(await lcd.evaluate((element) => !(element as HTMLInputElement).validity.valid)).toBe(true);
   await expect(lcd).toHaveAttribute("aria-invalid", "true");
@@ -269,7 +273,9 @@ test("four sessions complete the migrated v1 gate through v2 solve, separate rep
       await fitsPhoneWidths(page, form, role);
       const answer = input.privateInput.stages[gate.id].steps[step.id].answer;
       expect(typeof answer === "string").toBe(true);
-      await form.getByLabel("확인 방식", { exact: true }).selectOption("simulated");
+      await expect(form.getByLabel("확인 방식", { exact: true })).toHaveCount(0);
+      await expect(form.getByLabel(/^확인한 출처/)).toHaveCount(0);
+      await expect(form.getByLabel(/^연결할 자료/)).toHaveCount(0);
       if (step.type === "choice") {
         const choices = form.locator(".choices button");
         await expect(choices).toHaveCount(step.choices?.length ?? 0);
@@ -292,6 +298,8 @@ test("four sessions complete the migrated v1 gate through v2 solve, separate rep
         }), "submit-step");
       expect(solved.result?.accepted === true).toBe(true);
       expect(solved.self.step_progress[step.id]?.status === "done").toBe(true);
+      expect(solved.self.step_progress[step.id].method).toBeUndefined();
+      expect("source" in solved.self.step_progress[step.id]).toBe(false);
       expect(solved.self.reported === false && solved.self.digit === null).toBe(true);
       const report = page.getByRole("button", { name: "조사 결과 보고", exact: true });
       await expect(report).toBeEnabled();

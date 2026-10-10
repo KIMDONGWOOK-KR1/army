@@ -234,6 +234,7 @@ export type Step = {
   recordFrom?: StepRef;
   requiresReports?: Role[];
   grading: Grading;
+  // Legacy course metadata; submit-step no longer requires source input.
   sourceRequired?: boolean;
   sourceIds?: string[];
   answerCount?: number;
@@ -365,7 +366,7 @@ export type GameV2State = {
   retros?: Record<string, Partial<Record<Role, { text: string; at: number }>>>;
   sacho: Record<string, {
     completedAt: number;
-    eventOrder: { stepId: string; method: VerifyMethod; verified: boolean }[];
+    eventOrder: { stepId: string; method: VerifyMethod | null; verified: boolean }[];
     observations: {
       role: Role;
       stepId: string;
@@ -379,7 +380,7 @@ export type GameV2State = {
     sources: {
       role: Role;
       stepId: string;
-      method: VerifyMethod;
+      method: VerifyMethod | null;
       text: string;
       source_id?: string;
     }[];

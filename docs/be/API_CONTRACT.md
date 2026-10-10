@@ -2,6 +2,8 @@
 
 2026-10-10 갱신 · FE: 이환희 / BE·Infra: 김종연 / 리뷰·머지: 김동욱
 
+**2026-10-10 문제풀이 입력 간소화:** 공통 `확인 방식`·`확인한 출처`·`연결할 자료` 입력을 제거한다. `submit-step`은 `method`와 `source` 없이 제출하며, 기존 코스의 `sourceRequired:true`도 제출을 막지 않는다. 공개 문제의 호환 필드 `sourceRequired`는 `false`로 반환한다. 문제 자체의 선택지·기록 필드, 용봉관 자동 자료 전달, GPS 도착 조건은 유지한다. 아래 4절의 최신 계약이 이전 출처 필수 규칙보다 우선한다.
+
 **PR-5에서 추모의 벽 공동 확인·봉지 회고·최종 결과를 연결했다.** [PR-5 적용 안내](PR_5_APPLY.md)를 따른다.
 
 **PR-4에서 용봉관 이동·조사·자료 전달·외부 대체 모드·사초②를 추가했다.** 상세 계약은 11절, 수동 DB·Edge·코스·웹 적용은 [용봉관 적용 안내](YONGBONG_APPLY.md)를 따른다. 기존 정문 fixtures는 유지하며 용봉관의 전체 응답 예시로 사용하지 않는다.
@@ -48,13 +50,13 @@ v2 데이터의 저장 버전은 `schemaVersion: 2`, 응답 버전 표시는 `st
 | 응답 필드 | 내용 |
 |---|---|
 | `game.completion` | 현재 단계 완료 전 `null`, 완료 후 `{at, method:"field"\|"explained", label}`. label은 `조사 후 복원` 또는 `해설 확인 후 복원`. 새로고침·다른 역할 조회에도 유지 |
-| `self.journal` | 완료 전 `[]`. 완료된 단계별 `{stage_id, name, completed_at, method, sections, entries}`. entries는 본인 역할만 포함하며 `{step_id, prompt, verified, method, record?, source?, explanation, reward?}`. source는 `{text, source_id?}`. 정답 배열·해시·숫자·전달 단서는 포함하지 않음 |
+| `self.journal` | 완료 전 `[]`. 완료된 단계별 `{stage_id, name, completed_at, method, sections, entries}`. 바깥 method는 거점 완료 경로다. entries는 본인 역할만 포함하며 `{step_id, prompt, verified, method, record?, source?, explanation, reward?}`. entry.method는 미수집 시 `null`, 해설 완료 시 `explained`. source는 과거에 저장된 경우에만 `{text, source_id?}`. 정답 배열·해시·숫자·전달 단서는 포함하지 않음 |
 | `current_site.sacho`, `course.sites[].sacho`, `game.acquired_sites[].sacho` | 이름·ID에 더해 완료된 장소에만 선택형 `char`, `body` 공개 보상 제공. 개인 자유 기록과 다른 공통 본문이며 미완료 장소에는 공개하지 않음 |
 | `stage` | 현재 단계의 ID·순서·이름·종류·도착 기준·quiet·scoring·공통 나레이션·completion·출처·사초 항목 이름 |
 | `self.mission` | 본인의 `intro`, `scenes`, `steps`, `digit`(완료 숫자를 사용하는지 여부인 boolean), `asset`(있을 때). null이면 해당 역할 문제 없음 |
 | `self.transfer_clue` | **지휘관 self만**. `{kind:"relay-frequency", label, value, target_step_id}`. 전달형 개인 단서이며 자동 공유하지 않는다 |
 | `self.digit` | 기존 필드 유지. 보고 전 null, 보고 완료 후 본인의 완료 숫자. 다른 사람의 숫자는 제공하지 않는다 |
-| `self.step_progress` | PR-2: 단계 ID별 `{status, attempts, method, record}`. status는 `locked/open/done/explained` |
+| `self.step_progress` | 단계 ID별 `{status, attempts, method?, record?}`. status는 `locked/open/done/explained`. method를 수집하지 않은 직접 완료에는 method를 생략 |
 | `self.hint_level`, `self.hints` | PR-2: 역할별 0~3, 해제된 힌트 본문만. 지휘관도 타 역할의 본문을 받지 않는다 |
 | `self.explanations`, `self.rewards` | PR-2: 본인이 공개 조건을 충족한 단계의 본문만. 미공개 항목은 키 자체를 생략 |
 | `game` 신규 필드 | PR-2/3: `stage_id`, `stage_kind`, `stage_phase`, `quiet`, 역할별 `step_done_count`, `hint_level`, `arrival_mask`, `confirm_mask`, `swap` |
@@ -111,7 +113,7 @@ v2 데이터의 저장 버전은 `schemaVersion: 2`, 응답 버전 표시는 `st
 | `game.step_done_count`, `game.hint_level` | `Record<Role, number>` / 완료한 문제 수, 역할별 해제한 힌트 단계 |
 | `game.arrival_mask`, `game.confirm_mask` | boolean 4개 / 도착 여부, 단계 확인 여부. 일반 자물쇠 경로인 정문 예시에서는 확인 마스크가 모두 false |
 | `game.swap` | 호환용 비활성 필드. 실제 응답은 `{window_ends_at:null, used:false, pending:null}`. 2026-10-09 사용자 결정으로 참가자 간 역할 교환을 금지하며 pending 요청을 구현하지 않음 |
-| `self.step_progress` | 본인 step ID만 키로 사용. 필수 `status`, `attempts`; 완료 시 `method`, 자유 기록 단계만 `record`를 추가 |
+| `self.step_progress` | 본인 step ID만 키로 사용. 필수 `status`, `attempts`; 이번 mock의 직접 완료에는 `method`를 생략하고 자유 기록 단계만 `record`를 추가 |
 | `self.hints` | 해제된 본인 힌트의 문자열 배열. 아직 해제되지 않은 단계의 placeholder도 넣지 않음 |
 | `self.explanations`, `self.rewards` | 해설은 빈 객체. 보상은 완료 후 통신원에게만 `G-03.freq` 키의 합성 표시 문구를 넣고 나머지는 빈 객체. 미해제 항목의 키는 생략 |
 
@@ -166,7 +168,7 @@ const snapshot = structuredClone(signalAfterHint);
   "prompt": "합성 낱말 세 개를 입력하십시오.",
   "grading": "set-hash",
   "answerCount": 3,
-  "sourceRequired": true,
+  "sourceRequired": false,
   "sourceIds": ["S1"],
   "maxLen": 300,
   "requires": [{"role":"signal","stepId":"T-01.freq"}]
@@ -184,9 +186,7 @@ const snapshot = structuredClone(signalAfterHint);
   "game_id": "game-example",
   "stage_id": "gate",
   "step_id": "G-03.words",
-  "answer": ["가상낱말다", "가상낱말가", "가상낱말나"],
-  "source": {"text":"확인한 자료의 이름과 위치", "source_id":"S1"},
-  "method": "official_digital"
+  "answer": ["가상낱말다", "가상낱말가", "가상낱말나"]
 }
 ```
 
@@ -211,18 +211,19 @@ const snapshot = structuredClone(signalAfterHint);
 {
   "action":"submit-step", "request_id":"example-record-001",
   "game_id":"game-example", "stage_id":"gate", "step_id":"G-02.record",
-  "answer":{"shape":"관찰한 형태 메모","source":"확인한 안내 위치","memo":"관찰 메모"},
-  "source":{"text":"확인한 안내 위치"}, "method":"field"
+  "answer":{"shape":"관찰한 형태 메모","source":"확인한 안내 위치","memo":"관찰 메모"}
 }
 ```
 
 각 문자열은 NFC·양끝 공백 제거·연속 공백 1칸 정규화 후 기본 300 Unicode 문자 이하다. **기본 판정은 대소문자·내부 공백을 구분한다.** 단계에 `normalize:{caseInsensitive:true,ignoreSpaces:true}`를 지정하면 텍스트·관찰 이름의 hash, 낱말의 set-hash에만 선택적으로 적용한다. 두 옵션은 각각 생략 가능하며 기본 false다. 자유 기록·선택 번호·주파수에는 적용하지 않는다. seed와 제출 판정은 같은 함수를 쓰며, 정규화 후 같은 낱말이 중복되면 거절한다. 정규화 설정을 변경하는 코스는 새 리비전으로 등록한다.
 
-`sourceRequired:true`면 source.text와 method가 필요하다. source_id는 코스에 존재하고 해당 단계의 sourceIds 범위에 있어야 한다. record의 source 필드와 별도의 source는 각각 관찰 기록과 확인 방식 메타데이터이며 FE는 같은 사용자 입력에서 함께 채워도 된다. 같은 미완료 문제의 제출은 최소 1초 간격이며 형식 오류는 시도 횟수에 포함하지 않는다. 채점 오답은 문제 시도 횟수만 늘리고 자물쇠 시도·감점에는 영향을 주지 않는다.
+공통 `method`·`source`는 생략한다. 불변 코스에 `sourceRequired:true`가 남아 있어도 서버는 두 항목 생략을 허용하고 공개 투영에서는 `sourceRequired:false`로 반환한다. `sourceIds`는 과거 요청 검증을 위한 호환 필드이며 자료 선택 UI를 만들지 않는다. 위 `answer.source`처럼 문제 자체에 선언된 기록 필드는 그대로 제출하며 별도 `source`로 복사하지 않는다.
+
+이전 클라이언트가 `source`를 보내면 text 형식·길이와 source_id의 존재·해당 단계 sourceIds 허용 범위를 계속 검증한다. 같은 미완료 문제의 제출은 최소 1초 간격이며 형식 오류는 시도 횟수에 포함하지 않는다. 채점 오답은 문제 시도 횟수만 늘리고 자물쇠 시도·감점에는 영향을 주지 않는다.
 
 `match/map-hash`는 **1:1 연결만** 지원한다. 용봉관의 `classification/map-hash`는 필드 ID→선택 번호 객체로 보내되 여러 문장에 같은 분류를 사용할 수 있다. 이 예외가 기존 match의 중복 선택을 허용하지는 않는다. G-01의 실제 근거 선택지·정답 짝은 미확정이다. 주파수 UI는 소수점 한 자리 이하의 문자열을 보내야 하며 `12.30` 같은 두 자리 입력도 거절한다.
 
-`method`: 참가자는 `field`(현장 확인), `official_digital`(공식 디지털 자료 확인)만 선택한다. `simulated`는 dev 전용 검증, `explained`는 서버의 해설 경로, `proxy`는 D3 확정 뒤 PR-6에서만 생성한다. 클라이언트가 explained를 보내 정답 검증을 우회할 수 없다.
+이전 클라이언트가 보내는 `method`의 기존 허용 규칙은 유지한다. `field`·`official_digital`을 받을 수 있고 `simulated`는 dev 전용이다. `explained`는 서버 해설 경로이며 클라이언트가 보내 정답 검증을 우회할 수 없다. 새 UI는 이 선택값을 보내지 않는다. 누락값을 `field`나 `explained`로 채우지 않으며 `self.step_progress.method`는 생략, 기록첩 entry·전달 기록의 method는 `null`로 반환한다. 해설 완료 기록에만 `explained`를 사용한다. 거점의 `game.completion.method`와 GPS `report-arrival.method`는 문제 확인 방식과 별개이므로 기존 의미를 유지한다.
 
 성공은 갱신된 Snapshot과 아래 result를 반환한다. 채점 오답은 통신 오류가 아니라 `accepted:false`; 공개 상태에 제출 답을 넣지 않는다.
 
@@ -253,7 +254,7 @@ const snapshot = structuredClone(signalAfterHint);
 
 별도 개방 결과는 `{"opened":true,"method":"explained","label":"해설 확인 후 복원","sacho_id":"<현재 사초 ID>"}`다. 각 역할은 본인 모든 문제가 done/explained로 해설이 공개된 뒤 confirm-explanation을 호출한다. 서버는 읽음 버튼 확인 사실을 저장하며 실제 독해를 판별하지 않는다. 공개 game.confirm_mask는 commander/scout/signal/cipher 순이다. 개방에는 전원 조사·보고와 네 역할 확인이 모두 필요하다. 별도 개방은 자물쇠 시도·감점·무힌트 보너스를 추가하지 않는다. 일반 개방은 3회/오답 −10/소진 후 60초마다 1회를 그대로 적용한다.
 
-사초①은 `games_private.state.v2.sacho.gate`에 저장한다. `eventOrder`는 순서 검증 여부·확인 방식만 저장하고 정답 배열은 저장하지 않는다(사용자 확정). 정찰원의 조형물 관찰은 `observations`, 사건 기록은 `eventRecords`, 사용 자료·확인 방식은 `sources`로 분리한다. 개인 기록 본문은 game_public·타 역할 self·game_events에 포함하지 않는다. 정문 완료 후 `self.journal`은 본인 역할의 검증 결과·기록·출처·해설만 조회한다. 공통 사초 보상 본문은 별도의 공개 콘텐츠다. 추모의 벽·봉지 공동 기록과 전체 코스 최종 결과는 아래 12절의 PR-5 계약을 따른다.
+사초①은 `games_private.state.v2.sacho.gate`에 저장한다. `eventOrder`는 순서 검증 여부만 기록하고 정답 배열은 저장하지 않는다(사용자 확정). 확인 방식이 미수집이면 `eventOrder.method`는 `null`이다. 정찰원의 조형물 관찰은 `observations`, 사건 기록은 `eventRecords`, 과거에 받은 사용 자료·확인 방식은 `sources`로 분리한다. `sources[].method`도 미수집 시 `null`이며 현장 확인으로 추정하지 않는다. 개인 기록 본문은 game_public·타 역할 self·game_events에 포함하지 않는다. 정문 완료 후 `self.journal`은 본인 역할의 검증 결과·기록·기존 출처·해설만 조회한다. 공통 사초 보상 본문은 별도의 공개 콘텐츠다. 추모의 벽·봉지 공동 기록과 전체 코스 최종 결과는 아래 12절의 PR-5 계약을 따른다.
 
 ## 6. 추가 액션 계약
 
@@ -360,7 +361,7 @@ courseId는 소문자로 시작하는 ID, stepId는 `G-03.freq` 형태의 대문
 | cipher | `Y-03.sources` 1:1 연결 → `Y-03.verdict` OX → `Y-03.limits` 자료 확인 범위·한계·질문 |
 | commander | 나머지 세 역할 보고 → `Y-04.classify` 3분류 → `Y-04.evidence` 근거 연결 → `Y-04.revision` 수정 기록 |
 
-`Y-02.record`는 `title/type/created_at/provider/known` 다섯 필드가 필수이며 각 칸에 `확인 불가`를 허용한다. 고정 정답이 없고 기존처럼 출처·확인 방식·300자 상한 등 형식만 검사한다. `Y-04.revision`은 `verified/follow_up` 두 칸이 모두 필요하다. `Y-03.limits`는 `checked/missing/limit/question`을 기록하며 본인의 OX와 통신원 기록 완료가 선행 조건이다.
+`Y-02.record`는 `title/type/created_at/provider/known` 다섯 필드가 필수이며 각 칸에 `확인 불가`를 허용한다. 고정 정답이 없고 필수 기록 필드·300자 상한 등 형식만 검사한다. 별도 출처·확인 방식 입력은 필요 없다. `Y-04.revision`은 `verified/follow_up` 두 칸이 모두 필요하다. `Y-03.limits`는 `checked/missing/limit/question`을 기록하며 본인의 OX와 통신원 기록 완료가 선행 조건이다.
 
 ### 개인 기록 전달 예외
 
@@ -376,12 +377,12 @@ courseId는 소문자로 시작하는 ID, stepId는 `G-03.freq` 형태의 대문
   "status": "recorded",
   "fields": [{"id":"title","label":"자료 제목"}],
   "record": {"title":"[합성] 자료 가"},
-  "method": "official_digital",
-  "source": {"text":"[합성] 연습 자료"}
+  "method": null,
+  "source": null
 }
 ```
 
-실제 `fields/record`에는 선언된 다섯 필드가 들어간다. 통신원이 3단계 힌트로 기록 없이 완료하면 `status:"explained_without_record"`, `record:null`, `source:null`, `method:"explained"`다. 자료를 임의로 생성하지 않고 ‘기록 없음·추가 확인 필요’를 표시한다. 힌트의 대상 역할 전체 해설 처리 규칙은 유지한다. 전달 항목에는 다른 문제의 기록·숫자·정답·해시·힌트가 없다. 완료 뒤 같은 항목은 암호해독관의 해당 `self.journal[].shared_records`에만 남는다.
+실제 `fields/record`에는 선언된 다섯 필드가 들어간다. 공통 확인 방식·출처를 수집하지 않은 기록은 위처럼 `method:null`, `source:null`이며, 기록 전달 자체는 자동으로 유지한다. 과거에 제출한 유효한 확인 방식·출처는 보존한다. 통신원이 3단계 힌트로 기록 없이 완료하면 `status:"explained_without_record"`, `record:null`, `source:null`, `method:"explained"`다. 자료를 임의로 생성하지 않고 ‘기록 없음·추가 확인 필요’를 표시한다. 힌트의 대상 역할 전체 해설 처리 규칙은 유지한다. 전달 항목에는 다른 문제의 기록·숫자·정답·해시·힌트가 없다. 완료 뒤 같은 항목은 암호해독관의 해당 `self.journal[].shared_records`에만 남는다.
 
 ### 외부 대체 모드와 결과
 
@@ -439,7 +440,7 @@ courseId는 소문자로 시작하는 ID, stepId는 `G-03.freq` 형태의 대문
 - `investigation:{completed,total}`, `sacho:{completed,total}`: 전체 개발 코스는 각각 3/3. 시작 안내·봉지 회고는 조사·사초 개수에 포함하지 않는다.
 - `stages[]`: stage_id/name/summary/quiet/completion/visit_mode/arrival_method, 역할별 통계 `roles[]`, 공통 `memorial_record` 또는 null. summary는 완료 공개 사초 설명이다.
 - `roles[]`: role, completed/total, reported, hint_level, explained, records, cross_checks, methods. records는 자유 기록을 제출한 **문제 수**이며 칸 수가 아니다. cross_checks는 선행 보고 또는 recordFrom 연결이 있는 문제를 **직접 done으로 완료한 수**다. 의미의 적절성을 자동 평가한 점수가 아니다. explained는 교차 확인 건수에서 제외한다.
-- `methods`: field/official_digital/explained/simulated 등 실제 저장된 방식의 중복 없는 목록. `arrival_method`는 gps 또는 simulated. `visit_mode`는 onsite/outdoor다.
+- `methods`: field/official_digital/explained/simulated 등 실제 저장된 방식의 중복 없는 목록. 미수집 확인 방식은 목록에서 제외하며 다른 값으로 추정하지 않는다. 새 UI의 직접 완료만 있다면 빈 배열일 수 있다. `arrival_method`는 gps 또는 simulated. `visit_mode`는 onsite/outdoor다.
 - `joint_records[]`: stage_id와 최종 draft_version/words/text/reason/confirm_mask, retro_mask. 개인 본문은 없으며 본인의 회고만 self.retro에서 조회한다.
 - `supplementary_score`: 기존 잠금 단계 점수. `time_score:null`, `ranking:null`은 미구현 표시로 0점·순위 없음이라는 확정 정책을 뜻하지 않는다. D8/D9 확정 후 별도 추가한다.
 

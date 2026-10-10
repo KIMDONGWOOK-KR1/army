@@ -196,7 +196,7 @@
           "type": "spot-correct",
           "prompt": "[합성] 검토할 표현 세 곳을 선택하는 화면입니다.",
           "grading": "set-hash",
-          "sourceRequired": true,
+          "sourceRequired": false,
           "sourceIds": [
             "MOCK-S1"
           ],
@@ -216,7 +216,7 @@
           "type": "record-form",
           "prompt": "[합성] 수정 내용을 기록하십시오.",
           "grading": "record",
-          "sourceRequired": true,
+          "sourceRequired": false,
           "sourceIds": [
             "MOCK-S1"
           ],

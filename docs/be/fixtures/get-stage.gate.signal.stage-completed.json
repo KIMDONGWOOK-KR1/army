@@ -221,7 +221,7 @@
           "type": "frequency",
           "prompt": "[합성] 전달받은 값을 입력하는 화면입니다. 이 예시에는 목표값이 없습니다.",
           "grading": "hash",
-          "sourceRequired": true,
+          "sourceRequired": false,
           "sourceIds": [
             "MOCK-S1"
           ],
@@ -233,7 +233,7 @@
           "type": "words",
           "prompt": "[합성] 낱말 입력란 세 개를 표시하십시오. 이 예시에는 낱말 정답이 없습니다.",
           "grading": "set-hash",
-          "sourceRequired": true,
+          "sourceRequired": false,
           "sourceIds": [
             "MOCK-S1"
           ],
@@ -251,13 +251,11 @@
     "step_progress": {
       "G-03.freq": {
         "status": "done",
-        "attempts": 1,
-        "method": "simulated"
+        "attempts": 1
       },
       "G-03.words": {
         "status": "done",
-        "attempts": 1,
-        "method": "simulated"
+        "attempts": 1
       }
     },
     "hint_level": 1,
@@ -283,14 +281,14 @@
             "step_id": "G-03.freq",
             "prompt": "[합성] 전달받은 값을 입력하는 화면입니다. 이 예시에는 목표값이 없습니다.",
             "verified": true,
-            "method": "field",
+            "method": null,
             "explanation": "[합성] 이 역할의 조사 절차를 확인했습니다."
           },
           {
             "step_id": "G-03.words",
             "prompt": "[합성] 낱말 입력란 세 개를 표시하십시오. 이 예시에는 낱말 정답이 없습니다.",
             "verified": true,
-            "method": "field",
+            "method": null,
             "explanation": "[합성] 이 역할의 조사 절차를 확인했습니다."
           }
         ]

@@ -221,7 +221,7 @@
           "type": "observation",
           "prompt": "[합성] 관찰 대상의 이름 입력 화면입니다.",
           "grading": "hash",
-          "sourceRequired": true,
+          "sourceRequired": false,
           "sourceIds": [
             "MOCK-S1"
           ],
@@ -233,7 +233,7 @@
           "type": "record-form",
           "prompt": "[합성] 관찰 기록을 입력하십시오.",
           "grading": "record",
-          "sourceRequired": true,
+          "sourceRequired": false,
           "sourceIds": [
             "MOCK-S1"
           ],
@@ -270,13 +270,11 @@
     "step_progress": {
       "G-02.name": {
         "status": "done",
-        "attempts": 1,
-        "method": "simulated"
+        "attempts": 1
       },
       "G-02.record": {
         "status": "done",
         "attempts": 1,
-        "method": "simulated",
         "record": {
           "shape": "[합성] shape 입력 내용 표시 영역입니다.",
           "source": "[합성] source 입력 내용 표시 영역입니다.",
@@ -303,14 +301,14 @@
             "step_id": "G-02.name",
             "prompt": "[합성] 관찰 대상의 이름 입력 화면입니다.",
             "verified": true,
-            "method": "field",
+            "method": null,
             "explanation": "[합성] 이 역할의 조사 절차를 확인했습니다."
           },
           {
             "step_id": "G-02.record",
             "prompt": "[합성] 관찰 기록을 입력하십시오.",
             "verified": true,
-            "method": "field",
+            "method": null,
             "explanation": "[합성] 이 역할의 조사 절차를 확인했습니다."
           }
         ]

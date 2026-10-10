@@ -2,6 +2,8 @@
 
 2026-10-10 통합 브랜치 갱신 · FE 이환희 / BE·Infra 김종연 / 리뷰·머지 김동욱
 
+**2026-10-10 최신 입력 정책:** 문제풀이의 공통 `확인 방식`·`확인한 출처`·`연결할 자료` 입력을 제거한다. 새 FE는 `submit-step`에 공통 `method`·`source`를 보내지 않는다. 문제 본문에 선언된 선택지·기록 필드와 용봉관 통신원→암호해독관 자동 자료 전달은 그대로 사용한다. 기존 코스도 새 Edge에서 동작하며 Edge → 웹 순서로 재배포한다. 이 수정만을 위한 DB 변경·코스 재등록·비밀값 변경은 없다. [최신 API 계약](../be/API_CONTRACT.md#4-submit-step--pr-2)과 [적용 안내의 후속 수정](../be/PR_5_APPLY.md#후속-수정-문제풀이-공통-확인-옵션-제거)을 따른다.
+
 **`feat/stage-yongbong`에서는 `/`와 `/verify` 모두 정문→용봉관 v2를 지원한다.** 메인 화면은 서버 응답에 따라 v1/v2를 구분한다. 기존 [UI 통합 안내](UI_INTEGRATION.md)에 더해 [용봉관 계약](../be/API_CONTRACT.md#11-pr-4-용봉관)과 [적용 안내](../be/YONGBONG_APPLY.md)를 확인한다. 아래 정문 계약과 12개 mock은 계속 사용한다. 새 DB·Edge·합성 코스와 웹의 dev 적용을 맞춘 뒤 새 방을 만든다. 이 문서는 배포 완료를 의미하지 않는다.
 
 **2026-10-10 PR-5 추가:** `feat/stage-wall-bongji`는 병합된 PR #12 다음 작업이다. `/`·`/verify`에 추모의 벽 공동 확인, 봉지 개인 회고·팀 동의, 전체 결과를 연결했다. 사용자 확인으로 용봉관 배포·개발 코스 연결은 완료했다. PR-5는 별도 적용이 필요하며 [API 12절](../be/API_CONTRACT.md#12-pr-5-추모의-벽봉지결과--구현-계약)과 [수동 적용 안내](../be/PR_5_APPLY.md)가 최신 기준이다.
@@ -100,6 +102,7 @@ type V2ActionResponse = SnapshotV2 & { result?: Record<string, unknown> };
 - confirm-explanation은 본인의 모든 문제가 done/explained일 때 허용한다. 별도 개방에는 전원 조사·보고·읽음 확인이 모두 필요하다. 일반 자물쇠의 3회/오답 −10/소진 후 60초 규칙은 그대로다.
 - 주파수는 소수점 한 자리 이하의 **문자열**이다. 두 자리 소수를 반올림해 보내지 않는다. 선택 번호도 `"1"`부터 시작하는 문자열이며 truefalse는 JSON boolean 대신 `"true"`/`"false"` 문자열 배열이다.
 - 정규화는 서버 step.normalize 옵션을 따른다. 기본은 대소문자·내부 공백을 구분한다. FE가 자유 기록이나 선택 번호·주파수에 텍스트 정규화를 일괄 적용하지 않는다.
+- 공통 확인 입력은 렌더링하지 않는다. 호환 필드 `sourceRequired:false`·`sourceIds`로 자료 선택 UI를 만들지 않는다. 직접 완료의 `step_progress.method`는 생략 가능하고 기록첩 entry·전달 기록의 method는 미수집 시 null이다. 이를 현장 확인이나 해설 완료로 표시하지 않는다. 결과 methods의 빈 배열도 허용한다. 거점 완료 경로·GPS 도착 method는 별개다.
 - match/map-hash는 1:1 연결이다. classification/map-hash는 같은 분류를 여러 필드에서 선택할 수 있다. 실제 G-01 근거 선택지·짝은 미확정이며 빈 choices를 임의로 채우지 않는다. 합성 테스트용 근거는 실제 콘텐츠가 아니다.
 - 용봉관 self.shared_records는 통신원 자료를 암호해독관에게만 전달하는 예외다. record:null과 explained_without_record는 자료 부재를 뜻한다. 임의 자료로 채우거나 팀 공통 화면에 복사하지 않는다.
 - game.visit·game.completion.visit·self.journal의 visit 표시를 유지한다. outdoor는 반드시 실내 관람이 아님을 알린다. 전원 도착 후 완료 전 지휘관이 선택하며 되돌리기·기록 초기화 기능은 없다.
@@ -113,6 +116,8 @@ type V2ActionResponse = SnapshotV2 & { result?: Record<string, unknown> };
 - before-hint: 전원 도착, 진행/보고 없음. 지휘관 문제는 다른 세 역할 보고를 기다린다.
 - after-hint: 통신원 힌트 1단계만 해제. 다른 역할 self.hints는 비어 있다.
 - stage-completed: 일반 자물쇠를 연 직후이며 전체 게임 종료가 아니다.
+
+12개 mock에도 최신 정책을 반영했다. 모든 문제의 `sourceRequired`는 false이며 직접 완료의 `step_progress.method`는 생략, 기록첩 entry.method는 null이다. 문제 자체의 기록 필드와 거점 완료 경로는 유지한다.
 
 **완료 예시도 self.digit와 self.lock.digits는 null로 가렸다.** 이는 실제 보고 후 숫자가 null이라는 뜻이 아니다. 전달형 단서 value도 표시용 placeholder다. 이 파일을 정답 데이터·seed·실제 완주 입력으로 쓰지 않는다. 숫자 복원·해설 개방·다단계 제출은 합성 서버 API 시험으로 별도 확인한다.
 

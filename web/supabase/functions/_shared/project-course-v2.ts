@@ -58,7 +58,8 @@ function mission(m: RoleMission | null) {
       ...(s.requiresReports ? { requiresReports: [...s.requiresReports] } : {}),
       ...(s.recordFrom ? { recordFrom: { ...s.recordFrom } } : {}),
       ...(s.sourceIds ? { sourceIds: [...s.sourceIds] } : {}),
-      sourceRequired: s.sourceRequired ?? false,
+      // Keep the response key for older clients without requiring removed inputs.
+      sourceRequired: false,
       maxLen: s.maxLen ?? 300,
       ...(s.normalize
         ? {

@@ -196,7 +196,7 @@
           "type": "observation",
           "prompt": "[합성] 관찰 대상의 이름 입력 화면입니다.",
           "grading": "hash",
-          "sourceRequired": true,
+          "sourceRequired": false,
           "sourceIds": [
             "MOCK-S1"
           ],
@@ -208,7 +208,7 @@
           "type": "record-form",
           "prompt": "[합성] 관찰 기록을 입력하십시오.",
           "grading": "record",
-          "sourceRequired": true,
+          "sourceRequired": false,
           "sourceIds": [
             "MOCK-S1"
           ],

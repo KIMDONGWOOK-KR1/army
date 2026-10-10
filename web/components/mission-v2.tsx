@@ -41,21 +41,13 @@ function StepCard(
     isLegacyMissionStep(snapshot.stage.id, snapshot.self.role, step);
   const [answer, setAnswer] = useState<StepAnswer>(() =>
     legacyInput && step.type === "frequency" ? "50.0" : emptyStepAnswer(step));
-  const [method, setMethod] = useState<
-    "" | "field" | "official_digital" | "simulated"
-  >("");
-  const [sourceText, setSourceText] = useState("");
-  const [sourceId, setSourceId] = useState("");
   const [feedback, setFeedback] = useState("");
   const progress = snapshot.self.step_progress[step.id];
   const done = progress?.status === "done" || progress?.status === "explained";
   const disabled = busy || progress?.status !== "open";
-  const sources = snapshot.stage.sources.filter((source) =>
-    !step.sourceIds || step.sourceIds.includes(source.id)
-  );
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    if (!method || disabled) return;
+    if (disabled) return;
     if (legacyInput && step.type === "choice" &&
       (typeof answer !== "string" || !/^[1-9]\d*$/.test(answer))) {
       setFeedback("답안을 하나 선택하라.");
@@ -67,15 +59,6 @@ function StepCard(
       stage_id: snapshot.stage.id,
       step_id: step.id,
       answer,
-      method,
-      ...(sourceText.trim()
-        ? {
-          source: {
-            text: sourceText,
-            ...(sourceId ? { source_id: sourceId } : {}),
-          },
-        }
-        : {}),
     });
     if (!next || !isV2Response(next)) return;
     if (next.result?.accepted === false) {
@@ -84,8 +67,6 @@ function StepCard(
       );
     } else {
       setAnswer(emptyStepAnswer(step));
-      setSourceText("");
-      setSourceId("");
       setFeedback("조사를 기록했다.");
     }
   };
@@ -121,48 +102,6 @@ function StepCard(
                 value={typeof answer === "string" ? answer : ""}
                 onChange={setAnswer} disabled={disabled} />
             : <VerifyInput step={step} value={answer} onChange={setAnswer} />}
-          <label className="verify-field">
-            <span>확인 방식</span>
-            <select
-              aria-label="확인 방식"
-              required
-              value={method}
-              onChange={(e) => setMethod(e.target.value as typeof method)}
-            >
-              <option value="">선택</option>
-              <option value="field">현장 확인</option>
-              <option value="official_digital">공식 디지털 자료 확인</option>
-              {snapshot.course.demo && (
-                <option value="simulated">합성 자료로 모의 확인</option>
-              )}
-            </select>
-          </label>
-          <label className="verify-field">
-            <span>
-              확인한 출처{step.sourceRequired ? " (필수)" : " (선택)"}
-            </span>
-            <input
-              required={step.sourceRequired || !!sourceId}
-              maxLength={300}
-              value={sourceText}
-              onChange={(e) => setSourceText(e.target.value)}
-            />
-          </label>
-          {!!sources.length && (
-            <label className="verify-field">
-              <span>연결할 자료 (선택)</span>
-              <select
-                aria-label="연결할 자료 (선택)"
-                value={sourceId}
-                onChange={(e) => setSourceId(e.target.value)}
-              >
-                <option value="">직접 확인한 출처</option>
-                {sources.map((s) => (
-                  <option key={s.id} value={s.id}>{s.title}</option>
-                ))}
-              </select>
-            </label>
-          )}
           <button className="button primary full" type="submit"
             disabled={legacyInput && step.type === "choice" && !answer}>
             문제 제출 <Check size={17} />

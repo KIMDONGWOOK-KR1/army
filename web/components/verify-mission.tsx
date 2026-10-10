@@ -30,36 +30,19 @@ function StepCard({ step, snapshot, busy, send }: {
   send: Send;
 }) {
   const [answer, setAnswer] = useState<StepAnswer>(() => emptyStepAnswer(step));
-  const [method, setMethod] = useState<
-    "" | "field" | "official_digital" | "simulated"
-  >("");
-  const [sourceText, setSourceText] = useState("");
-  const [sourceId, setSourceId] = useState("");
   const [feedback, setFeedback] = useState("");
   const progress = snapshot.self.step_progress[step.id];
   const complete = progress?.status === "done" ||
     progress?.status === "explained";
-  const sources = snapshot.stage.sources.filter((source) =>
-    !step.sourceIds || step.sourceIds.includes(source.id)
-  );
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    if (!method) return;
+    if (busy || progress?.status !== "open") return;
     setFeedback("");
     const next = await send({
       action: "submit-step",
       stage_id: snapshot.stage.id,
       step_id: step.id,
       answer,
-      method,
-      ...(sourceText.trim()
-        ? {
-          source: {
-            text: sourceText,
-            ...(sourceId ? { source_id: sourceId } : {}),
-          },
-        }
-        : {}),
     });
     if (!next) return;
     if (next.result?.accepted === false) {
@@ -68,8 +51,6 @@ function StepCard({ step, snapshot, busy, send }: {
       );
     } else {
       setAnswer(emptyStepAnswer(step));
-      setSourceText("");
-      setSourceId("");
       setFeedback("문제를 확인했습니다.");
     }
   };
@@ -101,51 +82,6 @@ function StepCard({ step, snapshot, busy, send }: {
         >
           <legend>문제 입력</legend>
           <VerifyInput step={step} value={answer} onChange={setAnswer} />
-          <label className="verify-field">
-            <span>확인 방식</span>
-            <select
-              aria-label="확인 방식"
-              required
-              value={method}
-              onChange={(event) =>
-                setMethod(event.target.value as typeof method)}
-            >
-              <option value="">선택</option>
-              <option value="field">현장 확인</option>
-              <option value="official_digital">공식 디지털 자료 확인</option>
-              {snapshot.course.demo && (
-                <option value="simulated">합성 자료로 모의 확인</option>
-              )}
-            </select>
-          </label>
-          <label className="verify-field">
-            <span>
-              확인한 출처{step.sourceRequired ? " (필수)" : " (선택)"}
-            </span>
-            <input
-              required={step.sourceRequired || !!sourceId}
-              maxLength={300}
-              value={sourceText}
-              onChange={(event) => setSourceText(event.target.value)}
-            />
-          </label>
-          {!!sources.length && (
-            <label className="verify-field">
-              <span>연결할 자료 (선택)</span>
-              <select
-                aria-label="연결할 자료 (선택)"
-                value={sourceId}
-                onChange={(event) => setSourceId(event.target.value)}
-              >
-                <option value="">직접 확인한 출처</option>
-                {sources.map((source) => (
-                  <option key={source.id} value={source.id}>
-                    {source.title}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
           <button className="button dark full" type="submit">문제 제출</button>
         </fieldset>
       )}
