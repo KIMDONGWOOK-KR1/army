@@ -3,8 +3,14 @@
 // 거점 제목 옆에는 '연습 문항' 표시를 하나만 단다(isPracticeStage).
 const MARK = /^\s*\[합성\]\s*/;
 
-export const plain = (text: string | null | undefined): string =>
-  (text ?? "").replace(MARK, "");
+// 연습용 글에 섞인 보직 영문 이름(commander 등)도 화면에서는 한글로 보인다
+const ROLE_KO: Record<string, string> = { commander: "지휘관", scout: "정찰원", signal: "통신원", cipher: "암호해독관" };
+
+export const plain = (text: string | null | undefined): string => {
+  const t = text ?? "";
+  if (!MARK.test(t)) return t;
+  return t.replace(MARK, "").replace(/\b(commander|scout|signal|cipher)\b/g, (r) => ROLE_KO[r]);
+};
 
 /** 지금 거점(공개된 단계·내 미션)에 연습용 글이 하나라도 있는가 */
 export const isPracticeStage = (value: unknown): boolean =>
