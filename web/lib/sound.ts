@@ -40,6 +40,7 @@ import {
 } from "./sound-synth";
 import {
   FIRST,
+  MEMORIAL_SOUND,
   createFileDeck,
   fetchTrack,
   type FileDeck,
@@ -424,7 +425,7 @@ export function setMemorialState({ wall, bowing }: { wall: boolean; bowing: bool
   const start = bowing && !state.bowing;
   state.bowing = bowing;
   state.files?.calm(bowing);
-  if (start) playCue("06");
+  if (start && MEMORIAL_SOUND) playCue("06");
 }
 // 음원 배경음의 크기(나레이션 아래에서만 낮춘다. 파일은 장소마다 목표 음량으로 만들어져 있다)
 export function setFileLevel(level: number) {

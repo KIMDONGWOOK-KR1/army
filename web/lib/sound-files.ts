@@ -40,6 +40,11 @@ export const NEXT: Record<Track, Track[]> = {
   "08": ["09"],
   "09": [],
 };
+// hh 2026-10-11: 미션 곡(04)이 문제 풀 때 거슬린다 → 크기를 줄인다. 바람·침묵(05·06)이 별로다 →
+// 정문·추모 구역·추모의 벽·묵념은 음악 없이 조용히(팀 결정 DECISIONS.md의 '추모 단계 무음'과도 같다).
+// 다시 켜려면 MEMORIAL_SOUND = true, 크기는 TRACK_GAIN에서.
+export const MEMORIAL_SOUND = false;
+export const TRACK_GAIN: Partial<Record<LoopTrack, number>> = { "04": 0.35 };
 export const FADE_OUT = 0.6;
 export const FADE_IN = 1.5;
 // 단발 곡이 나는 동안 배경음을 이만큼 낮춘다
@@ -56,21 +61,22 @@ export type SceneSound = {
   // 최종 결과 화면인가(09만 한 번 울리고 다른 곡을 붙이지 않는다)
   final?: boolean;
 };
+const memorial = (): LoopTrack | null => (MEMORIAL_SOUND ? "05" : null);
 // 장면 → 반복 곡(순수 함수, 시험 대상). null이면 반복 곡 없이 조용히.
 export function trackForScene({ scene, reverent = false, hushed = false, epilogue = false, final = false }: SceneSound): LoopTrack | null {
   if (final) return null;
   switch (scene) {
     case "travel":
-      return hushed ? "05" : "03";
+      return hushed ? memorial() : "03";
     case "memorial":
-      return "05";
+      return memorial();
     case "mission":
     case "report":
     case "waiting":
     case "lock":
     case "sacho":
     case "done":
-      return epilogue ? "08" : reverent ? "05" : "04";
+      return epilogue ? "08" : reverent ? memorial() : "04";
     default:
       // 첫 화면·입장·대기실·보직·장비
       return "01";
@@ -174,10 +180,11 @@ export function createFileDeck(
     return p;
   };
   // 지금 곡과 다음 단계 곡만 디코딩해 두고 나머지는 버린다(단발 곡 02·07은 작아서 남긴다)
+  const next = (track: Track) => NEXT[track].filter((t) => MEMORIAL_SOUND || (t !== "05" && t !== "06"));
   const keepOnly = (track: Track) => {
-    const keep = new Set<Track>([track, ...NEXT[track], "02", "07"]);
+    const keep = new Set<Track>([track, ...next(track), "02", "07"]);
     for (const t of [...buffers.keys()]) if (!keep.has(t)) buffers.delete(t);
-    for (const t of NEXT[track]) void load(t);
+    for (const t of next(track)) void load(t);
   };
   const filterFreq = () => (calmOn ? 650 : 20000);
 
@@ -202,7 +209,7 @@ export function createFileDeck(
     filter.frequency.value = track === "05" ? filterFreq() : 20000;
     const gain = ctx.createGain();
     gain.gain.setValueAtTime(0, at);
-    gain.gain.linearRampToValueAtTime(track === "05" && calmOn ? 0.7 : 1, at + FADE_IN);
+    gain.gain.linearRampToValueAtTime((track === "05" && calmOn ? 0.7 : 1) * (TRACK_GAIN[track] ?? 1), at + FADE_IN);
     src.connect(filter).connect(gain).connect(duck);
     src.start(at, 0);
     playing = { track, src, gain, filter };
@@ -253,7 +260,7 @@ export function createFileDeck(
           d.setTargetAtTime(CUE_DUCK, at, 0.08);
           d.setTargetAtTime(1, at + Math.min(TRACKS[track].seconds, 6), 0.5);
         }
-        for (const t of NEXT[track]) void load(t);
+        for (const t of next(track)) void load(t);
         return true;
       } catch {
         return false;

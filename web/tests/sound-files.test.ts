@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { NEXT, TRACKS, fileFor, isWebKitAudio, loopEndFor, trackForScene } from "../lib/sound-files";
+import { MEMORIAL_SOUND, NEXT, TRACKS, fileFor, isWebKitAudio, loopEndFor, trackForScene } from "../lib/sound-files";
 
 describe("음원 표", () => {
   it("public/sound/manifest.json과 같다", () => {
@@ -43,15 +43,15 @@ describe("장면별 곡", () => {
   });
   it("이동은 03, 추모 구역으로 다가가는 길은 05", () => {
     expect(trackForScene({ scene: "travel" })).toBe("03");
-    expect(trackForScene({ scene: "travel", hushed: true })).toBe("05");
+    expect(trackForScene({ scene: "travel", hushed: true })).toBe(MEMORIAL_SOUND ? "05" : null);
   });
   it("용봉관 미션·자물쇠는 04, 정문 도착 뒤·추모의 벽·묵념은 05, 봉지는 08", () => {
     for (const scene of ["mission", "report", "waiting", "lock"]) {
       expect(trackForScene({ scene })).toBe("04");
-      expect(trackForScene({ scene, reverent: true })).toBe("05");
+      expect(trackForScene({ scene, reverent: true })).toBe(MEMORIAL_SOUND ? "05" : null);
       expect(trackForScene({ scene, epilogue: true })).toBe("08");
     }
-    expect(trackForScene({ scene: "memorial" })).toBe("05");
+    expect(trackForScene({ scene: "memorial" })).toBe(MEMORIAL_SOUND ? "05" : null);
   });
   it("최종 결과에는 반복 곡이 없다(09만 한 번)", () => {
     expect(trackForScene({ scene: "done", final: true })).toBeNull();
