@@ -4255,3 +4255,21 @@ html[data-mockup] .game-viewport {
     min-height: 48px;
   }
 }
+.hud-top .hud-speech-live {
+  position: static;
+  transform: none;
+  flex: 1 0 100%;
+  width: auto;
+  display: flex;
+  justify-content: center;
+  margin-top: 6px;
+}
+.hud-top .hud-speech {
+  width: min(304px, 100%);
+}
+/* 키가 작은 폰: 잠깐 뜨는 이동 말풍선은 거점 이름과 같은 내용이라 띄우지 않는다(아래 단추와 겹치지 않게) */
+@media (max-height: 640px) {
+  .hud-top .hud-speech-live {
+    display: none;
+  }
+}
