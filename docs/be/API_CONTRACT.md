@@ -1,18 +1,24 @@
 # BE v2 API 계약 — 정문·용봉관·추모의 벽·봉지
 
-2026-10-10 갱신 · FE: 이환희 / BE·Infra: 김종연 / 리뷰·머지: 김동욱
+2026-10-11 갱신 · FE: 이환희 / BE·Infra: 김종연 / 리뷰·머지: 김동욱
 
-**2026-10-10 문제풀이 입력 간소화:** 공통 `확인 방식`·`확인한 출처`·`연결할 자료` 입력을 제거한다. `submit-step`은 `method`와 `source` 없이 제출하며, 기존 코스의 `sourceRequired:true`도 제출을 막지 않는다. 공개 문제의 호환 필드 `sourceRequired`는 `false`로 반환한다. 문제 자체의 선택지·기록 필드, 용봉관 자동 자료 전달, GPS 도착 조건은 유지한다. 아래 4절의 최신 계약이 이전 출처 필수 규칙보다 우선한다.
+**이 문서는 현재 작업 브랜치의 서버 구현 계약이다.** 기준은 [v2 엔진](../../web/supabase/functions/_shared/engine-v2.ts)과 [응답 투영](../../web/supabase/functions/_shared/project-course-v2.ts)이다. 로컬 `/api/game`과 Supabase Edge `game`이 같은 엔진을 사용한다. 문서 갱신은 GitHub 병합·클라우드 배포 완료를 뜻하지 않으며 실제 접속 환경은 배포한 코드와 방에 연결된 코스 리비전을 따른다.
 
-**PR-5에서 추모의 벽 공동 확인·봉지 회고·최종 결과를 연결했다.** [PR-5 적용 안내](PR_5_APPLY.md)를 따른다.
+| 범위 | 현재 구현 |
+|---|---|
+| 공통 | 4인 로비·역할 배정·전원 준비·도착·역할별 조회·멱등 요청·재접속 복원. 참가자 간 역할 교환 금지 |
+| 정문 | 역할별 문제·힌트·보고·자물쇠·별도 해설 개방·사초① |
+| 용봉관 | 조사·통신원 자료의 암호해독관 전달·외부 대체 모드·사초②. 상세 11절 |
+| 추모의 벽 | 개인 조사·보고·추모 전용 공동 기록·전원 확인. 상세 12절 |
+| 봉지·결과 | 개인 회고·공동 기록·전원 동의·최종 결과. 시간 점수·랭킹은 구현하지 않음. 상세 12절 |
 
-**PR-4에서 용봉관 이동·조사·자료 전달·외부 대체 모드·사초②를 추가했다.** 상세 계약은 11절, 수동 DB·Edge·코스·웹 적용은 [용봉관 적용 안내](YONGBONG_APPLY.md)를 따른다. 기존 정문 fixtures는 유지하며 용봉관의 전체 응답 예시로 사용하지 않는다.
+**공통 문제풀이 입력은 간소화된 상태다.** `확인 방식`·`확인한 출처`·`연결할 자료` 입력을 만들지 않는다. `submit-step`은 `method`와 `source` 없이 제출하며, 기존 코스의 `sourceRequired:true`도 제출을 막지 않는다. 공개 문제의 호환 필드 `sourceRequired`는 `false`다. 문제 자체의 선택지·기록 필드는 유지한다. 예를 들어 정문 `G-01.evidence`의 `answer.reason`은 문항의 답안이며 제거한 공통 입력과 별개다. 요청 형식은 4절을 따른다.
 
-화면 개발 시작 순서·기존 v1 화면의 전환 지점·연결 준비는 [FE 인수인계 README](../fe/README.md)를 먼저 참고한다. 요청·응답 세부 형식은 이 문서가 기준이다.
+**FE는 현재 방의 `get-stage` 응답으로 문항을 구성한다.** `self.mission.steps`의 `type`, `grading`, `choices`, `statements`, `fields`, `requires`, `requiresReports`와 `self.step_progress`를 따른다. 기존 합성 fixtures의 문항 종류·개수·문구를 정식 코스에 고정하지 않는다. 응답의 문제·나레이션은 코스 콘텐츠이고, 이 문서와 예제는 API 형식을 설명한다. 실제 시나리오 문구·정답은 문서와 공개 mock에 넣지 않는다.
 
-정식 디자인 전 합성 코스로 요청 흐름을 확인하는 `/verify` UI와 실행 방법은 [정문 확인용 UI 안내](../fe/VERIFY_UI.md)를 참고한다. 이 화면은 실제 API를 호출하며 아래 mock·서버 계약을 변경하지 않는다.
+화면 연결 절차는 [FE 인수인계 README](../fe/README.md), 실제 API 확인용 `/verify`는 [확인용 UI 안내](../fe/VERIFY_UI.md)를 참고한다. 시나리오의 장면 순서와 연출은 별도로 확인하며 이 문서의 필드만으로 검정 화면 수·분량·레이아웃이 결정되지는 않는다. 현재 나레이션 표시 동작은 2절에 구분해 적었다.
 
-**PR-2는 정문 서버 액션을 구현한다.** 로컬 `/api/game`과 Supabase Edge `game`이 같은 v2 엔진을 사용하며, 배포·DB 적용은 사용자가 별도로 수행한다. 실제 배포 완료를 의미하지 않는다. 2026-10-09 GPS 필수 도착을 추가했고 역할 교환은 사용자 결정으로 금지한다. PR-5의 추모·봉지·최종 결과는 12절의 구현 계약을 따른다. 시간 점수·랭킹은 별도 확정 후 추가한다. 기존 v1 `Snapshot`, 엔진, 데모는 유지한다. 예제의 주파수·숫자·문제·본문은 합성이며 실제 시나리오 값이 아니다.
+적용 이력·수동 절차는 [정문](PR_2_APPLY.md), [용봉관](YONGBONG_APPLY.md), [추모·봉지](PR_5_APPLY.md), [정식 콘텐츠](OFFICIAL_CONTENT_APPLY.md) 안내로 구분한다. 기존 v1 `Snapshot`, 엔진, 데모는 유지한다.
 
 ### 2026-10-09 GPS 도착 계약
 
@@ -75,11 +81,17 @@ v2 데이터의 저장 버전은 `schemaVersion: 2`, 응답 버전 표시는 `st
 | reports-ready | 전원 보고 완료 |
 | stage-complete | 자물쇠 등 해당 단계 완료 조건 충족 |
 
+위 표는 콘텐츠의 표시 조건을 표현하는 필드다. 서버는 문구와 조건을 제공하고 FE가 현재 상태와 대조하여 표시한다. 현재 일반 v2 화면의 구현은 다음과 같다([메인 화면](../../web/components/game-app.tsx), [개인 미션](../../web/components/mission-v2.tsx), [나레이션 화면](../../web/components/narration.tsx)).
+
+- 공통 검정 화면은 `stage.narration`에서 보직 화면의 `role-reveal`, 장비 화면의 `ready`, 조사·보고·자물쇠·대기 화면의 `enter`, 사초 화면의 `stage-complete`를 선택한다. 같은 시점의 문구를 줄바꿈하여 한 화면에 표시한다. 화면 탭은 전체 문구 표시, 계속/건너뛰기는 닫기이며 문단별 페이지 넘김은 없다. `channel`별 화면 분기는 현재 이 경로에 없다.
+- 개인 미션은 `self.mission.intro`의 `enter`와 `self.mission.scenes`의 진입·본인 완료·전원 보고·거점 완료·정찰원 보고 조건에 맞는 문구를 미션 카드에 표시한다. `retry`는 타입에 정의돼 있지만 이 두 화면 경로에서 별도 장면으로 표시하지 않는다. 공통 `reports-ready`도 검정 화면에 자동 추가되지 않는다.
+- `legacy-sacho-gate`를 사용하는 개발용 정문은 기존 `web/lib/narration.ts`의 연출을 사용하는 예외다. 이 동작을 모든 v2 코스의 정문에 적용하지 않는다. 새 FE는 서버의 역할별 공개 범위·선행 조건을 지키면서 장면과 문단 표시 방식을 구성한다.
+
 `requires`는 같은 거점의 `{role,stepId}` 참조다. `requiresReports`는 지정 역할의 **보고 완료** 조건이며 `requires`와 AND로 적용한다. 배열 배치 자체는 선행 조건이 아니므로 실제 조건을 명시한다. 지휘관 첫 판정은 나머지 세 역할의 보고 뒤 열린다. 통신원 단어 단계는 본인 주파수 단계 뒤 열리며 정찰원 보고를 선행 조건으로 삼지 않는다. 정찰원 보고는 해당 나레이션만 제어한다.
 
 위 단계 구성은 기본 정문 시나리오 기준이다. 별도 dev용 [`v1-gate` preset](LEGACY_GATE_DEV.md)은 기존 v1처럼 역할별 한 문제를 병렬로 풀며 지휘관 문제에 `requiresReports`를 두지 않는다. FE는 문제 ID·개수·선행 조건을 고정하지 않고 응답의 `mission.steps`와 진행 상태를 따른다. 자물쇠의 전원 보고 조건은 동일하다.
 
-## 3. get-stage — PR-2
+## 3. get-stage
 
 읽기 액션이므로 request_id는 필요 없다. 현재 진행 중인 단계와 본인 역할만 조회 가능하다. 먼저 기존 get-game으로 stage_id를 얻는다.
 
@@ -89,7 +101,7 @@ v2 데이터의 저장 버전은 `schemaVersion: 2`, 응답 버전 표시는 `st
 
 ### 3.1 FE용 전체 Snapshot mock
 
-아래 12개 JSON은 **서버 구현 전의 응답 계약 초안**이며, FE가 `get-stage` 응답을 대체하는 mock으로 사용할 수 있다. 실제 API에서 수집한 응답이나 실행 가능한 코스 seed가 아니다. 각 파일 자체가 하나의 전체 Snapshot 객체다. 공통 파일 병합이나 별도 `snapshot` wrapper 없이 JSON을 그대로 응답 본문으로 사용한다.
+아래 12개 JSON은 **서버 구현 전에 작성한 응답 계약 초안**이며, FE가 `get-stage` 응답을 대체하는 합성 mock으로 사용할 수 있다. 현재 서버의 필수 구조를 검사하는 데 사용하지만 정식 콘텐츠 전체를 전사한 예시는 아니다. 특히 정문 지휘관의 초기 match 문항은 현재 정식 코스의 근거 자유 기록과 다르다. 실제 API에서 수집한 응답이나 실행 가능한 코스 seed가 아니며 용봉관·추모·봉지의 전체 응답 예시로 사용하지 않는다. 각 파일 자체가 하나의 전체 Snapshot 객체다. 공통 파일 병합이나 별도 `snapshot` wrapper 없이 JSON을 그대로 응답 본문으로 사용한다.
 
 | 역할 | 힌트 사용 전 | 힌트 사용 후 | 정문 단계 완료 후 |
 |---|---|---|---|
@@ -112,7 +124,7 @@ v2 데이터의 저장 버전은 `schemaVersion: 2`, 응답 버전 표시는 `st
 |---|---|
 | `game.step_done_count`, `game.hint_level` | `Record<Role, number>` / 완료한 문제 수, 역할별 해제한 힌트 단계 |
 | `game.arrival_mask`, `game.confirm_mask` | boolean 4개 / 도착 여부, 단계 확인 여부. 일반 자물쇠 경로인 정문 예시에서는 확인 마스크가 모두 false |
-| `game.swap` | 호환용 비활성 필드. 실제 응답은 `{window_ends_at:null, used:false, pending:null}`. 2026-10-09 사용자 결정으로 참가자 간 역할 교환을 금지하며 pending 요청을 구현하지 않음 |
+| `game.swap` | mock에는 초기 초안의 종료 시각이 남아 있다. 현재 서버 응답은 `{window_ends_at:null, used:false, pending:null}`이며 참가자 간 역할 교환은 금지다. mock 시각으로 교환 UI를 만들지 않음 |
 | `self.step_progress` | 본인 step ID만 키로 사용. 필수 `status`, `attempts`; 이번 mock의 직접 완료에는 `method`를 생략하고 자유 기록 단계만 `record`를 추가 |
 | `self.hints` | 해제된 본인 힌트의 문자열 배열. 아직 해제되지 않은 단계의 placeholder도 넣지 않음 |
 | `self.explanations`, `self.rewards` | 해설은 빈 객체. 보상은 완료 후 통신원에게만 `G-03.freq` 키의 합성 표시 문구를 넣고 나머지는 빈 객체. 미해제 항목의 키는 생략 |
@@ -121,7 +133,7 @@ v2 데이터의 저장 버전은 `schemaVersion: 2`, 응답 버전 표시는 `st
 
 - `self.digit`와 지휘관의 `self.lock.digits`는 **완료 후 파일에서도 전부 null로 가렸다.** 실제 서버의 보고 후 본인 숫자 공개 및 지휘관이 직접 제출해 잠근 숫자 복구 규칙을 바꾸는 결정이 아니다. 이 fixture만으로 숫자 획득·숫자 재접속 복구를 시험할 수는 없다. 완료 UI는 공개 상태의 `locked_mask`·`site_phase`·`acquired_sites`로 확인한다.
 - 지휘관 `self.transfer_clue.value`는 주파수 대신 합성 표시 문자열이다. 입력 정답으로 사용할 수 없다. 다른 역할 파일과 공통 상태에는 이 필드가 없다.
-- `confirmed:false`, null 좌표·D5 미정 수치를 유지한다. 점수 100·고정 시각·호출명·자료 URL·완료 상태는 화면 연습용이다. G-01 근거 선택지는 빈 배열이며 완료 예시를 만들었다고 운영 자료가 확정되거나 seed 검증을 통과하는 것은 아니다.
+- `confirmed:false`, null 좌표와 당시 미정이던 `noHintBonus:null`을 유지한다. 힌트 감점은 0/10/10이며 현재 정식 코스의 무힌트 보너스는 0이다. 점수 100·고정 시각·호출명·자료 URL·완료 상태는 화면 연습용이다. G-01 근거 선택지는 빈 배열이며 완료 예시를 만들었다고 운영 자료가 확정되거나 seed 검증을 통과하는 것은 아니다.
 
 FE의 테스트/Storybook/mock 핸들러에서는 예를 들어 다음과 같이 사용할 수 있다. 이는 `web/` 기준 경로이며 실제 앱에 mock 라우트를 추가한 것은 아니다. 역할은 mock 시나리오 선택에만 쓰고 실제 요청의 권한 입력으로 보내지 않는다.
 
@@ -179,7 +191,7 @@ const snapshot = structuredClone(signalAfterHint);
 
 정문 작성 초안에 지정한 임시 이미지의 `asset.confirmed:true`는 해당 그림 사용 승인만 뜻하며 실제 현장 자료 확정과 구분한다. 정식 코스의 정문·용봉관 힌트 감점은 1단계 0점, 2단계 10점, 3단계 추가 10점이다. 단계별 감점을 합산하므로 한 역할의 3단계까지 합계는 20점이며 재전송은 중복 차감하지 않는다. 추모의 벽은 무료다. 무힌트 보너스는 2026-10-10 사용자 확정으로 0점이다. 기존 불변 코스와 진행 중 방에는 새 수치를 소급하지 않는다.
 
-## 4. submit-step — PR-2
+## 4. submit-step
 
 ```json
 {
@@ -205,7 +217,7 @@ const snapshot = structuredClone(signalAfterHint);
 | record-form/record | 필드 ID→문자열 객체. 필수 필드와 글자 수만 검사 |
 | text/open·record | 문자열. 내용의 정오 판정 없음 |
 | fill-blank/open·record | fields가 있으면 필드 ID→문자열 객체 |
-| confirm/confirm | `"confirmed"` 문자열. 프롤로그는 PR-3 set-ready에 연결 |
+| confirm/confirm | 문항의 `answer`는 `"confirmed"` 문자열. 로비 출발 준비의 `set-ready`와 별개 |
 
 자유 서술 예제:
 
@@ -237,7 +249,7 @@ const snapshot = structuredClone(signalAfterHint);
 {"result":{"step_id":"G-03.words","accepted":false,"status":"open"}}
 ```
 
-## 5. request-hint·보고·개방 — PR-2
+## 5. request-hint·보고·개방
 
 ```json
 {"action":"request-hint","request_id":"example-hint-001","game_id":"game-example","stage_id":"gate","target_role":"signal","level":1}
@@ -266,19 +278,20 @@ const snapshot = structuredClone(signalAfterHint);
 
 모든 쓰기에 공통 키 game_id/request_id, 단계 액션에는 stage_id를 보낸다. 응답은 갱신된 Snapshot + result이며 아래는 각 액션의 추가 부분이다.
 
-| PR / action | 추가 요청 예시 | 서버 권한·전이 / result 초안 |
+| action | 추가 요청 예시 | 현재 서버 권한·전이 / result |
 |---|---|---|
-| PR-3 set-ready | `{"ready":true}` | 본인 출발 확인 문구 확인 / `{ready:true}` |
-| 구현 report-arrival | `{"method":"gps"}` | 본인 도착만 기록. 전원 도착 후 미션, 원시 좌표 없음 / `{arrived:true}` |
-| 기존 depart-next-site | 없음 | 지휘관·현재 단계 완료. 다음 이동으로 전환, 문제 화면 잠금 |
-| PR-4 select-alt-mode — 구현 | `{"mode_id":"outdoor"}` | 지휘관·용봉관 전원 도착 후 완료 전. 이전 초안의 outside는 사용하지 않는다. 아래 11절 참고 |
-| PR-5 draft-memorial-record — 구현 | `draft_version:0, words:[…], text, reason` | 지휘관·전원 보고 후. 문장 변경 시 확인 초기화 / `{draft_version:1}` |
-| PR-5 confirm-stage | `{"draft_version":1}` | 본인이 현재 추모 기록 읽음 확인. 4명 확인 후 사초③ |
-| PR-5 submit-retro | `{"text":"확인한 기록과 남은 질문"}` | 본인의 봉지 회고 / `{saved:true}` |
-| PR-5 draft-joint-record — 구현 | `draft_version:0, words:[…], text, reason` | 지휘관·전원 회고 후. 변경 시 동의 초기화 / `{draft_version:1}` |
-| PR-5 consent-joint-record | `{"draft_version":1}` | 본인·현재 초안 버전 동의. 4명 동의 후 종료 |
-| PR-5 get-result | 없음(request_id 불필요) | 종료 후. 사초·확인 방식·힌트·보고·개방 통계, 정답 평문 없음 |
-| PR-6 create-upload-url | 미확정 | D3·D6 확정 전 요청·저장·업로드 기능 없음 |
+| set-ready | 없음. `ready` 필드 불필요 | 본인·장비 단계에서 준비를 true로 설정 / `{}` |
+| report-arrival | `{"method":"gps"}` | 본인 도착만 기록. 전원 도착 후 미션, 원시 좌표 없음 / `{arrived:true}` |
+| depart-next-site | 없음 | 지휘관·현재 단계 완료. 다음 이동으로 전환, 문제 화면 잠금 / `{}` |
+| select-alt-mode | `{"mode_id":"outdoor"}` | 지휘관·용봉관 전원 도착 후 완료 전 / `{visit:{mode:"outdoor",label:"외부 대체 조사 · 실내 관람 아님"}}`. 아래 11절 참고 |
+| draft-memorial-record | `draft_version:0, words:[…], text, reason` | 지휘관·전원 보고 후. 문장 변경 시 확인 초기화 / `{draft_version:현재버전}` |
+| confirm-stage | `{"draft_version":1}` | 본인이 현재 추모 기록 읽음 확인. 4명 확인 후 사초③ / `{confirmed:true,draft_version:현재버전}` |
+| submit-retro | `{"text":"확인한 기록과 남은 질문"}` | 본인의 봉지 회고 / `{saved:true}` |
+| draft-joint-record | `draft_version:0, words:[…], text, reason` | 지휘관·전원 회고 후. 변경 시 동의 초기화 / `{draft_version:현재버전}` |
+| consent-joint-record | `{"draft_version":1}` | 본인·현재 초안 버전 동의. 4명 동의 후 종료 / `{confirmed:true,draft_version:현재버전}` |
+| get-result | 없음(request_id 불필요) | 종료 후. 사초·과거에 수집된 확인 방식·힌트·보고·개방 통계, 정답 평문 없음. 구조는 12절 |
+
+사진 업로드의 `create-upload-url`은 현재 지원하지 않는다. FE에서 호출하거나 준비 완료의 필수 조건으로 사용하지 않는다.
 
 추모의 벽은 `self.memorial_record` 전용 상태를 사용한다. 봉지의 `self.joint_record`와 공유하지 않는다. 양쪽 모두 문장·근거·낱말·버전·확인 상태를 포함하며 도착 후 해당 거점에서만 제공한다. 완료 결과·기록첩의 공통 기록 재조회는 아래 12절을 따른다. 추모에서는 점수·감점·숫자·자물쇠·카운트다운·진동을 표시하지 않는다. 정책 미확정 사진 업로드를 준비 완료의 필수 조건으로 삼지 않는다(D6).
 
@@ -310,19 +323,19 @@ const snapshot = structuredClone(signalAfterHint);
 
 ## 8. 시드·정규화와 미확정 자료
 
-공개 파일은 `codex-handoff-v2/data/courses/jnu-v2.course.json`, 합성 형식 예시는 `jnu-v2.private.example.json`이다. 실제 값은 사용자가 같은 디렉터리의 `jnu-v2.private.local.json`에 작성하며 커밋하지 않는다. 예시는 synthetic:true라서 운영 시드에 사용할 수 없다.
+공개 `codex-handoff-v2/data/courses/jnu-v2.course.json`과 `jnu-v2.private.example.json`은 초기 구조 초안·합성 형식 예시다. 현재 정식 콘텐츠 통합 입력은 Git에서 제외된 `private/official-authoring/course.content.private.local.json`과 `course.answers.private.local.json`이다. 실제 문구·정답이 포함된 작성 파일을 공개 저장소나 FE 번들에 import하지 않는다. FE는 인증된 API가 현재 역할에 제공하는 응답으로 콘텐츠를 받는다.
 
-비공개 파일은 schemaVersion/courseId/synthetic/stages를 갖고, 거점별 roles에 완료 숫자·역할별 힌트 3개·지휘관 전달형 개인 단서, steps에 정답·해설·보상·자유 서술 필수 항목을 둔다. seed 결과에는 answer 대신 answerHash만 저장한다. 전달형 단서의 평문 주파수는 승인된 예외이며 통신원 검증 해시와 같은 값인지 seed에서 대조한다. 실제 private 파일은 에이전트가 만들지 않았다.
+비공개 정답 입력은 schemaVersion/courseId/synthetic/stages를 갖고, 거점별 roles에 완료 숫자·역할별 힌트 3개·지휘관 전달형 개인 단서, steps에 정답·해설·보상·자유 서술 필수 항목을 둔다. 해시 채점 단계의 seed 결과에는 answer 대신 answerHash를 저장한다. 전달형 단서의 평문 주파수는 승인된 예외이며 통신원 검증 해시와 같은 값인지 seed에서 대조한다.
 
-`web`에서 실행:
+운영 seed 검증 형식(`web` 기준, 운영 확정 전에는 검증이 차단됨):
 
 ```sh
-npm run seed:course -- --validate-only ../codex-handoff-v2/data/courses/jnu-v2.course.json ../codex-handoff-v2/data/courses/jnu-v2.private.local.json
+npm run seed:course -- --validate-only ../private/official-authoring/course.content.private.local.json ../private/official-authoring/course.answers.private.local.json
 ```
 
-검증 전용은 ANSWER_SALT만 필요하며 DB에 접속하지 않는다. 옵션을 빼면 기존처럼 service role로 courses_private에 불변 리비전을 INSERT한다. 확정한 실제 코스에만 사용한다. seed와 Edge의 ANSWER_SALT는 동일하고 고정 기본값은 없다. 이 명령은 합성 코스의 DB 등록을 거절한다. PR-0의 dev 전용 seed 경로만 허용하며 prod에서 합성 코스를 사용하지 않는다.
+검증 전용은 ANSWER_SALT만 필요하며 DB에 접속하지 않는다. 옵션을 빼면 기존처럼 service role로 courses_private에 불변 리비전을 INSERT한다. 확정한 실제 코스에만 사용한다. seed와 Edge의 ANSWER_SALT는 동일하고 고정 기본값은 없다. 이 운영 명령은 합성 코스의 DB 등록을 거절한다. 개발 코스는 별도 dev 등록 경로와 기본 꺼짐인 Edge 허용 설정을 사용하며 prod에서 허용하지 않는다.
 
-**PR-2 마이그레이션·Edge 재배포·FE의 v2 대응 전에는 ACTIVE_COURSE_ID를 전환하지 않는다.** 적용 순서는 [PR-2 적용 안내](PR_2_APPLY.md)를 따른다. 기존 r1은 v1이며 그대로 유지한다. 정문 API 검증용 새 v2 합성 리비전은 dev 전용 seed의 `--schema-version 2`로 등록한다. 기존 공개 초안은 confirmed:false로 보존한다. 정식 연결은 비공개 통합 작성 파일을 사용하며 G-01 근거는 자유 기록으로 바뀌었다. 추모 GPS와 작성 파일 확정 전 운영 등록은 차단된다. dev 허용 플래그도 잘못된 답안 형식 검증을 생략하지 않는다.
+기존 방은 생성 시 선택한 불변 코스 리비전을 계속 사용한다. 새 리비전 등록·활성화 후 새 방에서 확인한다. 현재 정식 작성본의 G-01 근거는 자유 기록이며, 추모 GPS와 작성 파일 확정 전 운영 등록은 차단된다. 사용자 승인 dev 검수용 `seed:review`는 지정 dev 프로젝트에 별도 리비전을 등록해 실제 문항과 전원 모의 도착을 사용한다. 실제 작성 파일을 수정하거나 GPS 현장 검증을 완료 처리하지 않으며, 형식 검증은 유지한다. 정확한 등록·배포 조건은 [정식 콘텐츠 적용 안내](OFFICIAL_CONTENT_APPLY.md)를 따른다.
 
 해시는 `sha256(UTF-8(salt + courseId + stepId + canonicalAnswer))`다. v1 해시는 그대로 유지한다.
 
@@ -346,7 +359,7 @@ courseId는 소문자로 시작하는 ID, stepId는 `G-03.freq` 형태의 대문
 - 확정: 정규화 옵션은 단계별 선택 적용, 기본 판정 유지. 힌트 3단계는 대상 역할 미완료 문제 전체. 사초 사건 순서는 검증 결과만 보존한다.
 - 결정 대기: 추모의 벽 GPS와 정식 콘텐츠 최종 검수, D8 시간 점수·D9 팀 랭킹 범위. 정식 작성 파일은 비공개로 관리하며 공개 응답에 정답을 넣지 않는다. 기존 병합 여부가 이 결정을 확정한 것은 아니다. PR-6은 D3·D6 확정 전 시작하지 않는다.
 
-## 10. PR-2 실행 범위
+## 10. 현재 실행 흐름
 
 현재 v2는 기존 4인 로비→역할 배정→준비→출발 흐름으로 정문에 진입한다. 최초 역할을 유지하며 역할 교환은 금지한다. `report-arrival`은 본인 도착만 기록한다. 2026-10-09 추가 구현은 위 GPS 도착 계약을 따른다. 지정 GPS 코스는 네 명 모두 GPS 도착이 필요하며 수동·QR·모의 도착으로 우회하지 않는다. GPS 미확정 dev 시연만 모의 도착을 제공한다.
 
@@ -354,7 +367,7 @@ courseId는 소문자로 시작하는 ID, stepId는 `G-03.freq` 형태의 대문
 
 ## 11. PR-4 용봉관
 
-정문 완료 후 `{"action":"depart-next-site","stage_id":"gate","request_id":"<새 ID>"}`를 보낸다. 용봉관 이동 상태가 되며 본인 문제·힌트·숫자는 다시 숨긴다. 기존 정문 도착은 용봉관 도착으로 인정하지 않는다. 지정 GPS 코스는 용봉관 10m 안 5초·네 명 도착을 요구하고 개발용 코스는 각자 모의 도착한다. 이후 단계 요청의 `stage_id`는 `yongbong`이다. 기존 두 거점 코스는 용봉관 완료 후 `NO_STAGE`다. PR-5 full-course는 추모의 벽으로 이어진다.
+정문 완료 후 공통 `game_id`와 함께 `{"action":"depart-next-site","stage_id":"gate","request_id":"<새 ID>"}`를 보낸다. 용봉관 이동 상태가 되며 본인 문제·힌트·숫자는 다시 숨긴다. 기존 정문 도착은 용봉관 도착으로 인정하지 않는다. 지정 GPS 코스는 용봉관 10m 안 5초·네 명 도착을 요구하고 개발용 코스는 각자 모의 도착한다. 이후 단계 요청의 `stage_id`는 `yongbong`이다. 기존 두 거점 코스는 용봉관 완료 후 `depart-next-site`를 요청하면 `NO_STAGE`를 반환하며 완료 상태의 `get-stage`는 계속 가능하다. full-course는 추모의 벽으로 이어진다.
 
 | 역할 | 단계 ID / 동작 |
 |---|---|
@@ -384,7 +397,7 @@ courseId는 소문자로 시작하는 ID, stepId는 `G-03.freq` 형태의 대문
 }
 ```
 
-실제 `fields/record`에는 선언된 다섯 필드가 들어간다. 공통 확인 방식·출처를 수집하지 않은 기록은 위처럼 `method:null`, `source:null`이며, 기록 전달 자체는 자동으로 유지한다. 과거에 제출한 유효한 확인 방식·출처는 보존한다. 통신원이 3단계 힌트로 기록 없이 완료하면 `status:"explained_without_record"`, `record:null`, `source:null`, `method:"explained"`다. 자료를 임의로 생성하지 않고 ‘기록 없음·추가 확인 필요’를 표시한다. 힌트의 대상 역할 전체 해설 처리 규칙은 유지한다. 전달 항목에는 다른 문제의 기록·숫자·정답·해시·힌트가 없다. 완료 뒤 같은 항목은 암호해독관의 해당 `self.journal[].shared_records`에만 남는다.
+실제 `fields/record`에는 선언된 다섯 필드가 들어간다. 공통 확인 방식·출처를 수집하지 않은 기록은 위처럼 `method:null`, `source:null`이며, 기록 전달 자체는 자동으로 유지한다. 과거에 제출한 유효한 확인 방식·출처는 보존한다. 통신원이 3단계 힌트로 기록 없이 완료하면 `status:"explained_without_record"`, `record:null`, `source:null`, `method:"explained"`다. 자료를 임의로 생성하지 않고 ‘기록 없음·추가 확인 필요’를 표시한다. 힌트의 대상 역할 전체 해설 처리 규칙은 유지한다. 전달 항목에는 다른 문제의 기록·숫자·정답·해시·힌트가 없다. 완료 후 같은 용봉관을 조회하면 암호해독관의 `self.shared_records`에도 남으며, 다음 거점으로 이동해도 해당 `self.journal[].shared_records`에서 재조회할 수 있다.
 
 ### 외부 대체 모드와 결과
 
@@ -407,7 +420,7 @@ courseId는 소문자로 시작하는 ID, stepId는 `G-03.freq` 형태의 대문
 
 `stage_id:"wall"`, `kind:"memorial"`, `quiet:true`, `scoring.enabled:false`, `completion.type:"confirm"`이다. 단계별 개인 조사→보고는 기존 submit-step/submit-report를 사용한다. 정찰원 두 인물 이름은 해시 검증 후 평문을 저장하지 않는다. 개인 기록은 인물 A/B의 활동·출처를 기록한다. 통신원의 활동·가치 연결은 자유 기록이며 1:1 map-hash 정답으로 제한하지 않는다. 선행 보고를 기다리는 유형과 의존성은 self.mission에서 읽는다.
 
-전원 보고 후 지휘관이 `draft-memorial-record`로 공동 기록을 작성한다. `stage.recordTemplate`은 `prompt, wordChoices, wordCount`와 선택적 `sentenceParts:string[]`이다. `sentenceParts`가 있으면 길이는 `wordCount+1`이며 빈 문자열도 허용한다. FE는 조각 사이에 순서대로 words를 넣어 문장을 미리보기하고 같은 text를 제출한다. 서버는 NFC·공백 정규화 후 조합 문장과 비교하며 불일치는 `BAD_RECORD`다. 필드가 없는 기존 코스는 자유 문장을 유지한다. 이 규칙은 봉지 공동 기록에도 동일하게 적용한다. 고정 정답을 채점하는 문제는 아니며 words는 선택지 문자열 배열(순서 유지, 반복 허용), text/reason은 각각 1~600자다. seed는 가능한 조합의 최대 길이도 검사한다. **최초 작성도 `draft_version:0`을 전송**한다. 수정은 현재 버전을 보낸다. 정규화한 본문·근거·낱말이 같으면 버전·확인을 유지하고, 달라지면 버전 +1 및 네 확인 초기화다.
+전원 보고 후 지휘관이 `draft-memorial-record`로 공동 기록을 작성한다. `stage.recordTemplate`은 `prompt, wordChoices, wordCount`와 선택적 `sentenceParts:string[]`이다. `sentenceParts`가 있으면 길이는 `wordCount+1`이며 빈 문자열도 허용한다. FE는 조각 사이에 순서대로 words를 넣어 문장을 미리보기하고 같은 text를 제출한다. 서버는 NFC·공백 정규화 후 조합 문장과 비교하며 불일치는 `BAD_RECORD`다. 필드가 없는 기존 코스는 자유 문장을 유지한다. 이 규칙은 봉지 공동 기록에도 동일하게 적용한다. 고정 정답을 채점하는 문제는 아니며 words는 선택지 문자열 배열(순서 유지, 반복 허용), text/reason은 각각 1~600자다. seed는 가능한 조합의 최대 길이도 검사한다. **최초 작성도 `draft_version:0`을 전송**한다. 수정은 현재 버전을 보낸다. 정규화한 본문·근거와 선택 낱말 배열(선택지 원문·순서 포함)이 같으면 버전·확인을 유지하고, 달라지면 버전 +1 및 네 확인 초기화다.
 
 각 역할은 `confirm-stage`에 자신이 읽은 `draft_version`을 전송한다. 전원 조사·보고 및 동일 버전 네 확인 후 사초③를 저장하고 `playing/cleared`가 된다. 완료 후 초안 수정은 거절한다. 공통 기록의 self 예시(합성):
 
