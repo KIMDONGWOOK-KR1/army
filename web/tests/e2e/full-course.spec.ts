@@ -1,9 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
 import type { SnapshotV2 } from "../../supabase/functions/_shared/engine-v2";
 import { ROLES, type Role } from "../../supabase/functions/_shared/types";
-import { fullDemoV2Input } from "../../supabase/functions/_shared/wall-bongji-course-v2";
 
-test("four sessions complete memorial and reflections, refresh consent versions and see private results", async ({ browser, baseURL }) => {
+test("four sessions lay flowers and complete reflections, refresh consent versions and see private results", async ({ browser, baseURL }) => {
   const contexts = await Promise.all(ROLES.map(() => browser.newContext({ baseURL,
     viewport: { width: 390, height: 844 }, reducedMotion: "reduce",
     storageState: { cookies: [], origins: [{ origin: baseURL!, localStorage: [
@@ -48,22 +47,26 @@ test("four sessions complete memorial and reflections, refresh consent versions 
         window.addEventListener("hoguk:sound", (e) => (window as unknown as { heard: string[] }).heard.push((e as CustomEvent<string>).detail));
       });
     }
-    const input = fullDemoV2Input(created.course.id).privateInput.stages.wall;
-    for (const role of ["scout", "signal", "cipher", "commander"] as const) {
-      const s = await call(forRole(role), "get-stage");
-      for (const step of s.self.mission!.steps) {
-        const answer = input.steps[step.id].answer ?? Object.fromEntries(step.fields!.map((f) => [f.id, `[합성] wall-${role} 개인 기록`]));
-        const form = forRole(role).getByTestId(`mission-v2-step-${step.id}`);
-        await expect(form).toBeVisible();
-        await expect(form.getByLabel("확인 방식", { exact: true })).toHaveCount(0);
-        await expect(form.getByLabel(/^확인한 출처/)).toHaveCount(0);
-        await expect(form.getByLabel(/^연결할 자료/)).toHaveCount(0);
-        const solved = await call(forRole(role), "submit-step", { step_id: step.id, answer });
-        expect(solved.self.step_progress[step.id].status).toBe("done");
-        expect(solved.self.step_progress[step.id].method).toBeUndefined();
-        expect("source" in solved.self.step_progress[step.id]).toBe(false);
+    for (let index = 0; index < ROLES.length; index++) {
+      const p = forRole(ROLES[index]);
+      await expect(p.getByTestId("tribute")).toBeVisible();
+      await expect(p.getByTestId("memorial-record")).toHaveCount(0);
+      await expect(p.getByRole("button", { name: "조사 결과 보고", exact: true })).toHaveCount(0);
+      await expect(p.getByTestId("tribute")).toContainText(`국화 ${index}송이`);
+      await p.getByRole("button", { name: "국화 올리기", exact: true }).click();
+      if (index < 3) {
+        await expect(p.getByTestId("tribute")).toContainText(`국화 ${index + 1}송이`);
+        await expect(p.getByTestId("stage-v2-completed")).toHaveCount(0);
       }
-      await forRole(role).getByRole("button", { name: "조사 결과 보고", exact: true }).click();
+      if (index === 1) {
+        await p.reload();
+        await expect(p.getByTestId("tribute")).toContainText("국화 2송이");
+        await expect(p.getByRole("button", { name: "국화 올리기", exact: true })).toHaveCount(0);
+        await p.evaluate(() => {
+          (window as unknown as { heard: string[] }).heard = [];
+          window.addEventListener("hoguk:sound", (e) => (window as unknown as { heard: string[] }).heard.push((e as CustomEvent<string>).detail));
+        });
+      }
     }
     const fillDraft = async (text: string) => {
       await commander.getByRole("button", { name: "공동 기록 작성", exact: true }).click();
@@ -72,15 +75,9 @@ test("four sessions complete memorial and reflections, refresh consent versions 
       await commander.getByLabel("공동 근거", { exact: true }).fill("[합성] 팀 근거");
       await commander.getByRole("button", { name: "공동 기록 저장", exact: true }).click();
     };
-    console.log("Synthetic full-course: wall reports complete");
-    await fillDraft("[합성] 벽 공동 문장");
-    for (const role of ROLES) {
-      const p = forRole(role); await expect(p.getByTestId("memorial-record")).toContainText("[합성] 벽 공동 문장");
-      for (const other of ROLES.filter((r) => r !== role)) await expect(p.locator("body")).not.toContainText(`wall-${other} 개인 기록`);
-      await p.getByRole("button", { name: "공동 문장과 근거 확인", exact: true }).click();
-    }
+    console.log("Synthetic full-course: four flowers complete");
     for (const p of pages) {
-      await expect(p.getByTestId("stage-v2-completed")).toBeVisible();
+      await expect(p.getByTestId("stage-v2-completed")).toContainText("헌화 완료");
       expect(await p.evaluate(() => (window as unknown as { heard: string[] }).heard)).toEqual([]);
     }
     await commander.getByRole("button", { name: "조용히 머무르기", exact: true }).click();
@@ -108,6 +105,8 @@ test("four sessions complete memorial and reflections, refresh consent versions 
     for (const role of ROLES) {
       const p = forRole(role); await expect(p.getByTestId("result-v2")).toContainText("조사 3/3 · 사초 3/3");
       for (const other of ROLES.filter((r) => r !== role)) await expect(p.locator("body")).not.toContainText(`${other} 비공개 회고`);
+      await expect(p.getByTestId("result-v2")).toContainText("헌화 완료");
+      await expect(p.getByTestId("result-v2")).toContainText("국화를 올림");
       await p.reload(); await expect(p.getByTestId("result-v2")).toContainText("[합성] 최종 공동 문장");
     }
     console.log("Synthetic full-course: results restored");

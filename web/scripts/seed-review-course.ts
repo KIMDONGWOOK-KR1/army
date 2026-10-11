@@ -5,6 +5,7 @@ import { pathToFileURL } from "node:url";
 import { createClient } from "@supabase/supabase-js";
 import { isDevCourseId } from "../supabase/functions/_shared/deployment";
 import { prepareCourseV2 } from "../supabase/functions/_shared/prepare-course-v2";
+import { parseWallMode, prepareWallTributeV2 } from "../supabase/functions/_shared/prepare-wall-tribute-v2";
 import type { CourseV2Content, CourseV2PrivateInput } from "../supabase/functions/_shared/types";
 
 // The user explicitly authorized this existing dev project for private-content review.
@@ -17,7 +18,9 @@ export async function prepareReviewSeed(args: string[], environment: Record<stri
   const { values, positionals } = parseArgs({ args, allowPositionals: true, strict: true, options: {
     "dev-project-ref": { type: "string" }, "course-id": { type: "string" },
     "validate-only": { type: "boolean", default: false },
+    "wall-mode": { type: "string" },
   } });
+  const wallMode = parseWallMode(values["wall-mode"]);
   const id = values["course-id"], projectRef = values["dev-project-ref"];
   if (projectRef !== REVIEW_DEV_PROJECT_REF || positionals.length !== 2 || !id ||
     !id.startsWith("jnu-demo-dev-review-") || !isDevCourseId(id)) {
@@ -30,11 +33,15 @@ export async function prepareReviewSeed(args: string[], environment: Record<stri
     throw new Error("기존 Edge와 동일한 32자 이상 salt와 등록용 service role key가 필요하다.");
   }
   // Only in-memory copies change. Real authoring files and their GPS approval remain untouched.
-  const content = structuredClone(await loadJson(positionals[0])) as CourseV2Content;
-  const input = structuredClone(await loadJson(positionals[1])) as CourseV2PrivateInput;
+  let content = structuredClone(await loadJson(positionals[0])) as CourseV2Content;
+  let input = structuredClone(await loadJson(positionals[1])) as CourseV2PrivateInput;
   if (!content || !input || content.schemaVersion !== 2 || input.schemaVersion !== 2 ||
     content.demo !== false || input.synthetic !== false || content.id !== input.courseId || !Array.isArray(content.stages)) {
     throw new Error("같은 ID의 실제 v2 콘텐츠·비공개 정답 작성 파일이 필요하다.");
+  }
+  if (id === content.id) throw new Error("원본과 다른 새 검수 리비전 ID가 필요하다.");
+  if (wallMode === "tribute") {
+    ({ content, privateInput: input } = prepareWallTributeV2(content, input));
   }
   content.id = id; content.demo = true; content.confirmed = false;
   content.name = `${content.name} · 개발 검수`;

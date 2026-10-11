@@ -494,6 +494,14 @@ export function validateCourseV2Content(input: unknown): CourseV2Content {
           ROLES.map((role) => [role, str(labels[role], stageId)]),
         ) as Record<Role, string>,
       };
+    } else if (c.type === "tribute") {
+      exact(c, ["type", "label"], stageId);
+      if (ROLES.some((role) => {
+        const mission = roles[role], step = mission?.steps[0];
+        return mission?.steps.length !== 1 || step?.type !== "confirm" || step.grading !== "confirm" ||
+          step.requires?.length || step.requiresReports?.length || step.recordFrom || step.sourceRequired;
+      })) fail(stageId, "헌화 단계는 선행 조건 없는 역할별 확인 하나만 둔다.");
+      completion = { type: "tribute", label: str(c.label, stageId) };
     } else {
       exact(c, ["type"], stageId);
       if (c.type !== "joint-record") {
@@ -523,6 +531,9 @@ export function validateCourseV2Content(input: unknown): CourseV2Content {
       (!stage.quiet || scoring.enabled || completion.type === "lock" ||
         ROLES.some((role) => roles[role]?.digit))
     ) fail(stageId, "추모 단계에는 점수·숫자·자물쇠를 둘 수 없다.");
+    if (completion.type === "tribute" && (stage.kind !== "memorial" || arrival.require !== "all")) {
+      fail(stageId, "헌화 완료는 전원이 도착하는 추모 단계에만 사용한다.");
+    }
     if (a.sacho !== undefined) {
       const s = obj(a.sacho, stageId);
       keys(s, ["id", "name", "sections", "char", "body"], stageId);
@@ -568,7 +579,7 @@ export function validateCourseV2Content(input: unknown): CourseV2Content {
         if (template.sentenceParts.reduce((length, part) => length + lengthBound(part), 0) +
           maxWordLength * template.wordCount > 600) fail(path, "낱말을 넣은 문장은 600자 이하여야 한다.");
       }
-      if (completion.type === "lock") fail(stageId, "공동 기록 양식은 확인·회고 단계에만 사용한다.");
+      if (!["confirm", "joint-record"].includes(completion.type)) fail(stageId, "공동 기록 양식은 확인·회고 단계에만 사용한다.");
     }
     if (stage.kind === "epilogue" && (scoring.enabled || completion.type !== "joint-record" ||
       ROLES.some((role) => roles[role]?.digit))) fail(stageId, "회고에는 점수·숫자·자물쇠를 둘 수 없다.");

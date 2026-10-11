@@ -6,9 +6,10 @@ import type { SoundName } from "./sound-synth";
 // 자물쇠가 열린 뒤에도 서버는 방금 연 거점을 current_site로 둔다.
 export function judgeCue(
   c: Pick<Command, "action">,
-  next: Pick<Snapshot, "result" | "current_site"> | null,
+  next: (Pick<Snapshot, "result" | "current_site"> & { stage?: { completion: { type: string } } }) | null,
 ): { name: SoundName; calm: boolean } | null {
   if (!next?.result) return null;
+  if (next.stage?.completion.type === "tribute") return null;
   const result = next.result, calm = !!next.current_site?.reverent;
   if (c.action === "submit-step" && typeof result.accepted === "boolean")
     return { name: result.accepted ? "clue-correct" : "clue-wrong", calm };

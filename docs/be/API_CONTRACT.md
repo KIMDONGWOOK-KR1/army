@@ -7,14 +7,16 @@
 | 범위 | 현재 구현 |
 |---|---|
 | 공통 | 4인 로비·역할 배정·전원 준비·도착·역할별 조회·멱등 요청·재접속 복원. 참가자 간 역할 교환 금지 |
-| 정문 | 역할별 문제·힌트·보고·자물쇠·별도 해설 개방·사초① |
+| 정문 | 역할별 문제·힌트·보고·자물쇠·별도 해설 개방·사초①. 메인 입력 UI는 `gate`의 서버 문항 유형을 따라 구성 |
 | 용봉관 | 조사·통신원 자료의 암호해독관 전달·외부 대체 모드·사초②. 상세 11절 |
-| 추모의 벽 | 개인 조사·보고·추모 전용 공동 기록·전원 확인. 상세 12절 |
+| 추모의 벽 | 새 `tribute` 코스는 각자 국화 한 송이·전원 헌화로 완료. 기존 `confirm` 코스의 개인 조사·공동 기록·전원 확인은 유지. 상세 12절 |
 | 봉지·결과 | 개인 회고·공동 기록·전원 동의·최종 결과. 시간 점수·랭킹은 구현하지 않음. 상세 12절 |
 
 **공통 문제풀이 입력은 간소화된 상태다.** `확인 방식`·`확인한 출처`·`연결할 자료` 입력을 만들지 않는다. `submit-step`은 `method`와 `source` 없이 제출하며, 기존 코스의 `sourceRequired:true`도 제출을 막지 않는다. 공개 문제의 호환 필드 `sourceRequired`는 `false`다. 문제 자체의 선택지·기록 필드는 유지한다. 예를 들어 정문 `G-01.evidence`의 `answer.reason`은 문항의 답안이며 제거한 공통 입력과 별개다. 요청 형식은 4절을 따른다.
 
 **FE는 현재 방의 `get-stage` 응답으로 문항을 구성한다.** `self.mission.steps`의 `type`, `grading`, `choices`, `statements`, `fields`, `requires`, `requiresReports`와 `self.step_progress`를 따른다. 기존 합성 fixtures의 문항 종류·개수·문구를 정식 코스에 고정하지 않는다. 응답의 문제·나레이션은 코스 콘텐츠이고, 이 API 계약과 예제는 형식을 설명한다. 실제 시나리오 문구·정답은 이 계약의 예제와 공개 mock에 넣지 않는다. 사용자가 GitHub 공유를 요청한 [최신 시나리오](../scenario/GPS_MINO_1st_scenario_current.md)는 별도 공동 검토 문서이며, 전체 문서를 앱에 import하거나 API로 반환하지 않는다.
+
+**2026-10-11 선택 통합:** 메인 정문 화면의 단서 봉투·단계 탭·입력 도구는 코스명이나 ID 접두사가 아닌 `stage.id:"gate"`와 서버 `Step.type`으로 선택한다. `.legacy` 문항은 기존 입력 UI를 유지한다. 이 화면 변경은 문항·채점·별도 보고·역할별 공개 범위를 바꾸지 않으며 용봉관과 봉지의 기존 UI·BE 계약을 유지한다. 추모의 벽은 현재 방의 `completion.type`으로 새 헌화형과 기존 공동 확인형을 구분한다. [정문·헌화 선택 통합 적용 안내](../fe/GATE_TRIBUTE_INTEGRATION.md)를 따른다.
 
 화면 연결 절차는 [FE 인수인계 README](../fe/README.md), 실제 API 확인용 `/verify`는 [확인용 UI 안내](../fe/VERIFY_UI.md)를 참고한다. 장면 순서와 연출은 [최신 시나리오](../scenario/GPS_MINO_1st_scenario_current.md)를 기준으로 확인하며 이 계약의 필드만으로 검정 화면 수·분량·레이아웃이 결정되지는 않는다. 현재 나레이션 표시 동작은 2절에 구분해 적었다.
 
@@ -55,13 +57,13 @@ v2 데이터의 저장 버전은 `schemaVersion: 2`, 응답 버전 표시는 `st
 
 | 응답 필드 | 내용 |
 |---|---|
-| `game.completion` | 현재 단계 완료 전 `null`, 완료 후 `{at, method:"field"\|"explained", label}`. label은 `조사 후 복원` 또는 `해설 확인 후 복원`. 새로고침·다른 역할 조회에도 유지 |
-| `self.journal` | 완료 전 `[]`. 완료된 단계별 `{stage_id, name, completed_at, method, sections, entries}`. 바깥 method는 거점 완료 경로다. entries는 본인 역할만 포함하며 `{step_id, prompt, verified, method, record?, source?, explanation, reward?}`. entry.method는 미수집 시 `null`, 해설 완료 시 `explained`. source는 과거에 저장된 경우에만 `{text, source_id?}`. 정답 배열·해시·숫자·전달 단서는 포함하지 않음 |
+| `game.completion` | 현재 단계 완료 전 `null`, 완료 후 `{at, method:"field"\|"explained", label}`. 조사·해설 경로 외에 공동 확인·공동 기록 완료를 구분하며, `tribute`의 label은 `헌화 완료`. 새로고침·다른 역할 조회에도 유지 |
+| `self.journal` | 완료 전 `[]`. 완료된 단계별 `{stage_id, name, completed_at, method, label?, sections, entries}`. 바깥 method는 거점 완료 경로다. `tribute`의 label은 `헌화 완료`. entries는 본인 역할만 포함하며 `{step_id, prompt, verified, method, record?, source?, explanation, reward?}`. entry.method는 미수집 시 `null`, 해설 완료 시 `explained`. source는 과거에 저장된 경우에만 `{text, source_id?}`. 정답 배열·해시·숫자·전달 단서는 포함하지 않음 |
 | `current_site.sacho`, `course.sites[].sacho`, `game.acquired_sites[].sacho` | 이름·ID에 더해 완료된 장소에만 선택형 `char`, `body` 공개 보상 제공. 개인 자유 기록과 다른 공통 본문이며 미완료 장소에는 공개하지 않음 |
 | `stage` | 현재 단계의 ID·순서·이름·종류·도착 기준·quiet·scoring·공통 나레이션·completion·출처·사초 항목 이름 |
 | `self.mission` | 본인의 `intro`, `scenes`, `steps`, `digit`(완료 숫자를 사용하는지 여부인 boolean), `asset`(있을 때). null이면 해당 역할 문제 없음 |
 | `self.transfer_clue` | **지휘관 self만**. `{kind:"relay-frequency", label, value, target_step_id}`. 전달형 개인 단서이며 자동 공유하지 않는다 |
-| `self.digit` | 기존 필드 유지. 보고 전 null, 보고 완료 후 본인의 완료 숫자. 다른 사람의 숫자는 제공하지 않는다 |
+| `self.digit` | 숫자를 사용하는 조사 단계에서 보고 전 null, 보고 완료 후 본인의 완료 숫자. `tribute`는 항상 null. 다른 사람의 숫자는 제공하지 않는다 |
 | `self.step_progress` | 단계 ID별 `{status, attempts, method?, record?}`. status는 `locked/open/done/explained`. method를 수집하지 않은 직접 완료에는 method를 생략 |
 | `self.hint_level`, `self.hints` | PR-2: 역할별 0~3, 해제된 힌트 본문만. 지휘관도 타 역할의 본문을 받지 않는다 |
 | `self.explanations`, `self.rewards` | PR-2: 본인이 공개 조건을 충족한 단계의 본문만. 미공개 항목은 키 자체를 생략 |
@@ -261,7 +263,7 @@ const snapshot = structuredClone(signalAfterHint);
 
 | action | 추가 요청 필드 | 조건·결과 |
 |---|---|---|
-| submit-report | 없음 | 본인 단계 완료 뒤 구두 보고 확인. ✓ 갱신, 본인 self.digit만 공개 |
+| submit-report | 없음 | 조사 단계에서 본인 단계 완료 뒤 구두 보고 확인. ✓ 갱신, 본인 self.digit만 공개. `tribute`는 별도 보고 없이 헌화 제출이 보고 상태를 함께 갱신 |
 | open-lock | `digits:[8,6,0,9]` (합성 예시) | 지휘관·전원 보고 후. 3회/−10/60초 기존 규칙 유지(D4 기본값) |
 | confirm-explanation | 없음 | 본인이 필요한 해설을 읽었다고 확인. 서버의 해설 공개 조건 충족 필요 |
 | open-after-explanation | 없음 | 전원 읽음 확인 뒤 지휘관 실행. 일반 자물쇠의 시도·감점 계산을 변경하지 않음 |
@@ -284,8 +286,8 @@ const snapshot = structuredClone(signalAfterHint);
 | report-arrival | `{"method":"gps"}` | 본인 도착만 기록. 전원 도착 후 미션, 원시 좌표 없음 / `{arrived:true}` |
 | depart-next-site | 없음 | 지휘관·현재 단계 완료. 다음 이동으로 전환, 문제 화면 잠금 / `{}` |
 | select-alt-mode | `{"mode_id":"outdoor"}` | 지휘관·용봉관 전원 도착 후 완료 전 / `{visit:{mode:"outdoor",label:"외부 대체 조사 · 실내 관람 아님"}}`. 아래 11절 참고 |
-| draft-memorial-record | `draft_version:0, words:[…], text, reason` | 지휘관·전원 보고 후. 문장 변경 시 확인 초기화 / `{draft_version:현재버전}` |
-| confirm-stage | `{"draft_version":1}` | 본인이 현재 추모 기록 읽음 확인. 4명 확인 후 사초③ / `{confirmed:true,draft_version:현재버전}` |
+| draft-memorial-record | `draft_version:0, words:[…], text, reason` | 기존 `completion.type:"confirm"` 추모 코스만. 지휘관·전원 보고 후. 문장 변경 시 확인 초기화 / `{draft_version:현재버전}` |
+| confirm-stage | `{"draft_version":1}` | 기존 `completion.type:"confirm"` 추모 코스만. 본인이 현재 추모 기록 읽음 확인. 4명 확인 후 사초③ / `{confirmed:true,draft_version:현재버전}` |
 | submit-retro | `{"text":"확인한 기록과 남은 질문"}` | 본인의 봉지 회고 / `{saved:true}` |
 | draft-joint-record | `draft_version:0, words:[…], text, reason` | 지휘관·전원 회고 후. 변경 시 동의 초기화 / `{draft_version:현재버전}` |
 | consent-joint-record | `{"draft_version":1}` | 본인·현재 초안 버전 동의. 4명 동의 후 종료 / `{confirmed:true,draft_version:현재버전}` |
@@ -414,9 +416,26 @@ courseId는 소문자로 시작하는 ID, stepId는 `G-03.freq` 형태의 대문
 
 ## 12. PR-5 추모의 벽·봉지·결과 — 구현 계약
 
-2026-10-10 사용자 확정: **개인 조사·회고 본문은 본인만**, 공동 낱말·문장·근거는 같은 팀에 공개한다. 용봉관 signal→cipher 명시적 전달 예외는 그대로이며 추모·봉지에는 적용하지 않는다. 이 두 종류의 단계에 recordFrom을 넣으면 seed가 거절하고, 잘못 저장된 기존 선언도 런타임 응답에서 본문 전달을 차단한다. 추모·봉지 상태는 독립 저장소다. [적용 안내](PR_5_APPLY.md)를 따른다.
+2026-10-10 사용자 확정: **개인 조사·회고 본문은 본인만**, 공동 낱말·문장·근거는 같은 팀에 공개한다. 아래 기존 공동 확인형 추모·봉지 계약에 적용한다. 용봉관 signal→cipher 명시적 전달 예외는 그대로이며 추모·봉지에는 적용하지 않는다. 이 두 종류의 단계에 recordFrom을 넣으면 seed가 거절하고, 잘못 저장된 기존 선언도 런타임 응답에서 본문 전달을 차단한다. 추모·봉지 상태는 독립 저장소다. 기존 공동 확인형은 [PR-5 적용 안내](PR_5_APPLY.md), 새 헌화형은 [선택 통합 적용 안내](../fe/GATE_TRIBUTE_INTEGRATION.md)를 따른다.
 
-### 추모의 벽
+### 추모의 벽 — 새 헌화형 (`tribute`)
+
+`stage_id:"wall"`, `kind:"memorial"`, `quiet:true`, `scoring.enabled:false`, `completion:{type:"tribute",label:"국화 올리기"}`다. 네 명 모두 도착한 뒤 본인 `self.mission.steps`에 포함된 헌화 단계 한 개를 제출한다. 단계 ID는 응답에서 읽으며 다른 역할의 ID를 대신 보내지 않는다. 현재 변환 코스는 역할별 `W-01.tribute`~`W-04.tribute`를 사용한다.
+
+```json
+{"action":"submit-step","game_id":"<현재 게임 ID>","stage_id":"wall","step_id":"<본인 헌화 단계 ID>","request_id":"<새 요청 ID>","answer":"confirmed"}
+```
+
+- 공통 `method`·`source`는 생략한다. `confirmed`는 확인 동작의 고정 입력이며 역사 문제의 정답이 아니다. 도착 전에는 제출할 수 없다.
+- 성공하면 본인 단계가 `done`이 되고 `game.report_mask`의 본인 칸이 함께 갱신된다. 여기서 마스크는 **헌화 여부**다. 배열 순서는 commander/scout/signal/cipher이며 화면은 국화 수와 헌화 완료를 표시한다.
+- 네 번째 헌화가 성공하면 사초③를 저장하고 `playing/cleared`, `stage_phase:"done"`이 된다. `game.completion.label`, 완료 응답의 `result.label`, 기록첩의 `label`은 `헌화 완료`다. 완료 뒤 지휘관의 기존 `depart-next-site`로 봉지에 이동한다.
+- 문제 점수·감점·힌트·숫자·자물쇠·별도 `submit-report`·공동 기록·`confirm-stage`를 사용하지 않는다. `request-hint`·`submit-report`·`draft-memorial-record`·`confirm-stage`는 이 타입에서 거절한다. `confirm_mask`나 `memorial_record`를 기다려 완료를 판단하지 않는다.
+- `self.digit`과 `self.lock`은 null이며 개인 단계의 확인 방식은 미수집 상태를 유지한다. `game.completion.method:"field"`는 거점 완료 경로이며 개인이 확인 방식을 입력했다는 뜻이 아니다. 최종 결과의 해당 단계 `completion`도 `헌화 완료`이며 공동 추모 기록은 null이다.
+- 완료 뒤 조용히 머무르기는 선택형 화면 동작이다. 추가 타이머나 확인 액션을 서버 완료 조건으로 만들지 않는다.
+
+헌화형은 **새 코스 리비전으로 명시적으로 전환**한다. `seed:review` 또는 `seed:course`에 `--wall-mode tribute`를 지정하며, 운영 `seed:course`는 원본과 다른 `--course-id <새 ID>`도 필요하다. 검수 `seed:review`는 기존 지정 dev 프로젝트·새 검수 ID 조건을 유지한다. 옵션 생략 또는 `--wall-mode preserve`는 기존 wall 정의를 유지한다. 변환은 메모리 복사본의 wall만 교체하며 작성 파일과 등록된 리비전·기존 방을 수정하지 않는다. 용봉관·봉지 콘텐츠와 규칙은 유지한다. 이 변경을 위한 새 DB 마이그레이션은 없으며 이번 작업에서 코스 등록·활성화·클라우드 배포는 수행하지 않았다.
+
+### 추모의 벽 — 기존 공동 확인형 (`confirm`)
 
 `stage_id:"wall"`, `kind:"memorial"`, `quiet:true`, `scoring.enabled:false`, `completion.type:"confirm"`이다. 단계별 개인 조사→보고는 기존 submit-step/submit-report를 사용한다. 정찰원 두 인물 이름은 해시 검증 후 평문을 저장하지 않는다. 개인 기록은 인물 A/B의 활동·출처를 기록한다. 통신원의 활동·가치 연결은 자유 기록이며 1:1 map-hash 정답으로 제한하지 않는다. 선행 보고를 기다리는 유형과 의존성은 self.mission에서 읽는다.
 
