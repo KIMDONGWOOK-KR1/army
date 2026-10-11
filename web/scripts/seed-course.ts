@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { createClient } from "@supabase/supabase-js";
 import { prepareSeedCourse } from "../supabase/functions/_shared/prepare-seed-course";
+import { parseWallMode } from "../supabase/functions/_shared/prepare-wall-tribute-v2";
 async function readJson(path: string): Promise<unknown> {
   const text = await readFile(resolve(path), "utf8");
   try {
@@ -13,13 +14,14 @@ async function readJson(path: string): Promise<unknown> {
 }
 async function main() {
   const { values, positionals } = parseArgs({
-    options: { "validate-only": { type: "boolean", default: false } },
+    options: { "validate-only": { type: "boolean", default: false },
+      "wall-mode": { type: "string" }, "course-id": { type: "string" } },
     allowPositionals: true,
   });
   const [coursePath, answersPath] = positionals;
   if (!coursePath || !answersPath || positionals.length !== 2) {
     throw new Error(
-      "사용법: npm run seed:course -- [--validate-only] 공개코스.json 비공개.local.json",
+      "사용법: npm run seed:course -- [--validate-only] [--wall-mode tribute --course-id 새ID] 공개코스.json 비공개.local.json",
     );
   }
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -34,6 +36,7 @@ async function main() {
     await readJson(coursePath),
     await readJson(answersPath),
     salt,
+    { wallMode: parseWallMode(values["wall-mode"]), courseId: values["course-id"] },
   );
   if (values["validate-only"]) {
     console.log("코스 검증 완료. DB 접속·등록 및 정답 출력 없음.");

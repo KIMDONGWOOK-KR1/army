@@ -157,7 +157,7 @@ export default function VerifyApp() {
                     ? "이동 중"
                     : s.game.site_phase === "cleared"
                     ? `${s.stage.name} 완료`
-                    : "조사 중"}
+                    : s.stage.completion.type === "tribute" ? "헌화 중" : "조사 중"}
                 </p>
                 <ul className="verify-team" data-testid="verify-team">
                   {s.game.members.map((m) => {
@@ -169,8 +169,8 @@ export default function VerifyApp() {
                         {m.id === s.self.id ? " (나)" : ""}
                         {m.ready ? " · 준비 ✓" : ""}
                         {i >= 0 && s.game.arrival_mask[i] ? " · 도착 ✓" : ""}
-                        {i >= 0 && s.game.report_mask[i] ? " · 보고 ✓" : ""}
-                        {i >= 0 && s.game.confirm_mask[i]
+                        {i >= 0 && s.game.report_mask[i] ? s.stage.completion.type === "tribute" ? " · 헌화 ✓" : " · 보고 ✓" : ""}
+                        {s.stage.completion.type !== "tribute" && i >= 0 && s.game.confirm_mask[i]
                           ? " · 해설 읽음 ✓"
                           : ""}
                       </li>

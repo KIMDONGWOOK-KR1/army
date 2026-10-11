@@ -1,5 +1,7 @@
 ﻿# User-run only. Registers an immutable review copy in the designated dev project.
 # Actual content files and secrets are never copied into the Vercel archive.
+param([switch]$TributeWall)
+
 $ErrorActionPreference = 'Stop'
 $repoPath = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
 $devRef = 'vmadbgniurfzqygqidzw'
@@ -20,6 +22,7 @@ if ($changes.Count -ne 0) { throw '추적 파일의 미커밋 변경을 정리�
 
 try {
     Set-Location (Join-Path $repoPath 'web')
+    $wallArgs = if ($TributeWall) { @('--wall-mode', 'tribute') } else { @() }
     Write-Host "등록할 검수 코스 ID: $courseId"
     $env:NEXT_PUBLIC_SUPABASE_URL = "https://$devRef.supabase.co"
     $serviceKeyInput = Read-Host 'dev service_role 키' -AsSecureString
@@ -27,9 +30,9 @@ try {
     try {
         $env:SUPABASE_SERVICE_ROLE_KEY = [System.Net.NetworkCredential]::new('', $serviceKeyInput).Password
         $env:ANSWER_SALT = [System.Net.NetworkCredential]::new('', $saltInput).Password
-        npm.cmd run seed:review -- --validate-only --dev-project-ref $devRef --course-id $courseId $contentFile $answersFile
+        npm.cmd run seed:review -- --validate-only --dev-project-ref $devRef --course-id $courseId @wallArgs $contentFile $answersFile
         if ($LASTEXITCODE -ne 0) { throw '검수 코스 검증 실패: 등록 중지' }
-        npm.cmd run seed:review -- --dev-project-ref $devRef --course-id $courseId $contentFile $answersFile
+        npm.cmd run seed:review -- --dev-project-ref $devRef --course-id $courseId @wallArgs $contentFile $answersFile
         if ($LASTEXITCODE -ne 0) { throw '검수 코스 등록 실패: 배포 중지' }
     } finally {
         Remove-Item Env:SUPABASE_SERVICE_ROLE_KEY -ErrorAction SilentlyContinue

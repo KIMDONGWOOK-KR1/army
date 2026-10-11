@@ -541,10 +541,10 @@ export default function GameApp({
     scene,
     reverent: !!site?.reverent,
     hushed,
-    silent: !!v2 && (v2.stage.kind === "memorial" || v2.self.journal.some((j) => j.memorial_record)),
+    silent: !!v2 && (v2.stage.kind === "memorial" || v2.self.journal.some((j) => j.memorial_record || j.label === "헌화 완료")),
     narration: !!narration,
     reportKey: `${gameId}:${site?.id}:${role}`,
-    reported: !!s?.self.reported,
+    reported: !!s?.self.reported && v2?.stage.completion.type !== "tribute",
     digits: lockDraft.digits,
   });
   useAutoplay({
@@ -634,7 +634,7 @@ export default function GameApp({
   const reports = (
     <div className="report-progress">
       <span>
-        {s?.game.report_mask.filter(Boolean).length ?? 0} / 4 보직 보고 완료
+        {s?.game.report_mask.filter(Boolean).length ?? 0} / 4 {v2?.stage.completion.type === "tribute" ? "헌화 완료" : "보직 보고 완료"}
       </span>
       <div>
         {(v2 ? ROLES : s?.current_site.lockOrder ?? ROLES).map((r, i) => {
@@ -644,7 +644,7 @@ export default function GameApp({
               role="img"
               key={r}
               className={s?.game.report_mask[i] ? "complete" : ""}
-              aria-label={`${ROLE_NAMES[r]} ${s?.game.report_mask[i] ? "보고 완료" : "대기"}`}
+              aria-label={`${ROLE_NAMES[r]} ${s?.game.report_mask[i] ? v2?.stage.completion.type === "tribute" ? "헌화 완료" : "보고 완료" : "대기"}`}
             >
               <Icon size={16} />
               {s?.game.report_mask[i] && <Check size={11} />}
@@ -1294,7 +1294,7 @@ export default function GameApp({
           ) : scene === "sacho" ? (
             <>
               <div className="sacho-scene" data-testid={v2 ? "stage-v2-completed" : undefined}>
-                <span className="eyebrow">기억 복원 · {site!.name}</span>
+                <span className="eyebrow">{v2?.stage.completion.type === "tribute" ? "헌화 완료" : "기억 복원"} · {site!.name}</span>
                 <div className="sacho-character">{site!.sacho.char || (v2 ? "記" : "")}</div>
                 <h1 data-scene-heading tabIndex={-1}>
                   {site!.sacho.name}
@@ -1308,7 +1308,7 @@ export default function GameApp({
               </div>
               <section className="game-console">
                 <p className="dialogue-line">
-                  {v2 ? `함께 복원한 ${site!.name} 기록을 보관했다.` : "다음 거점에 또 하나의 기억이 기다린다."}
+                  {v2?.stage.completion.type === "tribute" ? "네 사람이 국화를 올리고 추모의 시간을 함께했다." : v2 ? `함께 복원한 ${site!.name} 기록을 보관했다.` : "다음 거점에 또 하나의 기억이 기다린다."}
                 </p>
                 {v2 ? (
                   <><MemorialDeparture key={`${v2.game.id}:${v2.stage.id}`} snapshot={v2} busy={busy} send={send} />

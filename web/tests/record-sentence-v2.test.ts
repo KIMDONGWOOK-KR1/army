@@ -11,7 +11,7 @@ const parts = ["[합성] ", "와 ", "를 살피고 ", "를 남긴다."];
 const words = ["구름", "바람", "질문"];
 const sentence = "[합성] 구름와 바람를 살피고 질문를 남긴다.";
 function fixture() {
-  const { content } = fullDemoV2Input("jnu-demo-dev-sentence-test");
+  const { content } = fullDemoV2Input("jnu-demo-dev-sentence-test", "confirm");
   const stage = content.stages.find((stage) => stage.id === "wall")!;
   stage.recordTemplate = { prompt: "[합성] 세 낱말을 고르라.", wordChoices: [...words], wordCount: 3, sentenceParts: [...parts] };
   const command: Command = { action: "draft-memorial-record", draft_version: 0, words: [...words], text: sentence, reason: "[합성] 선택 근거" };
@@ -22,7 +22,7 @@ describe("optional fixed record sentences", () => {
   it("validates and projects only an explicitly provided template without sharing arrays", async () => {
     const { content, stage } = fixture();
     expect(validateCourseV2Content(content).stages.find((s) => s.id === "wall")?.recordTemplate?.sentenceParts).toEqual(parts);
-    const course = await fullDemoCourseV2(content.id, crypto.randomUUID());
+    const course = await fullDemoCourseV2(content.id, crypto.randomUUID(), false, "confirm");
     expect(projectPublicStageV2(course, "wall").recordTemplate).not.toHaveProperty("sentenceParts");
     course.stages.find((s) => s.id === "wall")!.recordTemplate = stage.recordTemplate;
     const projected = projectPublicStageV2(course, "wall");

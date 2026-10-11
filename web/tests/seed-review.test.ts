@@ -9,7 +9,7 @@ import { ROLES } from "../supabase/functions/_shared/types";
 
 // Synthetic fixtures only. Tests never read private authoring files or deployed credentials.
 function setup() {
-  const source = fullDemoV2Input("jnu-demo-dev-test-source");
+  const source = fullDemoV2Input("jnu-demo-dev-test-source", "confirm");
   source.content.demo = false; source.privateInput.synthetic = false;
   const before = structuredClone(source);
   const args = ["--dev-project-ref", REVIEW_DEV_PROJECT_REF, "--course-id", "jnu-demo-dev-review-test", "content.json", "answers.json"];
@@ -43,6 +43,26 @@ describe("private content dev review registration preparation", () => {
       expect(JSON.stringify(projected)).not.toMatch(/"(answerHash|private|hints|explanation)"/);
       if (role !== "commander") expect(projected.self).not.toHaveProperty("transfer_clue");
     }
+  });
+  it("changes the review wall only with the explicit tribute option and leaves the original untouched", async () => {
+    const t = setup();
+    const oldReview = await prepareReviewSeed(t.args, t.env, t.load);
+    const { course } = await prepareReviewSeed([...t.args, "--wall-mode", "tribute"], t.env, t.load);
+    expect(oldReview.course.stages.find((stage) => stage.id === "wall")!.completion.type).toBe("confirm");
+    expect(course.stages.find((stage) => stage.id === "wall")).toMatchObject({
+      completion: { type: "tribute" }, quiet: true, scoring: { enabled: false }, arrival: { mode: "none", require: "all" },
+    });
+    expect(course.stages.find((stage) => stage.id === "wall")).not.toHaveProperty("recordTemplate");
+    for (const stage of course.stages.filter((stage) => stage.id !== "wall")) {
+      expect(stage).toEqual(oldReview.course.stages.find((other) => other.id === stage.id));
+      expect(course.private.stages[stage.id]).toEqual(oldReview.course.private.stages[stage.id]);
+    }
+    expect(Object.keys(course.private.stages.wall.steps)).toHaveLength(4);
+    for (const step of Object.values(course.private.stages.wall.steps)) expect(Object.keys(step)).toEqual(["explanation"]);
+    expect(t.source).toEqual(t.before);
+    let reads = 0;
+    await expect(prepareReviewSeed([...t.args, "--wall-mode", "unknown"], t.env, async () => { reads++; return null; })).rejects.toThrow();
+    expect(reads).toBe(0);
   });
   it("rejects another project or URL and non-review or overlong identifiers before reading input", async () => {
     const t = setup();

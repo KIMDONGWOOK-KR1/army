@@ -1,0 +1,60 @@
+.parcel, .stampScene, .assembly, .paperFlight { --quest-out: cubic-bezier(0.23, 1, 0.32, 1); }
+.parcel { display: grid; justify-items: center; width: 100%; padding: 0 0 20px; border: 1px solid #c7c7a8; border-radius: 18px; background: #edf0df; color: #26382f; cursor: pointer; overflow: hidden; font: 16px/1.5 var(--sans); text-align: center; }
+.parcel:focus-visible { outline: 3px solid #9b772c; outline-offset: 4px; }
+.propScene { position: relative; display: grid; place-items: center; width: 100%; height: 224px; isolation: isolate; }
+.halo { position: absolute; width: 180px; height: 180px; border-radius: 50%; background: #d7dfbf; box-shadow: 0 0 0 14px #e2e8cf; z-index: -1; }
+.paperProp { position: relative; display: block; width: 172px; height: 146px; transform: rotate(-6deg); transition: transform 160ms var(--quest-out); perspective: 650px; }
+.envelopeBack { position: absolute; inset: 38px 0 0; background: #c3a16a; border: 2px solid #826d44; border-radius: 6px 6px 12px 12px; box-shadow: 0 7px 0 #bdc7a6; }
+.insert { position: absolute; inset: 0 15px 14px; display: grid; justify-items: center; align-content: start; gap: 7px; padding-top: 14px; background: #fffaf0; border: 2px solid #a79e7b; border-radius: 6px; transform: rotate(5deg); transition: transform 160ms var(--quest-out); }
+.insert svg { color: #415d46; }
+.insert > span { width: 60%; height: 3px; background: #d5cfb7; }
+.flap { position: absolute; inset: 39px 2px 2px; background: #e2c28b; clip-path: polygon(0 0, 50% 49%, 100% 0, 100% 100%, 0 100%); border-radius: 4px 4px 10px 10px; }
+.envelopeLid { position: absolute; top: 39px; left: 2px; right: 2px; height: 68px; background: #d1ac71; clip-path: polygon(0 0, 100% 0, 50% 78%); transform-origin: 50% 0; backface-visibility: visible; }
+.seal { position: absolute; display: grid; place-items: center; width: 57px; height: 57px; top: 62px; left: 58px; border: 4px double #ded6a1; border-radius: 50%; background: #345743; color: #fff7d7; box-shadow: 0 3px 0 #76613c; }
+.propTag { position: absolute; bottom: 16px; right: 16px; padding: 5px 12px; background: #fffaf0; border: 1px solid #b7be9a; border-radius: 20px; color: #3a5541; font: 16px var(--serif); transform: rotate(-4deg); }
+.parcelCaption { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 18px; margin: 0 12px; border-radius: 12px; background: #314e3d; color: #fffaf0; box-shadow: 0 4px 0 #1c3328; font: 18px/1.5 var(--serif); }
+.parcelCaption svg { flex-shrink: 0; }
+.parcelNote { display: block; margin: 14px 16px 0; font: 16px/1.6 var(--sans); }
+.parcel[data-reward=true] { background: #f5ebca; border-color: #c5ad6c; }
+.parcel[data-reward=true] .halo { background: #ead599; box-shadow: 0 0 0 14px #eee0b3; }
+.parcel[data-reward=true] .propTag { color: #655020; border-color: #c5ad6c; }
+.parcel:active .paperProp { transform: rotate(-2deg) scale(.97); }
+.parcel:active .insert { transform: rotate(2deg) translateY(-4%); }
+@media (hover: hover) and (pointer: fine) { .parcel:hover .paperProp { transform: rotate(-3deg) translateY(-3%); } }
+.stampScene { position: relative; width: 170px; height: 145px; display: grid; place-items: center; }
+.stamp { display: grid; justify-items: center; align-content: center; gap: 4px; width: 126px; height: 126px; background: #e6ecd5; border: 5px double #45664c; border-radius: 24px 32px 22px 30px; color: #31513b; transform: rotate(-6deg); box-shadow: 4px 5px 0 #ccd6b4; }
+.stamp span { font: 18px/1.4 var(--serif); }
+.stampScene[data-motion=true] .stamp { animation: stamp-in 240ms var(--quest-out) both; }
+.stampScene i { position: absolute; width: 7px; height: 7px; border-radius: 2px; background: #a17d28; transform: rotate(45deg); }
+.stampScene i:nth-child(1) { top: 8px; left: 8px; }.stampScene i:nth-child(2) { top: 20px; right: 0; }.stampScene i:nth-child(3) { bottom: 10px; left: 1px; }.stampScene i:nth-child(4) { bottom: 5px; right: 8px; }
+.assembly { margin: 20px auto; width: min(100%, 370px); padding: 24px 16px 16px; border: 1px solid #aebba0; border-radius: 20px; background: #e8eddb; color: #314e3d; }
+.assemblyBook { display: grid; justify-items: center; gap: 8px; padding: 20px; width: fit-content; margin: 0 auto 24px; border: 4px double #baa36b; border-radius: 5px 14px 14px 5px; background: #fffaf0; box-shadow: -5px 4px 0 #c9ba91, -8px 7px 0 #d9cdaa; }
+.assemblyBook span { font: 18px/1.5 var(--serif); }
+.mosaic { display: grid; grid-template-columns: 1fr 1fr; width: 130px; height: 110px; border: 1px solid #b0b799; background: #f6f3df; }
+.mosaic > span { display: grid; place-content: center; justify-items: center; gap: 4px; border: 1px dashed #b5bea3; background: #e6ecd5; }
+.mosaic > span:nth-child(2), .mosaic > span:nth-child(3) { background: #eee2bc; }
+.mosaic i { display: block; height: 2px; width: 30px; background: #8b9879; }
+.assembly[data-motion=true] .mosaic > span { animation: mosaic-join 240ms var(--quest-out) both; }
+.mosaic > span:nth-child(1) { --piece-x: -12px; --piece-y: -12px; --piece-turn: -8deg; }
+.mosaic > span:nth-child(2) { --piece-x: 12px; --piece-y: -12px; --piece-turn: 8deg; }
+.mosaic > span:nth-child(3) { --piece-x: -12px; --piece-y: 12px; --piece-turn: -5deg; }
+.mosaic > span:nth-child(4) { --piece-x: 12px; --piece-y: 12px; --piece-turn: 5deg; }
+.assemblyCrew { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 4px; }
+.assemblyCrew > span { display: grid; justify-items: center; gap: 6px; font: 12px/1.5 var(--sans); }
+.assemblyCrew > span > svg:first-child { box-sizing: content-box; padding: 10px; background: #cad8b8; border: 1px solid #839873; border-radius: 50%; }
+.assembly[data-motion=true] .assemblyBook { animation: paper-in 240ms var(--quest-out) both; }
+.assembly[data-motion=true] .assemblyCrew > span { animation: paper-in 160ms var(--quest-out) both; }
+@keyframes paper-in { from { opacity: 0; transform: translateY(6%) scale(.97); } to { opacity: 1; transform: none; } }
+@keyframes stamp-in { from { opacity: 0; transform: rotate(-12deg) scale(1.08); } to { opacity: 1; transform: rotate(-6deg) scale(1); } }
+@keyframes quiet-in { from { opacity: .5; } to { opacity: 1; } }
+@keyframes mosaic-join { from { opacity: .3; transform: translate(var(--piece-x), var(--piece-y)) rotate(var(--piece-turn)); } to { opacity: 1; transform: none; } }
+.paperFlight { position: fixed; display: grid; place-items: center; z-index: 80; pointer-events: none; user-select: none; contain: layout style; }
+.paperFlight .paperProp, .paperFlight .insert { transition: none; }
+@media (prefers-reduced-motion: reduce) {
+  .paperProp, .insert { transition: none; }
+  .parcel:is(:hover,:active) .paperProp { transform: rotate(-6deg); }
+  .parcel:active .insert { transform: rotate(5deg); }
+  .stampScene[data-motion=true] .stamp, .assembly[data-motion=true] .assemblyBook, .assembly[data-motion=true] .assemblyCrew > span { animation: quiet-in 160ms ease-out both !important; animation-delay: 0ms !important; }
+  .assembly[data-motion=true] .mosaic > span { animation: quiet-in 160ms ease-out both !important; }
+  .paperFlight { display: none; }
+}

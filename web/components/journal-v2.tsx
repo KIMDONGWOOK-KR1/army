@@ -38,20 +38,20 @@ export function JournalV2({ snapshot }: { snapshot: V2Response }) {
             {journal && (
               <>
                 <p>
-                  {journal.method === "explained"
+                  {journal.label ?? (journal.method === "explained"
                     ? "해설 확인 후 복원"
-                    : "조사 후 복원"}
+                    : "조사 후 복원")}
                 </p>
                 {journal.memorial_record && <section className={styles.note}><h4>추모의 벽 공동 기록</h4><p>{journal.memorial_record.text}</p><p>근거: {journal.memorial_record.reason}</p></section>}
-                <h4>내 조사 기록</h4>
+                <h4>{journal.label === "헌화 완료" ? "내 헌화 기록" : "내 조사 기록"}</h4>
                 {journal.visit && <p>{journal.visit.label}</p>}
                 {!!journal.shared_records?.length && <SharedRecords records={journal.shared_records} />}
                 {journal.entries.map((entry) => (
                   <section className={styles.note} key={entry.step_id}>
                     <h5>{entry.prompt}</h5>
                     <p>
-                      {entry.verified ? "조사 검증 완료" : "해설로 확인"}
-                      {entry.method && <> · {methods[entry.method] ?? "확인 완료"}</>}
+                      {journal.label === "헌화 완료" ? "국화를 올렸다." : entry.verified ? "조사 검증 완료" : "해설로 확인"}
+                      {journal.label !== "헌화 완료" && entry.method && <> · {methods[entry.method] ?? "확인 완료"}</>}
                     </p>
                     {Object.values(entry.record ?? {}).map((text, i) => (
                       <p key={i}>{text}</p>
