@@ -2,6 +2,8 @@
 
 2026-10-10 원문 기반 작성 데이터를 정문 → 용봉관 → 추모의 벽 → 봉지 순서로 연결했다. 이 문서는 클라우드 등록 완료 보고가 아니다. 문구·정답·힌트·숫자·개인 전달 단서를 포함한 작성 파일은 모두 Git에서 제외된 `private/official-authoring/`에 둔다. Git clone이나 Vercel 배포본에는 포함되지 않는다.
 
+FE·시나리오 공동 검토에는 사용자 요청으로 공유한 [최신 시나리오](../scenario/GPS_MINO_1st_scenario_current.md)를 사용한다. 이 Markdown은 서버 등록용 JSON과 별개이며, 문서를 수정해도 등록된 코스는 자동으로 바뀌지 않는다.
+
 ## 개발용 웹에서 정식 문제 먼저 확인
 
 2026-10-10 사용자 추가 승인: 추모의 벽 GPS 확정 전에 **기존 dev 서버에서 모의 도착으로 정식 콘텐츠를 검수**한다. `seed:review`는 지정된 dev 프로젝트 `vmadbgniurfzqygqidzw`와 그 URL만 허용하며 새 `jnu-demo-dev-review-...` ID(40자 이내)로 insert한다. 기존 코스 행과 진행 중 방은 변경하지 않는다.

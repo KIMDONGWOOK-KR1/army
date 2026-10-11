@@ -14,9 +14,9 @@
 
 **공통 문제풀이 입력은 간소화된 상태다.** `확인 방식`·`확인한 출처`·`연결할 자료` 입력을 만들지 않는다. `submit-step`은 `method`와 `source` 없이 제출하며, 기존 코스의 `sourceRequired:true`도 제출을 막지 않는다. 공개 문제의 호환 필드 `sourceRequired`는 `false`다. 문제 자체의 선택지·기록 필드는 유지한다. 예를 들어 정문 `G-01.evidence`의 `answer.reason`은 문항의 답안이며 제거한 공통 입력과 별개다. 요청 형식은 4절을 따른다.
 
-**FE는 현재 방의 `get-stage` 응답으로 문항을 구성한다.** `self.mission.steps`의 `type`, `grading`, `choices`, `statements`, `fields`, `requires`, `requiresReports`와 `self.step_progress`를 따른다. 기존 합성 fixtures의 문항 종류·개수·문구를 정식 코스에 고정하지 않는다. 응답의 문제·나레이션은 코스 콘텐츠이고, 이 문서와 예제는 API 형식을 설명한다. 실제 시나리오 문구·정답은 문서와 공개 mock에 넣지 않는다.
+**FE는 현재 방의 `get-stage` 응답으로 문항을 구성한다.** `self.mission.steps`의 `type`, `grading`, `choices`, `statements`, `fields`, `requires`, `requiresReports`와 `self.step_progress`를 따른다. 기존 합성 fixtures의 문항 종류·개수·문구를 정식 코스에 고정하지 않는다. 응답의 문제·나레이션은 코스 콘텐츠이고, 이 API 계약과 예제는 형식을 설명한다. 실제 시나리오 문구·정답은 이 계약의 예제와 공개 mock에 넣지 않는다. 사용자가 GitHub 공유를 요청한 [최신 시나리오](../scenario/GPS_MINO_1st_scenario_current.md)는 별도 공동 검토 문서이며, 전체 문서를 앱에 import하거나 API로 반환하지 않는다.
 
-화면 연결 절차는 [FE 인수인계 README](../fe/README.md), 실제 API 확인용 `/verify`는 [확인용 UI 안내](../fe/VERIFY_UI.md)를 참고한다. 시나리오의 장면 순서와 연출은 별도로 확인하며 이 문서의 필드만으로 검정 화면 수·분량·레이아웃이 결정되지는 않는다. 현재 나레이션 표시 동작은 2절에 구분해 적었다.
+화면 연결 절차는 [FE 인수인계 README](../fe/README.md), 실제 API 확인용 `/verify`는 [확인용 UI 안내](../fe/VERIFY_UI.md)를 참고한다. 장면 순서와 연출은 [최신 시나리오](../scenario/GPS_MINO_1st_scenario_current.md)를 기준으로 확인하며 이 계약의 필드만으로 검정 화면 수·분량·레이아웃이 결정되지는 않는다. 현재 나레이션 표시 동작은 2절에 구분해 적었다.
 
 적용 이력·수동 절차는 [정문](PR_2_APPLY.md), [용봉관](YONGBONG_APPLY.md), [추모·봉지](PR_5_APPLY.md), [정식 콘텐츠](OFFICIAL_CONTENT_APPLY.md) 안내로 구분한다. 기존 v1 `Snapshot`, 엔진, 데모는 유지한다.
 

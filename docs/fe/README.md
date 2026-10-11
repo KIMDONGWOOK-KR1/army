@@ -2,6 +2,8 @@
 
 2026-10-11 통합 브랜치 갱신 · FE 이환희 / BE·Infra 김종연 / 리뷰·머지 김동욱
 
+**시나리오 기준:** [최신 시나리오 — 현재 구현 반영본](../scenario/GPS_MINO_1st_scenario_current.md)을 사용한다. 이전에 별도로 받은 원본으로 화면·진행 규칙을 되돌리지 않는다. 문항·나레이션·장면 순서는 이 파일, 요청·응답·권한은 [현재 API 계약](../be/API_CONTRACT.md)을 함께 확인한다. 시나리오 수정은 이 경로에서 PR로 남긴다. 문서 수정만으로 서버 코스나 배포 화면이 바뀌지는 않는다.
+
 **2026-10-10 최신 입력 정책:** 문제풀이의 공통 `확인 방식`·`확인한 출처`·`연결할 자료` 입력을 제거한다. 새 FE는 `submit-step`에 공통 `method`·`source`를 보내지 않는다. 문제 본문에 선언된 선택지·기록 필드와 용봉관 통신원→암호해독관 자동 자료 전달은 그대로 사용한다. 기존 코스도 새 Edge에서 동작하며 Edge → 웹 순서로 재배포한다. 이 수정만을 위한 DB 변경·코스 재등록·비밀값 변경은 없다. [최신 API 계약](../be/API_CONTRACT.md#4-submit-step)과 [적용 안내의 후속 수정](../be/PR_5_APPLY.md#후속-수정-문제풀이-공통-확인-옵션-제거)을 따른다.
 
 **`feat/stage-yongbong`에서는 `/`와 `/verify` 모두 정문→용봉관 v2를 지원한다.** 메인 화면은 서버 응답에 따라 v1/v2를 구분한다. 기존 [UI 통합 안내](UI_INTEGRATION.md)에 더해 [용봉관 계약](../be/API_CONTRACT.md#11-pr-4-용봉관)과 [적용 안내](../be/YONGBONG_APPLY.md)를 확인한다. 아래 정문 계약과 12개 mock은 계속 사용한다. 새 DB·Edge·합성 코스와 웹의 dev 적용을 맞춘 뒤 새 방을 만든다. 이 문서는 배포 완료를 의미하지 않는다.
@@ -14,6 +16,7 @@ FE는 `stage.completion.type`으로 잠금/공동 확인/회고 화면을 구분
 
 | 자료 | 용도 |
 |---|---|
+| [최신 시나리오](../scenario/GPS_MINO_1st_scenario_current.md) | 정답 포함 공동 검토 문서. FE 문항·나레이션·장면 구성의 기준이며 전체 파일을 앱에 import하거나 public에 복사하지 않는다 |
 | [PR-5 적용 안내](../be/PR_5_APPLY.md) / [합성 최종 공동 기록 화면](images/full-result-synthetic.png) | 추모·봉지·결과 계약과 네 세션 시험 캡처 |
 | [메인 UI 통합 안내](UI_INTEGRATION.md) | PR #8 디자인과 PR #9 API의 연결 범위·로컬 실행·dev 적용 조건 |
 | [GPS 적용·개발용 모드 전환](../be/GPS_APPLY.md) | 같은 Vercel 주소에서 실내 모의 도착/GPS 현장 시험, Supabase 코스 전환과 새 방 생성 |
