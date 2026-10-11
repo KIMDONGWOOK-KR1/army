@@ -24,7 +24,7 @@ export function sachoEyebrow(site: Pick<Site, "seq" | "name">) {
 /** 다음 거점까지 걸어서 가는 거리(지도 길찾기 다리 길이를 반올림)와 한 줄 소개 */
 const NEXT: Record<string, { walk: string; note: string }> = {
   yongbong: { walk: "걸어서 약 390m", note: "네 사람이 각자 단서를 풀어 자물쇠를 여는 곳이에요." },
-  wall: { walk: "걸어서 약 350m", note: "문제 없이 국화를 올리는 곳이에요. 가까워지면 음악이 자연음으로 바뀌어요." },
+  wall: { walk: "걸어서 약 350m", note: "문제 없이 국화를 올리는 곳이에요. 가까워지면 음악이 잦아들어요." },
   bongji: { walk: "걸어서 약 180m", note: "네 사람이 오늘을 돌아보는 곳이에요." },
 };
 

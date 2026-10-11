@@ -95,6 +95,8 @@ export function legacyFullDemoV2Input(id: string) {
       scene("legacy-y-enter-2", "오랫동안 대학 본부였고, 지금은 대학의 역사와 오월의 기록을 품고 있다."),
       scene("legacy-y-enter-3", "정문에서 걸어온 기억이 이곳에서 다른 시간과 겹친다."),
       scene("legacy-y-done", "네 사람이 본 것이 모여, 실록에 한 장이 더해졌다.", "stage-complete"),
+      // 다음 거점을 말로 알린다(hh 2026-10-11: 용봉관 다음에 추모의 벽으로 간다는 말이 없었다)
+      scene("legacy-y-next", "이제 용봉열사 추모의 벽으로 걸어간다. 지휘관이 출발을 알리면 함께 움직인다.", "stage-complete"),
     ],
     roles,
     completion: { type: "lock", order: [...old.lockOrder] },
