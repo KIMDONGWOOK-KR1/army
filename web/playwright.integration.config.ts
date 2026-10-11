@@ -1,4 +1,7 @@
 import { randomBytes, randomUUID } from "node:crypto";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { defineConfig } from "@playwright/test";
 
 const baseURL = "http://127.0.0.1:3014";
@@ -16,6 +19,7 @@ export default defineConfig({
   preserveOutput: "never",
   use: {
     baseURL,
+    channel: process.env.PLAYWRIGHT_CHANNEL,
     viewport: { width: 390, height: 844 },
     reducedMotion: "reduce",
     actionTimeout: 10000,
@@ -41,6 +45,7 @@ export default defineConfig({
     timeout: 120000,
     env: {
       NEXT_PUBLIC_BACKEND: "local",
+      LOCAL_GAME_DATA_DIR: mkdtempSync(join(tmpdir(), "hoguk-integration-e2e-")),
       LOCAL_V2_COURSE_ID: `jnu-demo-dev-ui-${randomUUID().slice(0, 20)}`,
       ANSWER_SALT: randomBytes(32).toString("hex"),
     },

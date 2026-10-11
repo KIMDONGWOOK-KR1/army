@@ -201,8 +201,6 @@ it("compares real POST/get-stage Snapshots with all 12 FE fixtures and persists 
         action: "submit-step",
         step_id: step.id,
         answer,
-        method: "field",
-        source: { text: "[합성] 확인 자료", source_id: "MOCK-S1" },
       });
       expect(response.status).toBe(200);
     }
@@ -218,6 +216,11 @@ it("compares real POST/get-stage Snapshots with all 12 FE fixtures and persists 
   );
   expect(saved.games[id].v2.sacho.gate.observations).toHaveLength(1);
   expect(saved.games[id].v2.sacho.gate.eventRecords).toHaveLength(1);
+  expect(saved.games[id].v2.sacho.gate.sources).toEqual([]);
+  expect(saved.games[id].v2.sacho.gate.eventOrder[0]).toMatchObject({ method: null, verified: true });
+  for (const event of saved.events[id].filter((e: { action: string }) => e.action === "submit-step")) {
+    expect(Object.keys(event.data).sort()).toEqual(["accepted", "step_id"]);
+  }
   expect(
     saved.events[id].filter((e: { action: string }) =>
       e.action === "open-lock"

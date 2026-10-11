@@ -8,7 +8,8 @@
 
 | 문서 | 확인할 내용 |
 |---|---|
-| [FE 인수인계 — 정문·용봉관 v2](docs/fe/README.md) | 현재 서버 구현·배포 구분, API 계약·정문 mock 12개, FE/BE 연결 순서 |
+| [FE·BE 통합 범위](docs/fe/BE_INTEGRATION.md) | PR #14 코드·API 통합, 기존 헌화 유지, 비공개 원문 제외 |
+| [FE 인수인계 — 전체 코스 v2](docs/fe/README.md) | 현재 서버 구현·배포 구분, API 계약·정문 mock 12개, FE/BE 연결 순서 |
 | [용봉관 적용 안내](docs/be/YONGBONG_APPLY.md) | 두 거점 새 코스, 자료 전달·외부 대체 모드, 새 DB 마이그레이션과 재배포 |
 | [메인 UI 통합 안내](docs/fe/UI_INTEGRATION.md) | PR #8 디자인과 PR #9 정문 API 연결, 실행·시험 방법과 dev 적용 조건 |
 | [GPS 적용·개발용 모드 전환](docs/be/GPS_APPLY.md) | 같은 Vercel dev 주소에서 개발용 모의 도착과 GPS 10m 도착을 번갈아 시험하는 절차 |
@@ -79,7 +80,8 @@ Next.js 16 App Router, React 19, TypeScript, Tailwind CSS, Supabase Postgres·Re
 
 현재 문서는 `codex-handoff-v2/`에 모여 있습니다. 코드와 자료의 최종 디렉터리 배치는 개발 착수 때 확인합니다.
 
-- 실제 정답·salt·서비스 키·환경변수 비밀값은 커밋하지 않습니다.
+- 이번 통합에서는 실제 정답을 포함한 시나리오 원문과 공개 예외 지침을 가져오지 않습니다. [통합 범위](docs/fe/BE_INTEGRATION.md)를 참고합니다.
+- 서버용 정답 JSON·비공개 작성 JSON·salt·서비스 키·환경변수 비밀값은 커밋하지 않습니다. 시나리오 전체를 웹 번들·public 정적 파일·API 응답에 넣지 않습니다.
 - `jnu.answers.example.json`은 시연용 형식 예시이며 실제 정답이 아닙니다.
 - 원시 GPS CSV는 위치 좌표가 포함된 로컬 시험 자료로 별도 관리합니다. 공개 테스트에는 필요한 경우 합성·비식별 자료를 사용합니다.
 - 논문 원고의 검토용 변경 요약과 그림·표의 실제 구현 증거는 해당 PR에 포함합니다.

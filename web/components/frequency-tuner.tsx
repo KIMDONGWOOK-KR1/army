@@ -95,6 +95,7 @@ export function FrequencyTuner({
   max,
   strictInput = false,
   disabled = false,
+  compact = false,
 }: {
   /** 입력 칸의 글자 그대로("51.8"). 다이얼이 바꿀 때는 항상 소수 첫째 자리. */
   value: string;
@@ -104,6 +105,8 @@ export function FrequencyTuner({
   /** v2: 입력한 글자를 그대로 보존하고 형식·범위를 검사한다. */
   strictInput?: boolean;
   disabled?: boolean;
+  /** Short help on the story tool; legacy tuner layouts remain unchanged. */
+  compact?: boolean;
 }) {
   const id = useId();
   const labelId = `${id}-label`,
@@ -264,7 +267,7 @@ export function FrequencyTuner({
     labels.push(v);
 
   return (
-    <div ref={root} className={`radio-panel ${s.panel}`}>
+    <div ref={root} className={`radio-panel ${s.panel}`} data-compact={compact || undefined}>
       <div className={s.readout}>
         <span className={s.lamp} aria-hidden="true">
           <Radio size={20} />
@@ -382,7 +385,7 @@ export function FrequencyTuner({
       </div>
       {strictInput && (
         <div className={s.validation}>
-          <p id={helpId}>{min}~{max} MHz 범위에서 숫자를 0.1 단위로 입력하라. 소수점은 한 자리까지 허용한다.</p>
+          <p id={helpId}>{compact ? `${min}~${max} MHz · 소수 첫째 자리까지` : `${min}~${max} MHz 범위에서 숫자를 0.1 단위로 입력하라. 소수점은 한 자리까지 허용한다.`}</p>
           {error && <p id={errorId} className={s.error}>{error}</p>}
         </div>
       )}

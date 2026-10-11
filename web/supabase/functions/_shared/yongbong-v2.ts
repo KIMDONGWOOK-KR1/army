@@ -24,7 +24,7 @@ export function sharedRecordsV2(stage: Stage, state: GameV2State, role: Role) {
       status: record ? "recorded" as const : "explained_without_record" as const,
       fields: sourceStep.fields.map((f) => ({ id: f.id, label: f.label })),
       record,
-      method: p.method ?? "explained",
+      method: p.method ?? (p.status === "explained" ? "explained" as const : null),
       source: p.source ? { text: p.source.text, ...(p.source.source_id ? { source_id: p.source.source_id } : {}) } : null,
     }];
   });

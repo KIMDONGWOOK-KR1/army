@@ -115,6 +115,7 @@ export type Command = {
   draft_version?: number;
 };
 export type PublicGame = {
+  solo_demo?: boolean;
   id: string;
   code: string;
   status: Game["status"];
@@ -234,6 +235,7 @@ export type Step = {
   recordFrom?: StepRef;
   requiresReports?: Role[];
   grading: Grading;
+  // Legacy course metadata; submit-step no longer requires source input.
   sourceRequired?: boolean;
   sourceIds?: string[];
   answerCount?: number;
@@ -278,11 +280,19 @@ export type Stage = {
   completion:
     | { type: "lock"; order: Role[] }
     | { type: "confirm"; labels: Record<Role, string> }
+    // 추모 헌화: 네 사람이 각자 국화를 올리면(본인 확인 문제 완료) 공동 기록 없이 완료된다
+    | { type: "tribute"; label: string }
     | { type: "joint-record" };
   // Optional public reward text. Released only after this stage is completed.
   sacho?: { id: string; name: string; sections: string[]; char?: string; body?: string };
   altModes?: { id: string; label: string }[];
-  recordTemplate?: { prompt: string; wordChoices: string[]; wordCount: number };
+  recordTemplate?: {
+    prompt: string;
+    wordChoices: string[];
+    wordCount: number;
+    // Optional fixed prose around the selected words, in selection order.
+    sentenceParts?: string[];
+  };
 };
 export type CourseV2Content = {
   schemaVersion: 2;
@@ -302,6 +312,8 @@ export type CourseV2Content = {
 };
 export type StepPrivate = {
   answerHash?: string;
+  answerHashes?: string[]; // Optional hashed spelling variants; never projected.
+  hints?: [string, string, string]; // Per-question hints; released at the role's requested level.
   rubric?: { required: string[] };
   explanation: string;
   reward?: string;
@@ -333,7 +345,7 @@ export type CourseV2PrivateInput = {
     roles: Record<Role, RolePrivate | null>;
     steps: Record<
       string,
-      Omit<StepPrivate, "answerHash"> & { answer?: StepAnswer }
+      Omit<StepPrivate, "answerHash" | "answerHashes"> & { answer?: StepAnswer; acceptedAnswers?: StepAnswer[] }
     >;
   }>;
 };
@@ -365,7 +377,7 @@ export type GameV2State = {
   retros?: Record<string, Partial<Record<Role, { text: string; at: number }>>>;
   sacho: Record<string, {
     completedAt: number;
-    eventOrder: { stepId: string; method: VerifyMethod; verified: boolean }[];
+    eventOrder: { stepId: string; method: VerifyMethod | null; verified: boolean }[];
     observations: {
       role: Role;
       stepId: string;
@@ -379,7 +391,7 @@ export type GameV2State = {
     sources: {
       role: Role;
       stepId: string;
-      method: VerifyMethod;
+      method: VerifyMethod | null;
       text: string;
       source_id?: string;
     }[];

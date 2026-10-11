@@ -47,7 +47,10 @@ test("four sessions travel gate to Yongbong, relay records privately and retain 
       const s = await call(forRole(role), "get-stage");
       for (const step of s.self.mission!.steps.filter((s) => !skip.includes(s.id))) {
         const answer = input.steps[step.id].answer ?? Object.fromEntries(step.fields!.map((f) => [f.id, f.id === "created_at" ? "확인 불가" : `[합성] ${role} 기록 ${f.id}`]));
-        await call(forRole(role), "submit-step", { step_id: step.id, answer, method: "official_digital", source: { text: "[합성] 확인 출처" } });
+        const solved = await call(forRole(role), "submit-step", { step_id: step.id, answer });
+        expect(solved.self.step_progress[step.id].status).toBe("done");
+        expect(solved.self.step_progress[step.id].method).toBeUndefined();
+        expect("source" in solved.self.step_progress[step.id]).toBe(false);
       }
     };
     await solve("signal"); await call(forRole("signal"), "submit-report");
@@ -68,19 +71,28 @@ test("four sessions travel gate to Yongbong, relay records privately and retain 
     await expect(classify.locator("select").first()).toBeEnabled();
     const classification = input.steps["Y-04.classify"].answer as Record<string, string>;
     for (const [key, value] of Object.entries(classification)) {
-      await classify.getByLabel(`[합성] 카드 ${key.toUpperCase()}`, { exact: true }).selectOption(value);
+      await classify.getByLabel(`카드 ${key.toUpperCase()}`, { exact: true }).selectOption(value);
     }
-    await classify.getByLabel("확인 방식", { exact: true }).selectOption("official_digital");
-    await classify.getByLabel("확인한 출처", { exact: false }).fill("[합성] 검토 출처");
-    await classify.getByRole("button", { name: /제출|기록/ }).click();
+    await expect(classify.getByLabel("확인 방식", { exact: true })).toHaveCount(0);
+    await expect(classify.getByLabel(/^확인한 출처/)).toHaveCount(0);
+    await expect(classify.getByLabel(/^연결할 자료/)).toHaveCount(0);
+    const [submission] = await Promise.all([
+      commander.waitForRequest((request) => request.url().endsWith("/api/game") &&
+        request.method() === "POST" && request.postDataJSON()?.action === "submit-step"),
+      classify.getByRole("button", { name: /제출|기록/ }).click(),
+    ]);
+    expect("method" in submission.postDataJSON() || "source" in submission.postDataJSON()).toBe(false);
     await expect(classify).toContainText("조사 완료");
     await solve("commander", ["Y-04.classify"]); await call(commander, "submit-report");
     const snapshot = await call(commander, "get-stage");
     if (snapshot.stage.completion.type !== "lock") throw new Error("lock required");
     await call(commander, "open-lock", { digits: snapshot.stage.completion.order.map((r) => input.roles[r]!.digit) });
+    // 다음 거점이 있으면(전체 코스) 지휘관만 출발 버튼을, 나머지는 '함께 이동' 안내와 네 사람을 본다
+    const hasNext = snapshot.course.sites.some((site) => site.seq > snapshot.current_site.seq);
     for (const p of pages) {
       await expect(p.getByTestId("stage-v2-completed")).toContainText("실내 관람 아님");
-      await expect(p.getByTestId("depart-next-stage")).toHaveCount(0);
+      await expect(p.getByTestId("depart-next-stage")).toHaveCount(hasNext && p === commander ? 1 : 0);
+      if (hasNext && p !== commander) await expect(p.getByText("지휘관이 출발을 누르면 함께 이동해요.")).toBeVisible();
     }
     await cipher.reload();
     await cipher.getByRole("button", { name: "수집한 기록 읽기", exact: true }).click();

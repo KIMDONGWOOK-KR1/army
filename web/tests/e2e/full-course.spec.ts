@@ -1,9 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
 import type { SnapshotV2 } from "../../supabase/functions/_shared/engine-v2";
 import { ROLES, type Role } from "../../supabase/functions/_shared/types";
-import { fullDemoV2Input } from "../../supabase/functions/_shared/wall-bongji-course-v2";
 
-test("four sessions complete memorial and reflections, refresh consent versions and see private results", async ({ browser, baseURL }) => {
+test("four sessions lay flowers at the memorial, write reflections, refresh consent versions and see private results", async ({ browser, baseURL }) => {
   const contexts = await Promise.all(ROLES.map(() => browser.newContext({ baseURL,
     viewport: { width: 390, height: 844 }, reducedMotion: "reduce",
     storageState: { cookies: [], origins: [{ origin: baseURL!, localStorage: [
@@ -31,6 +30,8 @@ test("four sessions complete memorial and reflections, refresh consent versions 
       for (const p of pages) await call(p, "report-arrival", { method: "simulated" });
       for (const role of ["scout", "signal", "cipher", "commander"] as const) {
         for (const level of [1, 2, 3]) await call(commander, "request-hint", { target_role: role, level });
+      }
+      for (const role of ["scout", "signal", "cipher", "commander"] as const) {
         await call(forRole(role), "submit-report"); await call(forRole(role), "confirm-explanation");
       }
       await call(commander, "open-after-explanation"); await call(commander, "depart-next-site");
@@ -40,7 +41,7 @@ test("four sessions complete memorial and reflections, refresh consent versions 
     for (const p of pages) await p.goto("/");
     for (const p of pages) await call(p, "report-arrival", { method: "simulated" });
     for (const p of pages) {
-      await expect(p.locator('[data-scene="mission"]')).toBeVisible();
+      await expect(p.locator('[data-scene="memorial"]')).toBeVisible();
       await expect(p.locator(".hud-score")).toHaveCount(0);
       await expect(p.getByRole("button", { name: "팀 자물쇠로" })).toHaveCount(0);
       await p.evaluate(() => {
@@ -48,32 +49,38 @@ test("four sessions complete memorial and reflections, refresh consent versions 
         window.addEventListener("hoguk:sound", (e) => (window as unknown as { heard: string[] }).heard.push((e as CustomEvent<string>).detail));
       });
     }
-    const input = fullDemoV2Input(created.course.id).privateInput.stages.wall;
-    for (const role of ["scout", "signal", "cipher", "commander"] as const) {
-      const s = await call(forRole(role), "get-stage");
-      for (const step of s.self.mission!.steps) {
-        const answer = input.steps[step.id].answer ?? Object.fromEntries(step.fields!.map((f) => [f.id, `[합성] wall-${role} 개인 기록`]));
-        await call(forRole(role), "submit-step", { step_id: step.id, answer, method: "official_digital", source: { text: "[합성] 출처" } });
-      }
-      await forRole(role).getByRole("button", { name: "조사 결과 보고", exact: true }).click();
+    // 도착하면 먼저 벽 앞에서 묵념한다(끝나면 저절로 넘어가고, '묵념 마치기'로 바로 넘길 수도 있다)
+    for (const p of pages) {
+      await p.getByRole("button", { name: "묵념 마치기", exact: true }).click();
+      await expect(p.locator('[data-scene="mission"]')).toBeVisible();
     }
+    // 추모의 벽: 소개를 읽고 각자 국화 한 송이를 올린다(문제·공동 기록 없음)
+    for (const p of pages) await expect(p.getByTestId("tribute")).toContainText("국화 0송이");
+    for (const [i, role] of (["scout", "signal", "cipher", "commander"] as const).entries()) {
+      const p = forRole(role);
+      await p.getByRole("button", { name: "국화 올리기", exact: true }).click();
+      if (i < 3) await expect(p.getByTestId("tribute")).toContainText(`국화 ${i + 1}송이`);
+    }
+    console.log("Synthetic full-course: four flowers laid");
+    let jointText = "";
     const fillDraft = async (text: string) => {
       await commander.getByRole("button", { name: "공동 기록 작성", exact: true }).click();
-      for (let i = 1; i <= 3; i++) await commander.getByLabel(`낱말 ${i}`, { exact: true }).selectOption({ index: i });
-      await commander.getByLabel("공동 문장", { exact: true }).fill(text);
+      for (let i = 1; i <= 3; i++) {
+        if (await commander.getByTestId("story-word-tray").count()) {
+          await commander.getByRole("button", { name: `낱말 자리 ${i}`, exact: true }).click();
+          await commander.getByTestId(`joint-word-${i}`).click();
+        } else await commander.getByLabel(`낱말 ${i}`, { exact: true }).selectOption({ index: i });
+      }
+      if (await commander.getByTestId("joint-preview").isVisible()) jointText = await commander.getByTestId("joint-preview").innerText();
+      else { jointText = text; await commander.getByLabel("공동 문장", { exact: true }).fill(text); }
       await commander.getByLabel("공동 근거", { exact: true }).fill("[합성] 팀 근거");
       await commander.getByRole("button", { name: "공동 기록 저장", exact: true }).click();
     };
-    console.log("Synthetic full-course: wall reports complete");
-    await fillDraft("[합성] 벽 공동 문장");
-    for (const role of ROLES) {
-      const p = forRole(role); await expect(p.getByTestId("memorial-record")).toContainText("[합성] 벽 공동 문장");
-      for (const other of ROLES.filter((r) => r !== role)) await expect(p.locator("body")).not.toContainText(`wall-${other} 개인 기록`);
-      await p.getByRole("button", { name: "공동 문장과 근거 확인", exact: true }).click();
-    }
     for (const p of pages) {
       await expect(p.getByTestId("stage-v2-completed")).toBeVisible();
-      expect(await p.evaluate(() => (window as unknown as { heard: string[] }).heard)).toEqual([]);
+      // 헌화형 추모의 벽(hh 2026-10-10): 누름 소리·사초(07, 1/3 크기)는 나도 되지만, 맞음·자물쇠 같은 판정 소리는 없다
+      const heard = await p.evaluate(() => (window as unknown as { heard: string[] }).heard);
+      expect(heard.filter((n) => /clue|lock|digit|arrive/.test(n))).toEqual([]);
     }
     await commander.getByRole("button", { name: "조용히 머무르기", exact: true }).click();
     await expect(commander.getByTestId("depart-next-stage")).toHaveCount(0);
@@ -96,11 +103,16 @@ test("four sessions complete memorial and reflections, refresh consent versions 
     await commander.reload();
     await expect(commander.getByTestId("joint-record")).toContainText("기록 버전 2");
     await expect(commander.getByRole("button", { name: "공동 기록에 동의", exact: true })).toBeEnabled();
-    for (const role of ROLES) await forRole(role).getByRole("button", { name: "공동 기록에 동의", exact: true }).click();
+    // 정찰원 회고 수정으로 기록 버전이 2가 되었다: 각 폰이 새 버전을 받은 뒤에 동의한다(폴링보다 먼저 누르면 예전 버전으로 거절된다)
+    for (const role of ROLES) {
+      const p = forRole(role);
+      await expect(p.getByTestId("joint-record")).toContainText("기록 버전 2");
+      await p.getByRole("button", { name: "공동 기록에 동의", exact: true }).click();
+    }
     for (const role of ROLES) {
       const p = forRole(role); await expect(p.getByTestId("result-v2")).toContainText("조사 3/3 · 사초 3/3");
       for (const other of ROLES.filter((r) => r !== role)) await expect(p.locator("body")).not.toContainText(`${other} 비공개 회고`);
-      await p.reload(); await expect(p.getByTestId("result-v2")).toContainText("[합성] 최종 공동 문장");
+      await p.reload(); await expect(p.getByTestId("result-v2")).toContainText(jointText);
     }
     console.log("Synthetic full-course: results restored");
     if (process.env.FULL_CAPTURE === "1") await commander.getByTestId("final-joint-record").screenshot({ path: "../docs/fe/images/full-result-synthetic.png" });

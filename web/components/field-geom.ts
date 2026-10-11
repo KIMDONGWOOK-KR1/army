@@ -25,7 +25,11 @@ export type PoiKind =
   | "waste_basket"
   | "entrance"
   | "crossing";
-export type MapPoi = { k: PoiKind; x: number; z: number; a: number };
+export type MapPoi = {
+  k: PoiKind; x: number; z: number; a: number;
+  osm?: string;
+  markings?: "yes" | "no" | "unknown";
+};
 // 건물 윤곽에 맞춘 회전 상자(모형 맞춤용): 가운데 c, 가로 w, 깊이 d, 정면 회전 a
 export type MapBox = { c: [number, number]; w: number; d: number; a: number };
 export type MapRoad = { k: number; w: number; p: number[] }; // k 0 차도, 1 서비스 길, 2 보행로

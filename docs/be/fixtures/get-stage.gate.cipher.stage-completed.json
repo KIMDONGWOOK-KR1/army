@@ -221,7 +221,7 @@
           "type": "spot-correct",
           "prompt": "[합성] 검토할 표현 세 곳을 선택하는 화면입니다.",
           "grading": "set-hash",
-          "sourceRequired": true,
+          "sourceRequired": false,
           "sourceIds": [
             "MOCK-S1"
           ],
@@ -241,7 +241,7 @@
           "type": "record-form",
           "prompt": "[합성] 수정 내용을 기록하십시오.",
           "grading": "record",
-          "sourceRequired": true,
+          "sourceRequired": false,
           "sourceIds": [
             "MOCK-S1"
           ],
@@ -284,13 +284,11 @@
     "step_progress": {
       "G-04.spots": {
         "status": "done",
-        "attempts": 1,
-        "method": "simulated"
+        "attempts": 1
       },
       "G-04.corrections": {
         "status": "done",
         "attempts": 1,
-        "method": "simulated",
         "record": {
           "time": "[합성] time 입력 내용 표시 영역입니다.",
           "reason": "[합성] reason 입력 내용 표시 영역입니다.",
@@ -318,14 +316,14 @@
             "step_id": "G-04.spots",
             "prompt": "[합성] 검토할 표현 세 곳을 선택하는 화면입니다.",
             "verified": true,
-            "method": "field",
+            "method": null,
             "explanation": "[합성] 이 역할의 조사 절차를 확인했습니다."
           },
           {
             "step_id": "G-04.corrections",
             "prompt": "[합성] 수정 내용을 기록하십시오.",
             "verified": true,
-            "method": "field",
+            "method": null,
             "explanation": "[합성] 이 역할의 조사 절차를 확인했습니다."
           }
         ]
@@ -354,8 +352,8 @@
       "confirmed": false,
       "hintPenalty": {
         "1": 0,
-        "2": null,
-        "3": null
+        "2": 10,
+        "3": 10
       },
       "noHintBonus": null
     },

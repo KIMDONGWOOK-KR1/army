@@ -186,7 +186,7 @@ export function LockPanel({
       setFeedback(
         next.result?.ok
           ? "기록을 복원했다."
-          : "맞은 칸은 잠겼다. 틀린 칸을 다시 확인하라. −10점",
+          : "맞은 칸은 잠겼다. 틀린 칸을 다시 확인하라.",
       );
     }
   };
@@ -270,7 +270,7 @@ export function LockPanel({
             : "자물쇠 확인"}
         <LockKeyhole size={17} />
       </button>
-      <p className="fine-print">오답 −10점 · 3회 소진 후 60초마다 1회 추가</p>
+      <p className="fine-print">3회 소진 후 60초마다 1회 추가</p>
     </section>
   );
 }

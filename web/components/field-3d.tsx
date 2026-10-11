@@ -665,7 +665,9 @@ export function Field3D({
       const dx = goal.x - pos.x,
         dz = goal.z - pos.z,
         d = Math.hypot(dx, dz);
-      if (d > 150) {
+      // Demo distance already eases along the polyline. A second straight-line
+      // chase would cut across the inside of corners and into trees/road islands.
+      if ((!gps && live.current.simulateMovement) || d > 150) {
         nx = goal.x;
         nz = goal.z;
       } else if (d > 0.01) {
