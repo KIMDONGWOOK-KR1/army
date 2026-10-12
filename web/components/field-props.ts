@@ -86,6 +86,9 @@ const CAP: Partial<Record<PropKindX, number>> = {
   signpost: 6,
 };
 const FLOWER_CAP = 800;
+// 한 구역(PROPS_STYLE.tile m 정사각형)에 심는 잔디밭 꽃 상한. 네 거점 경로가 용봉관 앞에서 겹쳐도
+// 캐릭터 둘레 소품 삼각형 예산(25,000)을 지키도록 잡았다(두 거점 지도의 정문 구역 122포기 → 110포기)
+const FLOWERS_PER_TILE = 110;
 
 // 5·18 조용한 구역 목록은 field-calm.ts 하나에 둔다(땅·건물·소품·거점 표석이 함께 읽는다)
 export { calmZones, inCalm };
@@ -611,9 +614,9 @@ export function placeProps(data: MapData, inp: PropsInput): Placed[] {
     }
   }
 
-  // 횡단보도 양 끝 돌 말뚝(시연 경로 150m 안)
+  // 가까운 횡단보도 양 끝 돌 말뚝. 보행 공간은 비우고 먼 장식은 생략한다.
   for (const c of crosswalkBars(data.pois, inp.ground.grid)) {
-    if (space.routeDist(c.x, c.z, 150) > 150) continue;
+    if (space.routeDist(c.x, c.z, 60) > 60) continue;
     const road = space.nearestRoad(c.x, c.z, 6);
     if (!road) continue;
     const vx = -c.uz,
@@ -624,7 +627,7 @@ export function placeProps(data: MapData, inp: PropsInput): Placed[] {
         put("bollard", c.x + vx * e * sd + c.ux * a, c.z + vz * e * sd + c.uz * a, 0, "xing:bollard", {
           foot: false,
           points: false,
-          route: false,
+          route: true,
         });
   }
 
@@ -751,7 +754,11 @@ export function placeProps(data: MapData, inp: PropsInput): Placed[] {
 
   // 잔디밭 꽃: 시연 경로 30m 안 잔디밭에 20m²마다 한 포기(경로·나무 밑동 1.5m 안은 뺀다)
   let flowers = 0;
-  const seen = new Set<number>();
+  const seen = new Set<number>(),
+    // 경로 여럿이 지나는 곳(용봉관 앞)에 꽃이 몰려 한 구역 삼각형 예산을 넘지 않게 구역마다 상한
+    perTile = new Map<string, number>(),
+    tileOf = (x: number, z: number) =>
+      `${Math.floor(x / PROPS_STYLE.tile)},${Math.floor(z / PROPS_STYLE.tile)}`;
   for (const leg of inp.legs) {
     let x0 = Infinity,
       z0 = Infinity,
@@ -776,10 +783,13 @@ export function placeProps(data: MapData, inp: PropsInput): Placed[] {
         if (d > 30 || !space.lawn(x, z)) continue;
         const pick = (h >>> 20) % 10,
           kind: PropKind = pick < 4 ? "flowerPink" : pick < 7 ? "flowerYellow" : "flowerWhite";
+        const tile = tileOf(x, z);
+        if ((perTile.get(tile) ?? 0) >= FLOWERS_PER_TILE) continue;
         if (!space.free(x, z, 0.45, { route: true })) continue;
         const c = calm(x, z),
           k = variant(kind, c) as PropKind;
         out.push({ kind: k, x, z, ry: ((h >>> 4) % 628) / 100, calm: c, why: "lawn:flower" });
+        perTile.set(tile, (perTile.get(tile) ?? 0) + 1);
         flowers++;
       }
   }

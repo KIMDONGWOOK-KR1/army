@@ -73,11 +73,13 @@ export function TravelHud({
   const color = ROLE_COLORS[role ?? "commander"];
   const total = Math.max(1, sites.length);
 
+  // 남은 거리 칸이 좁아 긴 거점 이름은 '목적지'로 줄여 쓴다(거점 이름은 왼쪽 위에 있다)
+  const target = site.name.length > 6 ? "목적지" : site.name;
   let main: string, sub: string;
   if (gpsRequired) {
     main = v2Arrival.arrived ? "내 GPS 도착 확인됨" : location.distance === null
       ? "GPS 위치 확인 필요"
-      : inRange ? "도착 범위 안 · 5초 유지 중" : `${site.name}까지 ${meters(location.distance)}`;
+      : inRange ? "도착 범위 안 · 5초 유지 중" : `${target}까지 ${meters(location.distance)}`;
     sub = `반경 ${site.radiusM}m · 전원 도착 ${v2Arrival.count}/4`;
   } else if (!field || field.loading) {
     main = "지도 불러오는 중";
@@ -85,13 +87,13 @@ export function TravelHud({
   } else if (field.failed) {
     main =
       location.distance !== null
-        ? `${site.name}까지 ${meters(location.distance)}`
-        : `${site.name}까지 이동하라`;
+        ? `${target}까지 ${meters(location.distance)}`
+        : `${target}까지 이동하라`;
     sub = location.status;
   } else {
     main = field.inRange
       ? "도착 범위 안"
-      : `${site.name}까지 ${meters(field.distance)}`;
+      : `${target}까지 ${meters(field.distance)}`;
     sub = modeLine(field);
   }
   const nextDistance = gpsRequired
@@ -109,40 +111,70 @@ export function TravelHud({
       : ""
   }`;
 
+  // '다음 거점' 칸: 넓은 화면은 아래 오른쪽, 좁은 화면은 위 줄 아래(CSS가 둘 중 하나만 보인다)
+  const next = (className: string) => (
+    <div className={className}>
+      <span className="hud-next-label">다음 거점</span>
+      <b>{site.name}</b>
+      <span className="hud-next-row">
+        <span
+          className="hud-dots"
+          role="img"
+          aria-label={`전체 ${sites.length}곳 중 ${currentSeq}번째`}
+        >
+          {sites.map((p) => (
+            <i key={p.id} className={p.seq <= currentSeq ? "on" : ""} />
+          ))}
+        </span>
+        <span className="hud-next-distance">{nextDistance}</span>
+      </span>
+    </div>
+  );
   return (
     <div
       className={`travel-hud ${site.reverent ? "calm" : ""}`}
       style={{ "--role": color } as CSSProperties}
     >
-      <div className="hud-site">
-        <span className="hud-site-seq">거점 0{site.seq}</span>
-        <h1 data-scene-heading tabIndex={-1}>
-          {site.name}
-        </h1>
+      {/* 위 줄: 거점 이름과 남은 거리. 좁거나 글자가 크면 거리 칸이 다음 줄로 내려간다(잘리지 않게).
+          좁은 폰에서는 '다음 거점' 칸도 이 줄 아래로 올려 이름이 한 줄에 들어가게 한다 */}
+      <div className="hud-top">
+        <div className="hud-site">
+          <span className="hud-site-seq">거점 0{site.seq}</span>
+          <h1 data-scene-heading tabIndex={-1}>
+            {site.name}
+          </h1>
+        </div>
+        <div className="hud-top-right">
+          <div className="hud-distance" data-in-range={inRange}>
+            <span className="hud-distance-icon" aria-hidden="true">
+              <Navigation size={15} strokeWidth={2.6} />
+            </span>
+            <span className="hud-distance-text">
+              <b>{main}</b>
+              {sub && <small>{sub}</small>}
+            </span>
+          </div>
+          {!demo && <p className="hud-gps">{gpsLine}</p>}
+          {next("hud-next hud-next-top")}
+        </div>
+        {/* 말풍선도 위 줄 묶음 안에 두어 이름·거리·다음 거점 칸 아래로 흘러가게 한다(겹치지 않게) */}
+        <SpeechCard
+          key={site.id}
+          text={
+            site.seq === 1
+              ? "첫 번째 기억의 흔적을 찾아 정문으로 이동하라."
+              : site.reverent && site.seq > 2
+                ? "걸음을 늦추고, 열사들을 기리는 벽으로 조용히 걸어가자."
+                : site.seq > 3
+                  ? "모은 기록을 품고 봉지로 가서 함께 돌아보자."
+                  : "증언의 사초를 품고, 용봉관에 겹친 시간을 찾아라."
+          }
+        />
       </div>
-
-      <div className="hud-distance" data-in-range={inRange}>
-        <span className="hud-distance-icon" aria-hidden="true">
-          <Navigation size={15} strokeWidth={2.6} />
-        </span>
-        <span className="hud-distance-text">
-          <b>{main}</b>
-          {sub && <small>{sub}</small>}
-        </span>
-      </div>
-      {!demo && <p className="hud-gps">{gpsLine}</p>}
       <span className="hud-sr" role="status">
         {inRange ? "도착 범위에 들어섰다." : ""}
       </span>
 
-      <SpeechCard
-        key={site.id}
-        text={
-          site.seq === 1
-            ? "첫 번째 기억의 흔적을 찾아 정문으로 이동하라."
-            : "증언의 사초를 품고, 용봉관에 겹친 시간을 찾아라."
-        }
-      />
 
       <div className="hud-action-area">
         {v2Arrival?.arrived ? (
@@ -151,7 +183,7 @@ export function TravelHud({
           </button>
         ) : v2Arrival?.simulated ? (
           <button className="hud-action ready" disabled={busy} onClick={onDemoArrival}>
-            본인 모의 도착 확인 <ArrowRight size={18} aria-hidden="true" />
+            {demo ? "시연 거점에 도착" : "본인 모의 도착 확인"} <ArrowRight size={18} aria-hidden="true" />
           </button>
         ) : demo ? (
           <button
@@ -227,22 +259,7 @@ export function TravelHud({
         </span>
       </button>
 
-      <div className="hud-next">
-        <span className="hud-next-label">다음 거점</span>
-        <b>{site.name}</b>
-        <span className="hud-next-row">
-          <span
-            className="hud-dots"
-            role="img"
-            aria-label={`전체 ${sites.length}곳 중 ${currentSeq}번째`}
-          >
-            {sites.map((p) => (
-              <i key={p.id} className={p.seq <= currentSeq ? "on" : ""} />
-            ))}
-          </span>
-          <span className="hud-next-distance">{nextDistance}</span>
-        </span>
-      </div>
+      {next("hud-next hud-next-bottom")}
     </div>
   );
 }

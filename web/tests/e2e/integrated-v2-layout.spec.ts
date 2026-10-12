@@ -1,3 +1,4 @@
+import { plain } from "../../lib/practice-text";
 import { mkdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { expect, type FrameLocator, type Page, test } from "@playwright/test";
@@ -134,7 +135,7 @@ for (const role of ROLES) {
         for (const step of mission.steps) {
           const card = page.getByTestId(`mission-v2-step-${step.id}`);
           const heading = card.getByRole("heading", {
-            name: step.prompt,
+            name: plain(step.prompt),
             exact: true,
           });
           await heading.scrollIntoViewIfNeeded();

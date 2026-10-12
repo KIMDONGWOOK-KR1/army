@@ -1,5 +1,6 @@
 "use client";
 
+import { plain } from "@/lib/practice-text";
 import type { Step, StepAnswer } from "@/supabase/functions/_shared/types";
 
 export function emptyStepAnswer(step: Step): StepAnswer {
@@ -37,9 +38,9 @@ export function VerifyInput({
   if (step.type === "truefalse") {
     return (step.statements ?? []).map((statement, index) => (
       <label className="verify-field" key={index}>
-        <span>{index + 1}. {statement}</span>
+        <span>{index + 1}. {plain(statement)}</span>
         <select
-          aria-label={`${index + 1}. ${statement}`}
+          aria-label={`${index + 1}. ${plain(statement)}`}
           required
           value={values[index] ?? ""}
           onChange={(event) =>
@@ -75,7 +76,7 @@ export function VerifyInput({
                     value={id}
                     disabled={values.some((v, i) => i !== index && v === id)}
                   >
-                    {choiceIndex + 1}. {choice}
+                    {choiceIndex + 1}. {plain(choice)}
                   </option>
                 );
               })}
@@ -89,9 +90,9 @@ export function VerifyInput({
   if (step.type === "match" || step.type === "classification") {
     return (step.fields ?? []).map((field) => (
       <label className="verify-field" key={field.id}>
-        <span>{field.label}</span>
+        <span>{plain(field.label)}</span>
         <select
-          aria-label={field.label}
+          aria-label={plain(field.label)}
           required
           value={record[field.id] ?? ""}
           onChange={(event) =>
@@ -108,7 +109,7 @@ export function VerifyInput({
                   key !== field.id && v === id
                 )}
               >
-                {index + 1}. {choice}
+                {index + 1}. {plain(choice)}
               </option>
             );
           })}
@@ -130,7 +131,7 @@ export function VerifyInput({
           <option value="">선택</option>
           {choices.map((choice, index) => (
             <option key={index} value={String(index + 1)}>
-              {index + 1}. {choice}
+              {index + 1}. {plain(choice)}
             </option>
           ))}
         </select>
@@ -160,7 +161,7 @@ export function VerifyInput({
                       : values.filter((v) => v !== id),
                   )}
               />{" "}
-              {index + 1}. {choice}
+              {index + 1}. {plain(choice)}
             </label>
           );
         })}
@@ -203,7 +204,7 @@ export function VerifyInput({
   if (step.fields?.length) {
     return step.fields.map((field) => (
       <label className="verify-field" key={field.id}>
-        <span>{field.label}{field.required ? " (필수)" : " (선택)"}</span>
+        <span>{plain(field.label)}{field.required ? " (필수)" : " (선택)"}</span>
         <textarea
           required={field.required}
           maxLength={field.maxLen}

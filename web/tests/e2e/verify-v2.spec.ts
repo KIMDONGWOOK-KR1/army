@@ -1,3 +1,4 @@
+import { plain } from "../../lib/practice-text";
 import {
   type Browser,
   type BrowserContext,
@@ -39,6 +40,10 @@ async function clickAction(page: Page, button: Locator, action: string) {
   await button.click();
   const result = await response;
   expect(result.status(), `${action} HTTP status`).toBe(200);
+  if (action === "submit-step") {
+    const payload = result.request().postDataJSON();
+    expect("method" in payload || "source" in payload).toBe(false);
+  }
   return (await result.json()) as Reply;
 }
 
@@ -161,7 +166,7 @@ async function fillAnswer(form: Locator, step: Step, answer: StepAnswer) {
     }
   } else if (step.type === "match") {
     for (const field of step.fields!) {
-      await form.getByLabel(field.label, { exact: true }).selectOption(
+      await form.getByLabel(plain(field.label), { exact: true }).selectOption(
         (answer as Record<string, string>)[field.id],
       );
     }
@@ -175,7 +180,7 @@ async function fillAnswer(form: Locator, step: Step, answer: StepAnswer) {
     }
   } else if (step.fields?.length) {
     for (const field of step.fields) {
-      await form.getByLabel(`${field.label} (필수)`, { exact: true }).fill(
+      await form.getByLabel(`${plain(field.label)} (필수)`, { exact: true }).fill(
         (answer as Record<string, string>)[field.id],
       );
     }
@@ -212,12 +217,9 @@ async function solve(team: Team, role: Role) {
     await expect(form.getByRole("button", { name: "문제 제출", exact: true }))
       .toBeEnabled();
     await fillAnswer(form, step, answer);
-    await form.getByLabel("확인 방식", { exact: true }).selectOption(
-      "simulated",
-    );
-    await form.getByLabel("확인한 출처 (필수)", { exact: true }).fill(
-      "[합성] 연습 자료에서 확인",
-    );
+    await expect(form.getByLabel("확인 방식", { exact: true })).toHaveCount(0);
+    await expect(form.getByLabel(/^확인한 출처/)).toHaveCount(0);
+    await expect(form.getByLabel(/^연결할 자료/)).toHaveCount(0);
     const view = await clickAction(
       page,
       form.getByRole("button", { name: "문제 제출", exact: true }),
@@ -225,6 +227,8 @@ async function solve(team: Team, role: Role) {
     );
     expect(view.result?.accepted).toBe(true);
     expect(view.self.step_progress[step.id].status).toBe("done");
+    expect(view.self.step_progress[step.id].method).toBeUndefined();
+    expect("source" in view.self.step_progress[step.id]).toBe(false);
     // Solving a problem must not automatically send the separate oral report.
     expect(view.self.reported).toBe(false);
     expect(view.self.digit === null).toBe(true);
@@ -386,7 +390,7 @@ test("four v2 browser sessions solve and report separately, recover a partial lo
     await Promise.all(
       team.pages.map((page) =>
         expect(
-          page.getByRole("heading", { name: "정문 확인 완료", exact: true }),
+          page.getByRole("heading", { name: `${gate.name} 확인 완료`, exact: true }),
         ).toBeVisible()
       ),
     );
@@ -482,13 +486,13 @@ test("third-level role hints keep private explanations isolated and require all 
     await Promise.all(
       team.pages.map((page) =>
         expect(
-          page.getByRole("heading", { name: "정문 확인 완료", exact: true }),
+          page.getByRole("heading", { name: `${gate.name} 확인 완료`, exact: true }),
         ).toBeVisible()
       ),
     );
     await commander.reload();
     await expect(
-      commander.getByRole("heading", { name: "정문 확인 완료", exact: true }),
+      commander.getByRole("heading", { name: `${gate.name} 확인 완료`, exact: true }),
     ).toBeVisible();
     expect((await current(commander, team.id)).game.confirm_mask.every(Boolean))
       .toBe(true);

@@ -206,7 +206,7 @@
           "type": "truefalse",
           "prompt": "[합성] 연습 문장을 읽고 판단 항목을 선택하십시오.",
           "grading": "hash",
-          "sourceRequired": true,
+          "sourceRequired": false,
           "sourceIds": [
             "MOCK-S1"
           ],
@@ -229,7 +229,7 @@
           "type": "order",
           "prompt": "[합성] 연습 카드의 배치를 조정하십시오.",
           "grading": "order-hash",
-          "sourceRequired": true,
+          "sourceRequired": false,
           "sourceIds": [
             "MOCK-S1"
           ],
@@ -253,7 +253,7 @@
           "type": "match",
           "prompt": "[합성] 연습 카드와 근거 입력란의 연결 화면입니다. 근거 선택지는 미확정입니다.",
           "grading": "map-hash",
-          "sourceRequired": true,
+          "sourceRequired": false,
           "sourceIds": [
             "MOCK-S1"
           ],
@@ -342,8 +342,8 @@
       "confirmed": false,
       "hintPenalty": {
         "1": 0,
-        "2": null,
-        "3": null
+        "2": 10,
+        "3": 10
       },
       "noHintBonus": null
     },

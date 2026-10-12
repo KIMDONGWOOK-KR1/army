@@ -70,7 +70,7 @@
 }
 .validation {
   grid-column: 1 / -1;
-  font-size: 12px;
+  font-size: 16px;
   line-height: 1.6;
   color: #d0d9ef;
 }
@@ -130,6 +130,8 @@
   border-top: 1px solid rgba(143, 163, 209, 0.45);
 }
 .band span {
+  width: max-content;
+  white-space: nowrap;
   position: absolute;
   bottom: 3px;
   transform: translateX(-50%);
@@ -370,3 +372,16 @@
     transition: none;
   }
 }
+
+/* 좁은 폰·큰 글자: 숫자가 잘리지 않게 숫자 칸에 최소 너비를 주고, 모자라면 'MHz'가 아래 줄로 내려간다 */
+.readout {
+  flex-wrap: wrap;
+}
+.readout .lcd {
+  flex: 1 1 4.4ch;
+  min-width: 4.4ch;
+}
+
+.panel[data-compact] .head small { display: none; }
+.panel[data-compact] .head { font-size: 16px; }
+.panel[data-compact] .dial { max-width: 136px; }

@@ -231,7 +231,7 @@
           "type": "truefalse",
           "prompt": "[합성] 연습 문장을 읽고 판단 항목을 선택하십시오.",
           "grading": "hash",
-          "sourceRequired": true,
+          "sourceRequired": false,
           "sourceIds": [
             "MOCK-S1"
           ],
@@ -254,7 +254,7 @@
           "type": "order",
           "prompt": "[합성] 연습 카드의 배치를 조정하십시오.",
           "grading": "order-hash",
-          "sourceRequired": true,
+          "sourceRequired": false,
           "sourceIds": [
             "MOCK-S1"
           ],
@@ -278,7 +278,7 @@
           "type": "match",
           "prompt": "[합성] 연습 카드와 근거 입력란의 연결 화면입니다. 근거 선택지는 미확정입니다.",
           "grading": "map-hash",
-          "sourceRequired": true,
+          "sourceRequired": false,
           "sourceIds": [
             "MOCK-S1"
           ],
@@ -322,18 +322,15 @@
     "step_progress": {
       "G-01.verdict": {
         "status": "done",
-        "attempts": 1,
-        "method": "simulated"
+        "attempts": 1
       },
       "G-01.order": {
         "status": "done",
-        "attempts": 1,
-        "method": "simulated"
+        "attempts": 1
       },
       "G-01.evidence": {
         "status": "done",
-        "attempts": 1,
-        "method": "simulated"
+        "attempts": 1
       }
     },
     "hint_level": 0,
@@ -361,21 +358,21 @@
             "step_id": "G-01.verdict",
             "prompt": "[합성] 연습 문장을 읽고 판단 항목을 선택하십시오.",
             "verified": true,
-            "method": "field",
+            "method": null,
             "explanation": "[합성] 이 역할의 조사 절차를 확인했습니다."
           },
           {
             "step_id": "G-01.order",
             "prompt": "[합성] 연습 카드의 배치를 조정하십시오.",
             "verified": true,
-            "method": "field",
+            "method": null,
             "explanation": "[합성] 이 역할의 조사 절차를 확인했습니다."
           },
           {
             "step_id": "G-01.evidence",
             "prompt": "[합성] 연습 카드와 근거 입력란의 연결 화면입니다. 근거 선택지는 미확정입니다.",
             "verified": true,
-            "method": "field",
+            "method": null,
             "explanation": "[합성] 이 역할의 조사 절차를 확인했습니다."
           }
         ]
@@ -404,8 +401,8 @@
       "confirmed": false,
       "hintPenalty": {
         "1": 0,
-        "2": null,
-        "3": null
+        "2": 10,
+        "3": 10
       },
       "noHintBonus": null
     },

@@ -24,6 +24,8 @@ export default function VerifyApp() {
   const [code, setCode] = useState("");
   const isSynthetic = s?.course.demo === true &&
     s.course.id.startsWith("jnu-demo-dev-");
+  const isContentReview = s?.course.demo === true &&
+    s.course.id.startsWith("jnu-demo-dev-review-");
   const myIndex = s?.self.role ? ROLES.indexOf(s.self.role) : -1;
   const location = useLocation(s, send);
   const canSimulate = !!s && allowsSimulatedArrival(s.course, s.stage.arrival);
@@ -34,8 +36,10 @@ export default function VerifyApp() {
         <header className="verify-card verify-stack">
           <h1>전체 코스 v2 확인용 화면</h1>
           <p>
-            합성 코스로 4인 흐름을 확인하는 임시 화면이다. 모의 도착은 실제 현장
-            GPS 검증에 해당하지 않는다.
+            {isContentReview
+              ? "정식 콘텐츠 검수 · 모의 도착으로 4인 흐름을 확인하는 임시 화면이다."
+              : "합성 코스로 4인 흐름을 확인하는 임시 화면이다."}{" "}
+            모의 도착은 실제 현장 GPS 검증에 해당하지 않는다.
           </p>
           <a href="/">기존 게임 화면</a>
         </header>

@@ -3,9 +3,17 @@ import { projectGameV2 } from "../../supabase/functions/_shared/engine-v2";
 import { fullDemoCourseV2, fullDemoV2Input } from "../../supabase/functions/_shared/wall-bongji-course-v2";
 import { ROLES, type Command, type GameEvent, type Role } from "../../supabase/functions/_shared/types";
 
-export async function fullTeam() {
+export async function fullTeam(options: { evidence?: boolean; confirmFixture?: boolean } = {}) {
   const salt = crypto.randomUUID(), id = "jnu-demo-dev-full-test";
   const course = await fullDemoCourseV2(id, salt), input = fullDemoV2Input(id).privateInput;
+  // Synthetic compatibility fixture for the optional confirm-stage API.
+  // The actual course and default full-team route remain tribute-only.
+  if (options.confirmFixture) {
+    const wall = course.stages.find((stage) => stage.id === "wall")!;
+    wall.completion = { type: "confirm", labels: Object.fromEntries(ROLES.map((role) => [role, "[합성] 공동 확인"])) as Record<Role, string> };
+    wall.recordTemplate = structuredClone(course.stages.find((stage) => stage.id === "bongji")!.recordTemplate);
+    for (const role of ROLES) wall.roles[role]!.steps[0].sourceRequired = true;
+  }
   const game = createGame("one", "연습1", course, 100000, "TEST");
   let now = 100000, seq = 0;
   const events: GameEvent[] = [];
@@ -22,22 +30,30 @@ export async function fullTeam() {
   const solve = async (role: Role) => {
     const stage = course.stages[game.v2!.stageIndex];
     for (const step of stage.roles[role]!.steps) {
-      const answer = input.stages[stage.id].steps[step.id].answer ?? (step.fields
+      const answer = input.stages[stage.id].steps[step.id].answer ?? (step.grading === "confirm" ? "confirmed" : step.fields
         ? Object.fromEntries(step.fields.map((f) => [f.id, `[합성] ${stage.id}-${role} 비공개 ${f.id}`])) : "[합성] 자유 기록");
-      await call(role, { action: "submit-step", step_id: step.id, answer, method: "official_digital",
-        source: { text: `[합성] ${stage.id}-${role} 비공개 출처` } });
+      await call(role, { action: "submit-step", step_id: step.id, answer,
+        ...(options.evidence === false ? {} : { method: "official_digital" as const,
+          source: { text: `[합성] ${stage.id}-${role} 비공개 출처` } }) });
     }
     await call(role, { action: "submit-report" });
   };
   const depart = () => call("commander", { action: "depart-next-site" });
-  const wallReady = async () => { for (const role of ["scout", "signal", "cipher", "commander"] as const) await solve(role); };
+  // 추모의 벽은 헌화만 한다: 각자 국화 올리기(확인 문제) 한 번
+  const offer = (role: Role, extra: Partial<Command> = {}) => {
+    const step = course.stages[game.v2!.stageIndex].roles[role]!.steps[0];
+    return call(role, { action: "submit-step", step_id: step.id, answer: "confirmed", method: "field", ...extra });
+  };
   const draft = (action = "draft-memorial-record", version = 0, extra: Partial<Command> = {}) => call("commander", {
     action, draft_version: version, words: course.stages[game.v2!.stageIndex].recordTemplate!.wordChoices.slice(0, 3),
     text: "[합성] 함께 작성한 문장", reason: "[합성] 함께 확인한 근거", ...extra,
   });
+  const wallReady = async () => { for (const role of ROLES) await solve(role); };
   const wallComplete = async () => {
-    await wallReady(); await draft();
-    for (const role of ROLES) await call(role, { action: "confirm-stage", draft_version: 1 });
+    if (options.confirmFixture) {
+      await wallReady(); await draft();
+      for (const role of ROLES) await call(role, { action: "confirm-stage", draft_version: 1 });
+    } else for (const role of ROLES) await offer(role);
   };
   await call("commander", { action: "begin-operation" });
   // Existing lock stages are traversed through real actions and receipts.
@@ -49,5 +65,5 @@ export async function fullTeam() {
     await call("commander", { action: "open-lock", digits: stage.completion.order.map((r) => input.stages[stage.id].roles[r]!.digit!) });
     await depart();
   }
-  return { course, game, input, events, call, callUser, view, arrive, solve, depart, draft, wallReady, wallComplete };
+  return { course, game, input, events, call, callUser, view, arrive, solve, depart, draft, offer, wallReady, wallComplete };
 }

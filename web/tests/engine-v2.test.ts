@@ -119,11 +119,13 @@ describe("v2 gate engine", () => {
     await expect(t.call("signal", { action: "confirm-explanation" })).rejects
       .toMatchObject({ code: "EXPLANATION_REQUIRED" });
     for (const role of ROLES) {
+      const startingScore = t.game.score;
       await t.call("commander", {
         action: "request-hint",
         target_role: role,
         level: 1,
       });
+      expect(t.game.score).toBe(startingScore);
       const cmd = {
         action: "request-hint",
         target_role: role,
@@ -131,17 +133,27 @@ describe("v2 gate engine", () => {
         request_id: `hint-${role}`,
       };
       await t.call("commander", cmd);
+      expect(t.game.score).toBe(startingScore - 10);
       const before = structuredClone(t.game), count = t.events.length;
       await t.call("commander", cmd);
       expect(t.game).toEqual(before);
       expect(t.events).toHaveLength(count);
       await expect(t.call("commander", { ...cmd, level: 3 })).rejects
         .toMatchObject({ code: "IDEMPOTENCY_CONFLICT" });
-      await t.call("commander", {
+      const thirdHint = {
         action: "request-hint",
         target_role: role,
         level: 3,
-      });
+        request_id: `hint-${role}-3`,
+      };
+      await t.call("commander", thirdHint);
+      expect(t.game.score).toBe(startingScore - 20);
+      const afterThird = structuredClone(t.game), thirdCount = t.events.length;
+      await t.call("commander", thirdHint);
+      expect(t.game).toEqual(afterThird);
+      expect(t.events).toHaveLength(thirdCount);
+      expect(t.events.filter((event) => event.action === "request-hint" && event.data.target_role === role)
+        .map((event) => event.data.penalty)).toEqual([0, 10, 10]);
       expect(
         Object.values(t.game.v2!.progress.gate[role].steps).every((p) =>
           p.status === "explained" && p.attempts === 0

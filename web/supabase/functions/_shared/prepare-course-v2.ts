@@ -494,6 +494,13 @@ export function validateCourseV2Content(input: unknown): CourseV2Content {
           ROLES.map((role) => [role, str(labels[role], stageId)]),
         ) as Record<Role, string>,
       };
+    } else if (c.type === "tribute") {
+      exact(c, ["type", "label"], stageId);
+      // 헌화는 문제 없이 역할마다 확인 한 번(국화 올리기)만 둔다
+      if (ROLES.some((role) =>
+        roles[role]?.steps.length !== 1 || roles[role]!.steps[0].grading !== "confirm"
+      )) fail(stageId, "헌화 단계는 역할마다 확인 단계 하나만 둔다.");
+      completion = { type: "tribute", label: str(c.label, stageId) };
     } else {
       exact(c, ["type"], stageId);
       if (c.type !== "joint-record") {
@@ -523,6 +530,9 @@ export function validateCourseV2Content(input: unknown): CourseV2Content {
       (!stage.quiet || scoring.enabled || completion.type === "lock" ||
         ROLES.some((role) => roles[role]?.digit))
     ) fail(stageId, "추모 단계에는 점수·숫자·자물쇠를 둘 수 없다.");
+    if (completion.type === "tribute" && stage.kind !== "memorial") {
+      fail(stageId, "헌화 완료는 추모 단계에만 사용한다.");
+    }
     if (a.sacho !== undefined) {
       const s = obj(a.sacho, stageId);
       keys(s, ["id", "name", "sections", "char", "body"], stageId);
@@ -547,10 +557,27 @@ export function validateCourseV2Content(input: unknown): CourseV2Content {
     }
     if (a.recordTemplate !== undefined) {
       const t = obj(a.recordTemplate, stageId);
-      exact(t, ["prompt", "wordChoices", "wordCount"], stageId);
+      keys(t, ["prompt", "wordChoices", "wordCount", "sentenceParts"], stageId);
       stage.recordTemplate = { prompt: str(t.prompt, stageId),
         wordChoices: strings(t.wordChoices, stageId, 1, 30), wordCount: integer(t.wordCount, stageId, 1, 8) };
       unique(stage.recordTemplate.wordChoices, stageId);
+      if (Object.hasOwn(t, "sentenceParts")) {
+        const template = stage.recordTemplate;
+        const path = `${stageId}.recordTemplate.sentenceParts`;
+        template.sentenceParts = Array.from(arr(t.sentenceParts, path, template.wordCount + 1, template.wordCount + 1), (part) => {
+          if (typeof part !== "string") return fail(path, "문장 조각은 문자열이어야 한다.");
+          return part;
+        });
+        // NFC may expand characters or recompose across a leading combining mark.
+        // NFD bounds that boundary case; otherwise separate NFC lengths are an upper bound.
+        const fragments = [...template.sentenceParts, ...template.wordChoices];
+        const form = fragments.some((part) => /^\p{M}/u.test(part.normalize("NFC"))) ? "NFD" : "NFC";
+        const lengthBound = (part: string) => [...part.normalize(form)].length;
+        // Repeated word selections remain allowed, so any choice must fit every blank.
+        const maxWordLength = Math.max(...template.wordChoices.map(lengthBound));
+        if (template.sentenceParts.reduce((length, part) => length + lengthBound(part), 0) +
+          maxWordLength * template.wordCount > 600) fail(path, "낱말을 넣은 문장은 600자 이하여야 한다.");
+      }
       if (completion.type === "lock") fail(stageId, "공동 기록 양식은 확인·회고 단계에만 사용한다.");
     }
     if (stage.kind === "epilogue" && (scoring.enabled || completion.type !== "joint-record" ||
@@ -727,10 +754,15 @@ export async function prepareCourseV2(
       roles[role] = rolePrivate;
       for (const step of mission.steps) {
         const b = obj(rawSteps[step.id], step.id);
-        keys(b, ["answer", "rubric", "explanation", "reward"], step.id);
+        keys(b, ["answer", "acceptedAnswers", "hints", "rubric", "explanation", "reward"], step.id);
         const prepared: StepPrivate = {
           explanation: str(b.explanation, "private.explanation"),
         };
+        if (b.hints !== undefined) prepared.hints = strings(b.hints, "private.step.hints", 3, 3) as [string, string, string];
+        if (b.acceptedAnswers !== undefined) {
+          if (!["text", "observation"].includes(step.type) || step.grading !== "hash") fail(step.id, "표기 변형은 텍스트 해시 문항에서만 허용한다.");
+          prepared.answerHashes = await Promise.all(arr(b.acceptedAnswers, step.id, 1, 30).map((answer) => answerHashV2(salt, course.id, step, answer as StepAnswer)));
+        }
         if (step.grading.includes("hash")) {
           prepared.answerHash = await answerHashV2(
             salt,

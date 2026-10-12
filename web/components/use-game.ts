@@ -2,26 +2,19 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiError, getSupabase, requestGame, requestGameAny, requestGameV2, backend } from "@/lib/client";
 import type { Snapshot, Command } from "@/supabase/functions/_shared/types";
+import { refreshCurrentGame } from "@/lib/refresh-game";
 import { requestId } from "@/lib/request-id";
 import { isV2Response, type GameResponse, type V2Response } from "@/lib/game-snapshot";
 
 function refreshV1(id?: string) {
   return requestGame({ action: "get-game", game_id: id });
 }
-async function refreshV2(id?: string) {
-  const next = await requestGameV2({ action: "get-game", game_id: id });
-  if (next.game.status === "playing" && next.game.site_phase !== "travel") {
-    return requestGameV2({ action: "get-stage", game_id: next.game.id, stage_id: next.game.stage_id });
-  }
-  return next;
+function refreshV2(id?: string) {
+  return refreshCurrentGame(requestGameV2, id);
 }
 
-async function refreshAny(id?: string) {
-  const next = await requestGameAny({ action: "get-game", game_id: id });
-  if (isV2Response(next) && next.game.status === "playing" && next.game.site_phase !== "travel") {
-    return requestGameV2({ action: "get-stage", game_id: next.game.id, stage_id: next.game.stage_id });
-  }
-  return next;
+function refreshAny(id?: string) {
+  return refreshCurrentGame(requestGameAny, id);
 }
 
 export function useGame() {

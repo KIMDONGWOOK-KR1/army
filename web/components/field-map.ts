@@ -17,6 +17,7 @@ import {
   hallModel,
   lightHallRoof,
   stoneModel,
+  memorialWallModel,
   towerModel,
 } from "./field-landmarks";
 import type { FieldAssets, TreeKind, TreeLod } from "./field-assets";
@@ -35,6 +36,7 @@ import { seeThrough, type SeeKind } from "./field-occlusion";
 import { buildProps, type TreeSpot } from "./field-props";
 import { markerAt } from "./field-stop";
 import { polylineLength, type XZ } from "@/lib/geo";
+import { clearsWalkingRoute } from "@/lib/walking-route";
 
 // 오픈스트리트맵에서 구운 지도 자료(scripts/build-map.mjs)를 실제 축척(1단위 = 1m)의
 // 점토 디오라마로 깐다. 좌표는 정문 기준 미터, x 동쪽, z 남쪽이다.
@@ -278,7 +280,9 @@ export function buildMap(
   if (tower) occ.circle(tower.x, tower.z, 9);
   for (const k of ["stone", "bloom"]) if (A[k]) occ.circle(A[k][0], A[k][1], 7);
   // 거점 표석 자리(거점에서 비켜 선다)도 비운다: 받침 8m에 펼친 기록 액자가 선다
-  const siteList: XZ[] = [gate, ...(A.hall ? [xz(A.hall)] : [])],
+  // 거점 차례: 정문, 용봉관, 추모의 벽, 봉지(지도에 자리가 있는 것까지)
+  const siteList: XZ[] = [gate, ...(["hall", "wall", "bongji"] as const)
+      .filter((k) => A[k]).map((k) => xz(A[k]!))],
     markers = siteList.map((p, i) => markerAt(i, p));
   for (const m of markers) occ.circle(m.x, m.z, 7);
 
@@ -340,7 +344,10 @@ export function buildMap(
   // 용봉관 앞 잔디의 원뿔꼴로 다듬은 나무 줄은 소품 키트로 세운다(field-dressing.ts)
   const kit = assets?.trees,
     forest = kit ? treeInstancer(kit, phone) : null;
-  for (const t of plan)
+  const walkingTrees = plan.filter((t) => clearsWalkingRoute(
+    data.legs, t.x, t.z, t.s * (t.k === "pine" ? 1.25 : t.k === "round" ? 1.15 : 1),
+  ));
+  for (const t of walkingTrees)
     if (forest && kit) kitTree(forest, kit, t);
     else blockTree(trees, t);
 
@@ -385,6 +392,9 @@ export function buildMap(
   // 사적비는 실제 크기(m)로 빚었다
   if (A.stone) place(stoneModel(), xz(A.stone), toward(xz(A.stone), gate), 1);
   if (A.bloom) place(bloomModel(), xz(A.bloom), toward(xz(A.bloom), gate), 2);
+  // 추모의 벽은 장병(장난감 축척)과 어울리게 두 배로, 열린 쪽이 용봉관(들어오는 길)을 본다
+  if (A.wall)
+    place(memorialWallModel(), xz(A.wall), A.hall ? toward(xz(A.wall), xz(A.hall)) : 0, 2);
   // 블렌더 용봉탑은 실제 크기(높이 약 15m)로 만들었다
   if (tower)
     place(
@@ -414,7 +424,7 @@ export function buildMap(
   if (forest) {
     updaters.push(forest.build(scene));
     if (process.env.NODE_ENV !== "production")
-      console.info("field kit trees", plan.length, "meshes", forest.meshes.length);
+      console.info("field kit trees", walkingTrees.length, "meshes", forest.meshes.length);
   } else
     scene.add(
       ...[
@@ -424,7 +434,7 @@ export function buildMap(
       ].map((m) => cut(m, "soft")),
     );
   // 거리 소품(벤치·가로등·화단 등)과 소품·나무 블롭 그늘: 캐릭터 둘레 80m에 걸치는 구역에만
-  const spots: TreeSpot[] = plan.map((t) => ({
+  const spots: TreeSpot[] = walkingTrees.map((t) => ({
     x: t.x,
     z: t.z,
     r:
@@ -459,7 +469,7 @@ export function buildMap(
         [gate.x, gate.z, hall.x, hall.z],
       ];
   return {
-    sites: [gate, hall],
+    sites: siteList,
     calm,
     legs,
     legLength: legs.map(polylineLength),

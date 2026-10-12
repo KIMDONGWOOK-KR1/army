@@ -1,5 +1,8 @@
+import { storyBDemoCourseV2, type StoryBAnswerInput } from "@/supabase/functions/_shared/story-b-course-v2";
 import { fullDemoCourseV2 } from "@/supabase/functions/_shared/wall-bongji-course-v2";
+import { legacyFullDemoCourseV2 } from "@/supabase/functions/_shared/legacy-full-course-v2";
 import "server-only";
+import { dispatchSoloV2 } from "./solo-v2";
 import { readFile, mkdir, writeFile, rename } from "node:fs/promises";
 import { join } from "node:path";
 import {
@@ -30,7 +33,7 @@ type Database = {
   events?: Record<string, GameEvent[]>;
   courses?: Record<string, CourseV2>;
 };
-const folder = join(process.cwd(), ".demo-data"),
+const folder = process.env.LOCAL_GAME_DATA_DIR ?? join(process.cwd(), ".demo-data"),
   file = join(folder, "state.json");
 const globalStore = globalThis as typeof globalThis & {
   hogukQueue?: Promise<unknown>;
@@ -65,8 +68,20 @@ async function operation(session: string, cmd: Command): Promise<Snapshot> {
     db.courses ??= {};
     if (db.courses[id]) return db.courses[id];
     const preset = process.env.LOCAL_V2_PRESET ?? "synthetic";
-    if (!["synthetic", "v1-gate", "v1-gate-gps", "gate-yongbong", "gate-yongbong-gps", "full-course"].includes(preset))
+    if (!["synthetic", "v1-gate", "v1-gate-gps", "gate-yongbong", "gate-yongbong-gps", "full-course", "full-course-v1", "story-b"].includes(preset))
       throw new DomainError("SERVER_ERROR", "로컬 v2 preset 설정을 확인하라.");
+    if (preset === "story-b") {
+      let answers: StoryBAnswerInput;
+      try {
+        answers = JSON.parse(await readFile(process.env.LOCAL_STORY_B_PRIVATE_FILE ?? join(process.cwd(), ".story-b.private.local.json"), "utf8"));
+        return db.courses[id] = await storyBDemoCourseV2(id, salt ?? "", answers);
+      } catch {
+        // Never print parser failures or private answer content.
+        throw new DomainError("CONTENT_UNCONFIRMED", "새 이야기의 비공개 판정 자료를 준비하고 다시 시도해주세요.");
+      }
+    }
+    // full-course-v1: 전체 코스에서 용봉관만 hh의 v1 시연 문항(주파수 등)
+    if (preset === "full-course-v1") return db.courses[id] = await legacyFullDemoCourseV2(id, salt ?? "");
     const build = preset === "full-course" ? fullDemoCourseV2 : preset.startsWith("gate-yongbong") ? yongbongDemoCourseV2 : preset !== "synthetic" ? legacyDemoCourseV2 : demoCourseV2;
     return db.courses[id] = await build(id, salt ?? "", preset.endsWith("-gps"));
   };
@@ -81,15 +96,14 @@ async function operation(session: string, cmd: Command): Promise<Snapshot> {
   const userId = await sha256(session);
   let game: Game | undefined;
   if (cmd.action === "create-game" || cmd.action === "create-demo") {
-    // Solo rehearsal always uses its own v1 demo room, even on a v2 dev server.
+    // MINO uses the selected course from both entrances; older demo presets keep
+    // their existing presentation controls. Rehearsal gets three local companions.
     // The public /api/game route remains disabled on Vercel/Supabase deployments.
-    if (cmd.action === "create-game" && process.env.LOCAL_V2_COURSE_ID) {
+    if (process.env.LOCAL_V2_COURSE_ID && (cmd.action === "create-game" || process.env.LOCAL_V2_PRESET === "story-b")) {
       if (!process.env.LOCAL_V2_COURSE_ID.startsWith("jnu-demo-dev-"))
         throw new DomainError("SERVER_ERROR", "로컬 v2 dev 코스 설정을 확인하라.");
       course = await courseFor(process.env.LOCAL_V2_COURSE_ID);
     }
-    if (cmd.action === "create-demo" && "schemaVersion" in course)
-      throw new DomainError("FORBIDDEN", "v2 합성 코스도 네 명이 합류해야 한다.");
     if (!cmd.request_id || !/^[a-zA-Z0-9_-]{1,128}$/.test(cmd.request_id))
       throw new DomainError("INVALID_REQUEST", "요청 식별자가 필요하다.");
     const key = userId + ":" + cmd.request_id,
@@ -193,7 +207,9 @@ async function operation(session: string, cmd: Command): Promise<Snapshot> {
   game = db.games[cmd.game_id ?? db.sessions[userId]];
   if (!game) throw new DomainError("NO_GAME", "진행 중인 작전이 없다.");
   course = await courseFor(game.courseId);
-  const result = await dispatch(game, course, userId, cmd, now, game.v2 ? salt : undefined, events);
+  const result = game.demoOwner === userId && "schemaVersion" in course
+    ? await dispatchSoloV2(game, course, userId, cmd, now, salt ?? "", events)
+    : await dispatch(game, course, userId, cmd, now, game.v2 ? salt : undefined, events);
   persistEvents(game);
   await save(db);
   const snapshot = project(game, course, userId, now);
