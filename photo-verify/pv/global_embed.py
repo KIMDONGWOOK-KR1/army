@@ -33,9 +33,29 @@ def to_tensor(images: list[np.ndarray], mean=IMAGENET_MEAN, std=IMAGENET_STD) ->
     return (x - m) / s
 
 
+POOLINGS = ("gem", "mean", "cls", "cls_mean")
+
+
+def pool_tokens(feats: dict, pooling: str, p: float = 3.0) -> torch.Tensor:
+    """DINOv2 forward_features 결과 → (B, D). LayerNorm된 패치 토큰은 부호가 있어 clamp형 GeM을 쓰면 값이 뭉개진다."""
+    patch, cls = feats["x_norm_patchtokens"], feats["x_norm_clstoken"]
+    if pooling == "gem":
+        return gem(patch, p)
+    if pooling == "mean":
+        return patch.mean(dim=1)
+    if pooling == "cls":
+        return cls
+    if pooling == "cls_mean":
+        return torch.cat([cls, patch.mean(dim=1)], dim=1)
+    raise ValueError(f"unknown pooling: {pooling}")
+
+
 class DinoV2Embedder:
-    def __init__(self, variant: str = "dinov2_vitb14", p: float = 3.0):
+    def __init__(self, variant: str = "dinov2_vitb14", pooling: str = "gem", p: float = 3.0):
+        if pooling not in POOLINGS:
+            raise ValueError(f"unknown pooling: {pooling}")
         self.name = variant
+        self.pooling = pooling
         self.p = p
         self.model = torch.hub.load("facebookresearch/dinov2", variant,
                                     trust_repo=True, skip_validation=True).eval()
@@ -43,7 +63,7 @@ class DinoV2Embedder:
     @torch.inference_mode()
     def embed(self, images: list[np.ndarray]) -> np.ndarray:
         feats = self.model.forward_features(to_tensor(images))
-        return l2_normalize(gem(feats["x_norm_patchtokens"], self.p).numpy())
+        return l2_normalize(pool_tokens(feats, self.pooling, self.p).numpy())
 
 
 class OpenClipEmbedder:

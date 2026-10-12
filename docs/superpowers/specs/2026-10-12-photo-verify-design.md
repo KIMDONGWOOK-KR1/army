@@ -54,7 +54,7 @@
 - 품질 검사: Laplacian 분산이 하한보다 낮으면 흐림으로, 평균 밝기가 상·하한을 벗어나면 과노출·저조도로 보고 `RETAKE`를 반환한다. 하한·상한 값은 평가셋으로 정한다.
 
 ### 4.2 1단계 전역 검색
-- 기본 백본은 DINOv2 ViT-B/14(Apache-2.0)다. 패치 토큰에 GeM pooling(p=3)을 적용하고 L2 정규화한다.
+- 기본 백본은 DINOv2 ViT-B/14(Apache-2.0)다. 전역 풀링은 패치 토큰에 GeM(p=3)을 적용하고 L2 정규화하는 것을 기본으로 두며, gem/mean/cls/cls_mean을 §6.3에서 비교한다. 선택 근거: 합성 쌍 20개에서 ViT-B/14 승률이 gem 8/20으로 가장 높았다(mean 6, cls 5, cls_mean 6). 모든 풀링이 우연 수준(10/20) 이하라 근거는 약하다. 부호 있는 LayerNorm 패치 토큰을 clamp형 GeM이 뭉갤 것이라는 가설은 세웠으나 측정으로 확인되지 않았다.
 - 기준 갤러리에는 원본과 증강본(색상 변화, 무작위 crop, 좌우 반전 제외)을 넣는다.
 - `s_g`는 갤러리와의 최대 코사인 유사도다.
 - 백본은 교체할 수 있게 둔다. 비교 대상은 DINOv2-S/14, CLIP ViT-B/16, SigLIP이다.
@@ -129,6 +129,7 @@ private/photo-verify/
 |---|---|
 | 구조 | (A) 전역만, (B) 국소만, (C) 결합 |
 | 전역 백본 | DINOv2-S/14, DINOv2-B/14, CLIP ViT-B/16, SigLIP |
+| 전역 풀링 | gem(clamp, p=3), mean, cls, cls_mean |
 | 국소 매처 | SIFT+RANSAC, SuperPoint+LightGlue, ALIKED+LightGlue |
 | 기준 사진 장수 | 1, 3, 5장 |
 | 갤러리 증강 | 있음, 없음 |

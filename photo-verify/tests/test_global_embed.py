@@ -44,3 +44,11 @@ def test_dinov2_prefers_same_scene():
     v = emb.embed([a, b, c])
     assert v.shape == (3, 384)
     assert float(v[0] @ v[1]) > float(v[0] @ v[2])
+
+
+def test_unknown_pooling_rejected():
+    from pv.global_embed import pool_tokens
+
+    feats = {"x_norm_patchtokens": torch.rand(1, 4, 8), "x_norm_clstoken": torch.rand(1, 8)}
+    with pytest.raises(ValueError):
+        pool_tokens(feats, "nope", 3.0)
