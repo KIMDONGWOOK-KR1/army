@@ -40,4 +40,5 @@ def test_folds_need_two_sessions(tmp_path):
 def test_cross_site_negatives_from_other_sites(tmp_path):
     samples = load_manifest(write(tmp_path, ["a.jpg,gate,pos,s1,,,,,\n", "b.jpg,gate,hard_neg,s1,,,,,\n"]))
     out = cross_site_negatives(samples, ["gate", "yongbong"])
+    assert [s.session for s in out] == ["s1"]  # 회차(fold)가 유지된다
     assert [(s.site_id, s.label, s.path.name) for s in out] == [("yongbong", "cross_neg", "a.jpg")]

@@ -65,3 +65,19 @@ def test_early_accept_disabled_when_lookalikes_exceed_tau_accept():
     safe = early_accept_safe(out["C_both"])
     sites = fit_all(rows(), top_k=3, far=0.01, safe=safe)
     assert sites["gate"].early_accept is (safe["gate"] and sites["gate"].tau_accept is not None)
+
+
+def test_test_fold_rows_do_not_affect_calibration():
+    base = rows()
+    ref = evaluate(base)["C_reject"]
+    # fold 1 행의 절반만 특징을 바꾼다. 바뀌지 않은 fold 1 행의 판정은 보정 fold(0)에서만 나오므로 그대로여야 한다.
+    perturbed = []
+    for i, r in enumerate(base):
+        if r.fold == 1 and i % 2 == 0:
+            r = Row(r.sample, r.fold, feat(0.5, 1))
+        perturbed.append(r)
+    new = evaluate(perturbed)["C_reject"]
+    untouched = {str(r.sample.path) for i, r in enumerate(base) if r.fold == 1 and i % 2 == 1}
+    old_dec = {str(r.sample.path): a for r, a in zip(ref.rows, ref.accept) if str(r.sample.path) in untouched}
+    new_dec = {str(r.sample.path): a for r, a in zip(new.rows, new.accept) if str(r.sample.path) in untouched}
+    assert untouched and old_dec == new_dec

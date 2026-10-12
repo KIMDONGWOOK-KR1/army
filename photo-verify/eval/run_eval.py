@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import hashlib
 import json
 import platform
 import sys
@@ -14,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from pv.evaldata import assign_folds, cross_site_negatives, load_manifest  # noqa: E402
 from pv.evaluate import (Row, early_accept_safe, evaluate, fit_all, per_site,  # noqa: E402
                          per_tag, summarize)
-from pv.gallery import build_gallery, load_ref_dir  # noqa: E402
+from pv.gallery import IMAGE_SUFFIXES, build_gallery, load_ref_dir  # noqa: E402
 from pv.global_embed import make_embedder  # noqa: E402
 from pv.local_match import make_matcher  # noqa: E402
 from pv.pipeline import Features, compute_features  # noqa: E402
@@ -45,31 +46,64 @@ def md_table(rows: list[dict]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def file_fp(path: Path) -> str:
+    st = Path(path).stat()
+    return f"{st.st_size}-{st.st_mtime_ns}"
+
+
+def refs_fingerprint(refs_root: Path, sites: list[str], n_refs: int) -> str:
+    """실제로 쓰이는 기준 사진(이름·크기·mtime)의 짧은 지문. 기준 사진이 바뀌면 캐시 키가 달라진다."""
+    h = hashlib.sha1()
+    for site in sorted(sites):
+        files = sorted(p for p in (Path(refs_root) / site).iterdir() if p.suffix.lower() in IMAGE_SUFFIXES)[:n_refs]
+        for p in files:
+            st = p.stat()
+            h.update(f"{site}/{p.name}:{st.st_size}:{st.st_mtime_ns};".encode("utf-8"))
+    return h.hexdigest()[:10]
+
+
+def read_cache(path: Path) -> dict:
+    """캐시를 읽는다. 깨진 줄(중단된 쓰기)은 건너뛰고 개수를 경고한다."""
+    stored, bad = {}, 0
+    if Path(path).exists():
+        for line in Path(path).read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            try:
+                item = json.loads(line)
+                stored[(item["path"], item["site_id"])] = (item.get("fp"), features_from_json(item["f"]))
+            except (ValueError, KeyError, TypeError):
+                bad += 1
+    if bad:
+        print(f"경고: 캐시 {path}에서 깨진 줄 {bad}개를 건너뜀")
+    return stored
+
+
 def run_config(samples, folds, refs_root, out_dir, backbone, matcher_name, n_refs, augment, top_k, max_kp, cache):
-    key = f"{backbone}__{matcher_name}__refs{n_refs}__aug{int(augment)}__kp{max_kp}"
+    sites = sorted({s.site_id for s in samples})
+    key = (f"{backbone}__{matcher_name}__refs{n_refs}__aug{int(augment)}__kp{max_kp}"
+           f"__{refs_fingerprint(refs_root, sites, n_refs)}")
     cache_path = out_dir / "cache" / f"{key}.jsonl"
-    stored = {}
-    if cache_path.exists():
-        for line in cache_path.read_text(encoding="utf-8").splitlines():
-            item = json.loads(line)
-            stored[(item["path"], item["site_id"])] = features_from_json(item["f"])
+    stored = read_cache(cache_path)
     if ("e", backbone) not in cache:
         cache[("e", backbone)] = make_embedder(backbone)
     if ("m", matcher_name, max_kp) not in cache:
         cache[("m", matcher_name, max_kp)] = make_matcher(matcher_name, max_kp)
     embedder, matcher = cache[("e", backbone)], cache[("m", matcher_name, max_kp)]
-    sites = sorted({s.site_id for s in samples})
     galleries = {s: build_gallery(s, load_ref_dir(refs_root / s, n_refs), embedder, matcher, augment) for s in sites}
     rows = []
     cache_path.parent.mkdir(parents=True, exist_ok=True)
     with cache_path.open("a", encoding="utf-8") as fh:
         for s in samples:
             k = (str(s.path), s.site_id)
-            if k not in stored:
-                stored[k] = compute_features(embedder, matcher, galleries[s.site_id], s.path.read_bytes(),
-                                             QualityConfig(), top_k, all_refs=True)
-                fh.write(json.dumps({"path": k[0], "site_id": k[1], "f": features_to_json(stored[k])}) + "\n")
-            rows.append(Row(s, folds[s.session], stored[k]))
+            fp = file_fp(s.path)
+            if k not in stored or stored[k][0] != fp:
+                f = compute_features(embedder, matcher, galleries[s.site_id], s.path.read_bytes(),
+                                     QualityConfig(), top_k, all_refs=True)
+                stored[k] = (fp, f)
+                fh.write(json.dumps({"path": k[0], "site_id": k[1], "fp": fp, "f": features_to_json(f)}) + "\n")
+                fh.flush()
+            rows.append(Row(s, folds[s.session], stored[k][1]))
     return key, rows
 
 
