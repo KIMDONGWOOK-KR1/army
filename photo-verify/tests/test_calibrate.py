@@ -140,7 +140,8 @@ def test_no_early_reject_rule_mode_far_budget():
     t = fit_site(s, early_reject=False)
     assert t.mode == "rule"
     assert _accepted_without_reject(t, s) == 0
-    assert t.tau_low == threshold_at_far(s.s_g[s.y == 0], 0.01)  # 모든 오답 기준 s_g 임계값
+    # C_none도 C_reject와 같은 s_g 하한을 써야 조기 거절의 효과만 비교된다
+    assert t.tau_low == t.tau_reject == fit_site(s).tau_low
     assert t.tau_n > 95  # 모든 오답의 inlier 수 기준
 
 

@@ -103,6 +103,7 @@ def fit_site(samples: SiteSamples, far: float = 0.01, margin: float = 0.02,
                                   tau_accept=tau_accept)
     t_n = threshold_at_far(samples.n[surviving], far, total=total_neg)
     tau_n = DEFAULT_TAU_N if total_neg == 0 else max(MIN_POINTS, math.ceil(max(t_n, 0.0)))
-    tau_low = tau_reject if early_reject else threshold_at_far(samples.s_g[neg], far, total=total_neg)
-    return SiteThresholds(tau_reject=tau_reject, tau_n=tau_n, mode="rule", tau_low=tau_low,
+    # early_reject=False여도 s_g 하한은 같게 둔다. FAR 예산은 모든 오답 기준 tau_n이 지키므로
+    # 두 구성의 차이는 조기 거절 여부뿐이다.
+    return SiteThresholds(tau_reject=tau_reject, tau_n=tau_n, mode="rule", tau_low=tau_reject,
                           tau_accept=tau_accept)
