@@ -59,7 +59,7 @@ export function yongbongDemoInput(id: string, gps = false) {
   const stage: Stage = {
     id: "yongbong", seq: content.stages.length + 1, kind: "mission", name: "용봉관", confirmed: false, quiet: false,
     arrival: gps ? jnuGpsArrival("yongbong") : { ...jnuGpsArrival("yongbong"), confirmed: false, note: "합성 개발 코스의 모의 도착" },
-    // D5: synthetic exercise values only; real hint/bonus amounts remain unconfirmed.
+    // Use the confirmed hint penalties; the no-hint bonus remains a synthetic value.
     scoring: structuredClone(content.stages[0].scoring),
     narration: [scene("Y-00.enter", "자료 확인 연습을 시작하라."), scene("Y-05.done", "확인한 내용과 남은 질문을 보관했다.", "stage-complete")],
     roles: Object.fromEntries(ROLES.map((role) => [role, {

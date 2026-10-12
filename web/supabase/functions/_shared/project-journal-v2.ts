@@ -32,7 +32,7 @@ export function projectJournalV2(
           step_id: step.id,
           prompt: step.prompt,
           verified: p.status === "done",
-          method: p.method ?? "explained",
+          method: p.method ?? (p.status === "explained" ? "explained" as const : null),
           ...(p.record
             ? {
               record: Object.fromEntries(

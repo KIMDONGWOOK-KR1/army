@@ -53,7 +53,15 @@ test("four sessions complete memorial and reflections, refresh consent versions 
       const s = await call(forRole(role), "get-stage");
       for (const step of s.self.mission!.steps) {
         const answer = input.steps[step.id].answer ?? Object.fromEntries(step.fields!.map((f) => [f.id, `[합성] wall-${role} 개인 기록`]));
-        await call(forRole(role), "submit-step", { step_id: step.id, answer, method: "official_digital", source: { text: "[합성] 출처" } });
+        const form = forRole(role).getByTestId(`mission-v2-step-${step.id}`);
+        await expect(form).toBeVisible();
+        await expect(form.getByLabel("확인 방식", { exact: true })).toHaveCount(0);
+        await expect(form.getByLabel(/^확인한 출처/)).toHaveCount(0);
+        await expect(form.getByLabel(/^연결할 자료/)).toHaveCount(0);
+        const solved = await call(forRole(role), "submit-step", { step_id: step.id, answer });
+        expect(solved.self.step_progress[step.id].status).toBe("done");
+        expect(solved.self.step_progress[step.id].method).toBeUndefined();
+        expect("source" in solved.self.step_progress[step.id]).toBe(false);
       }
       await forRole(role).getByRole("button", { name: "조사 결과 보고", exact: true }).click();
     }

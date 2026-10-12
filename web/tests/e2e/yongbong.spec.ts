@@ -47,7 +47,10 @@ test("four sessions travel gate to Yongbong, relay records privately and retain 
       const s = await call(forRole(role), "get-stage");
       for (const step of s.self.mission!.steps.filter((s) => !skip.includes(s.id))) {
         const answer = input.steps[step.id].answer ?? Object.fromEntries(step.fields!.map((f) => [f.id, f.id === "created_at" ? "확인 불가" : `[합성] ${role} 기록 ${f.id}`]));
-        await call(forRole(role), "submit-step", { step_id: step.id, answer, method: "official_digital", source: { text: "[합성] 확인 출처" } });
+        const solved = await call(forRole(role), "submit-step", { step_id: step.id, answer });
+        expect(solved.self.step_progress[step.id].status).toBe("done");
+        expect(solved.self.step_progress[step.id].method).toBeUndefined();
+        expect("source" in solved.self.step_progress[step.id]).toBe(false);
       }
     };
     await solve("signal"); await call(forRole("signal"), "submit-report");
@@ -70,9 +73,15 @@ test("four sessions travel gate to Yongbong, relay records privately and retain 
     for (const [key, value] of Object.entries(classification)) {
       await classify.getByLabel(`[합성] 카드 ${key.toUpperCase()}`, { exact: true }).selectOption(value);
     }
-    await classify.getByLabel("확인 방식", { exact: true }).selectOption("official_digital");
-    await classify.getByLabel("확인한 출처", { exact: false }).fill("[합성] 검토 출처");
-    await classify.getByRole("button", { name: /제출|기록/ }).click();
+    await expect(classify.getByLabel("확인 방식", { exact: true })).toHaveCount(0);
+    await expect(classify.getByLabel(/^확인한 출처/)).toHaveCount(0);
+    await expect(classify.getByLabel(/^연결할 자료/)).toHaveCount(0);
+    const [submission] = await Promise.all([
+      commander.waitForRequest((request) => request.url().endsWith("/api/game") &&
+        request.method() === "POST" && request.postDataJSON()?.action === "submit-step"),
+      classify.getByRole("button", { name: /제출|기록/ }).click(),
+    ]);
+    expect("method" in submission.postDataJSON() || "source" in submission.postDataJSON()).toBe(false);
     await expect(classify).toContainText("조사 완료");
     await solve("commander", ["Y-04.classify"]); await call(commander, "submit-report");
     const snapshot = await call(commander, "get-stage");

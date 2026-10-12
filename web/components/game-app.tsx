@@ -210,6 +210,8 @@ export default function GameApp({
     cueSend = useCueSend(rawSend);
   const v2 = s && isV2Response(s) ? s : null;
   const soloDemo = !!s?.game.demo && !v2;
+  const isContentReview = s?.course.demo === true &&
+    s.course.id.startsWith("jnu-demo-dev-review-");
   const simulatedArrival = !!v2 && allowsSimulatedArrival(v2.course, v2.stage.arrival);
   const ownArrival = !!v2?.self.role &&
     v2.game.arrival_mask[ROLES.indexOf(v2.self.role)];
@@ -1633,9 +1635,11 @@ export default function GameApp({
               </p>
               <p>
                 <Shield size={16} /> 추모 공간을 존중하며 안전하게 이동하라.
-                {(s?.course.demo ?? backend === "local")
-                  ? v2?.stage.arrival.confirmed ? "GPS 좌표는 지정됐으며 문항은 시연용이다." : "시연 코스의 실제 좌표와 문항은 미확정이다."
-                  : "지정된 거점에서 동료와 단서를 모아라."}
+                {isContentReview
+                  ? "정식 콘텐츠 검수 · 모의 도착. 실제 현장 GPS 검증에 해당하지 않는다."
+                  : (s?.course.demo ?? backend === "local")
+                    ? v2?.stage.arrival.confirmed ? "GPS 좌표는 지정됐으며 문항은 시연용이다." : "시연 코스의 실제 좌표와 문항은 미확정이다."
+                    : "지정된 거점에서 동료와 단서를 모아라."}
               </p>
             </div>
           )}

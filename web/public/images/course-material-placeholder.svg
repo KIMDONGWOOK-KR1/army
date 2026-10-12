@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="420" viewBox="0 0 720 420" role="img" aria-labelledby="title description">
+  <title id="title">임시 이미지</title>
+  <desc id="description">실제 현장 자료가 아닌 사진 자료 준비 중 안내 그림</desc>
+  <rect width="720" height="420" fill="#eeecdf"/>
+  <rect x="44" y="32" width="632" height="356" rx="20" fill="#f8f6ed" stroke="#cbc9b9" stroke-width="2"/>
+  <rect x="272" y="80" width="176" height="134" rx="14" fill="#e1e7d8" stroke="#5b7258" stroke-width="4"/>
+  <circle cx="398" cy="115" r="15" fill="#b5bd98"/>
+  <path d="m289 194 44-55 36 40 26-27 36 42Z" fill="#849a77"/>
+  <text x="360" y="276" text-anchor="middle" fill="#344630" font-family="sans-serif" font-size="32" font-weight="700">임시 이미지</text>
+  <text x="360" y="317" text-anchor="middle" fill="#53614c" font-family="sans-serif" font-size="22">실제 현장 자료 아님</text>
+</svg>
