@@ -42,3 +42,16 @@
 - demo 갤러리는 기준 사진이 1장이라 2단계 쌍이 1개만 실행된다. 실제 거점은 기준 사진이 여러 장이라 2단계 쌍이 최대 3개까지 늘어나므로 이 수치보다 느릴 수 있다.
 - 스파이크 추정(3.0~3.2초)보다 큰 이유 후보: 2vCPU 제한, 입력 1600x1200(스파이크는 1024x768), Docker Desktop 가상화 오버헤드. 구간별로 분리해 재지는 않았다.
 - 이전 실행은 다른 장면을 쿼리로 써서 NO_MATCH였다; 수치 p50 6095/p95 6952ms.
+
+## 스레드 고정 후 (2026-10-12, 최종 검토 반영)
+- 변경: Dockerfile `OMP_NUM_THREADS=2 MKL_NUM_THREADS=2 PV_TORCH_THREADS=2`, `app_from_env`가 `torch.set_num_threads`·`cv2.setNumThreads`를 2로 고정. 그 전에는 torch가 호스트 코어 수만큼 스레드를 띄워 `--cpus 2` 제한에서 과다 구독됐다.
+- 조건은 Task 11과 같다: 이미지 `photo-verify:dev` 재빌드, `pv.demo_data`로 demo 자료 재생성, `docker run --cpus 2 --memory 4g`, `PV_API_KEY=dev-key`, `/data` 읽기 전용 마운트, 같은 쿼리(`query.jpg`, 같은 장면 언샤프 마스크본), 예열 1회 후 30회.
+
+```
+응답 예: {'match': True, 'score': 0.9874, 'reason_code': 'MATCH', 'latency_ms': 2126}
+왕복(ms): {'p50': 2070.67, 'p95': 2527.03, 'mean': 2150.66}
+서버 처리(ms): {'p50': 2064.0, 'p95': 2481.0, 'mean': 2128.83}
+```
+
+- 판정: 서버 처리 p50 2,064ms, p95 2,481ms로 Task 11(p50 5,755 / p95 6,398ms)보다 약 2.6~2.8배 빨라졌지만 여전히 2,000ms 기준을 넘는다(p50도 약간 초과). 기준 미달이므로 지연 결정(ALIKED 입력 해상도 축소, kp 축소, ONNX, GPU 전환)은 여전히 사용자 결정이 필요하다.
+- 기준 사진 1장 demo라 2단계 쌍이 1개뿐이다. 실제 거점(기준 여러 장)에서는 쌍이 최대 3개로 늘어 이보다 느릴 수 있다.
