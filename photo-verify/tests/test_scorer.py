@@ -94,3 +94,26 @@ def test_unknown_version_rejected(tmp_path):
     path.write_text('{"version": 2}', encoding="utf-8")
     with pytest.raises(ValueError):
         load_thresholds(path)
+
+
+LOGISTIC = SiteThresholds(tau_reject=0.0, tau_n=10, mode="logistic", w_sg=0.0, w_n=1.0,
+                          bias=-2.5, tau_score=0.5)
+
+
+def test_logistic_sequential_stop_does_not_change_decision():
+    # n=10 reaches tau_n but fused score < tau_score; a later ref passes.
+    assert fused_score(LOGISTIC, 0.9, 10) < 0.5 <= fused_score(LOGISTIC, 0.9, 99)
+    fn, calls = lookup({0: 10, 1: 99, 2: 99})
+    d_reject = decide(LOGISTIC, 0.9, [0, 1, 2], fn, top_k=3, early_exit="reject")
+    assert calls == [0, 1] and d_reject.match and d_reject.n == 99
+    d_none = decide(LOGISTIC, 0.9, [0, 1, 2], lambda r: {0: 10, 1: 99, 2: 99}[r],
+                    top_k=3, early_exit="none")
+    assert d_reject.match == d_none.match
+
+
+def test_logistic_early_reject_returns_fused_score_of_zero_inliers():
+    t = SiteThresholds(tau_reject=0.5, tau_n=10, mode="logistic", w_sg=10.0, w_n=0.0,
+                       bias=-5.0, tau_score=0.5)
+    d = decide(t, 0.3, [0, 1], never, top_k=2, early_exit="reject")
+    assert not d.match and d.pairs_used == [] and d.n is None
+    assert d.score == fused_score(t, 0.3, 0)

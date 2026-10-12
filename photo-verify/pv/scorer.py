@@ -90,6 +90,7 @@ def passes(t: SiteThresholds, s_g: float, n: int) -> bool:
 def decide(t: SiteThresholds, s_g: float, ranked_refs: list[int],
            inliers_of: Callable[[int], int], top_k: int,
            early_exit: EarlyExit = "both") -> Decision:
+    """순차 중단은 이미 통과하는 시점에만 일어나므로 조기 종료가 판정 결과를 바꾸지 않는다."""
     if early_exit != "none" and s_g < t.tau_reject:
         return Decision(False, fused_score(t, s_g, 0), "NO_MATCH", None, [])
     if (early_exit == "both" and t.early_accept and t.tau_accept is not None
@@ -100,7 +101,7 @@ def decide(t: SiteThresholds, s_g: float, ranked_refs: list[int],
     for ref in ranked_refs[:top_k]:
         used.append(ref)
         n = max(n, int(inliers_of(ref)))
-        if early_exit != "none" and n >= t.tau_n:
+        if early_exit != "none" and passes(t, s_g, n):
             break
     ok = passes(t, s_g, n)
     return Decision(ok, fused_score(t, s_g, n), "MATCH" if ok else "NO_MATCH", n, used)
