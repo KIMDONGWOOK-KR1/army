@@ -65,3 +65,49 @@ def test_fit_site_rule_when_few_samples():
     s = SiteSamples(np.array([0.9, 0.85, 0.3]), np.array([80.0, 70.0, 4.0]), np.array([1, 1, 0]))
     t = fit_site(s)
     assert t.mode == "rule" and t.tau_n >= 8 and t.tau_low == t.tau_reject
+
+
+def _accepted_negatives(t, s):
+    return sum(1 for sg, n, y in zip(s.s_g, s.n, s.y)
+               if y == 0 and sg >= t.tau_reject and passes(t, sg, int(n)))
+
+
+def test_threshold_at_far_floor_epsilon():
+    neg = np.arange(100, dtype=float)
+    t = threshold_at_far(neg, far=0.29)  # 0.29 * 100 = 28.999... 이지만 29개 허용
+    assert int((neg >= t).sum()) == 29
+
+
+def test_logistic_far_budget_with_overlap():
+    rng = np.random.default_rng(3)
+    s_g = np.r_[rng.uniform(0.6, 0.95, 200), rng.uniform(0.55, 0.9, 300)]
+    n = np.r_[rng.integers(20, 121, 200), rng.integers(0, 41, 300)].astype(float)
+    y = np.r_[np.ones(200), np.zeros(300)].astype(int)
+    s = SiteSamples(s_g, n, y)
+    t = fit_site(s)
+    assert t.mode == "logistic"
+    assert _accepted_negatives(t, s) <= int(np.floor(0.01 * 300))
+
+
+def test_rule_mode_far_count():
+    rng = np.random.default_rng(5)
+    s_g = np.r_[rng.uniform(0.8, 0.95, 5), rng.uniform(0.7, 0.95, 60)]
+    n = np.r_[rng.integers(60, 120, 5), rng.integers(0, 80, 60)].astype(float)
+    y = np.r_[np.ones(5), np.zeros(60)].astype(int)
+    s = SiteSamples(s_g, n, y)
+    t = fit_site(s)
+    assert t.mode == "rule" and t.tau_n >= 8
+    assert _accepted_negatives(t, s) <= int(np.floor(0.01 * 60))
+
+
+def test_saturated_logistic_falls_back_to_rule(monkeypatch):
+    # 자연 데이터로는 로지스틱 점수가 1.0에 포화되지 않으므로, 시그모이드가 전부 1.0을 내는 상황을 강제한다.
+    monkeypatch.setattr("pv.calibrate.fused_score", lambda t, s_g, n: 1.0)
+    rng = np.random.default_rng(7)
+    s_g = np.r_[rng.uniform(0.8, 0.95, 20), rng.uniform(0.8, 0.95, 5), rng.uniform(0.1, 0.3, 15)]
+    n = np.r_[rng.integers(60, 120, 20), np.full(5, 1000), rng.integers(0, 5, 15)].astype(float)
+    y = np.r_[np.ones(20), np.zeros(20)].astype(int)
+    s = SiteSamples(s_g, n, y)
+    t = fit_site(s)
+    assert t.mode == "rule"
+    assert _accepted_negatives(t, s) <= int(np.floor(0.01 * 20))

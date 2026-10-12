@@ -9,7 +9,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_auc_score, roc_curve
 
 from pv.local_match import MIN_POINTS
-from pv.scorer import SiteThresholds
+from pv.scorer import SiteThresholds, fused_score
 
 MIN_FOR_LOGISTIC = 10
 DEFAULT_TAU_N = 15
@@ -20,7 +20,7 @@ def threshold_at_far(neg_scores, far: float = 0.01, total: int | None = None) ->
     neg = np.sort(np.asarray(neg_scores, np.float64))[::-1]
     if len(neg) == 0:
         return -math.inf
-    k = int(math.floor(far * (total if total is not None else len(neg))))
+    k = int(math.floor(far * (total if total is not None else len(neg)) + 1e-9))
     if k >= len(neg):
         return -math.inf
     return float(np.nextafter(neg[k], math.inf))
@@ -87,13 +87,16 @@ def fit_site(samples: SiteSamples, far: float = 0.01, margin: float = 0.02) -> S
         lr = LogisticRegression(class_weight="balanced").fit(x, samples.y)
         w_sg, w_n = (float(c) for c in lr.coef_[0])
         bias = float(lr.intercept_[0])
-        scores = 1.0 / (1.0 + np.exp(-(x @ np.array([w_sg, w_n]) + bias)))
-        tau_score = threshold_at_far(scores[surviving], far, total=total_neg)
-        tau_score = min(max(tau_score, 0.0), 1.0)
-        return SiteThresholds(tau_reject=tau_reject, mode="logistic", w_sg=w_sg, w_n=w_n, bias=bias,
-                              tau_score=tau_score,
-                              tau_n=_logistic_tau_n(w_sg, w_n, bias, tau_score, tau_reject),
-                              tau_accept=tau_accept)
+        prov = SiteThresholds(tau_reject=tau_reject, tau_n=0, mode="logistic", w_sg=w_sg,
+                              w_n=w_n, bias=bias)  # tau_n은 fused_score에 쓰이지 않는다
+        scores = np.array([fused_score(prov, float(sg), int(n))
+                           for sg, n in zip(samples.s_g, samples.n)])
+        tau_score = max(threshold_at_far(scores[surviving], far, total=total_neg), 0.0)
+        if tau_score <= 1.0:  # 1.0 초과면 포화된 오답을 막을 수 없으므로 규칙 방식으로 떨어진다
+            return SiteThresholds(tau_reject=tau_reject, mode="logistic", w_sg=w_sg, w_n=w_n,
+                                  bias=bias, tau_score=tau_score,
+                                  tau_n=_logistic_tau_n(w_sg, w_n, bias, tau_score, tau_reject),
+                                  tau_accept=tau_accept)
     t_n = threshold_at_far(samples.n[surviving], far, total=total_neg)
     tau_n = DEFAULT_TAU_N if total_neg == 0 else max(MIN_POINTS, math.ceil(max(t_n, 0.0)))
     return SiteThresholds(tau_reject=tau_reject, tau_n=tau_n, mode="rule", tau_low=tau_reject,
