@@ -95,7 +95,7 @@
 | `photo-verify/pv/local_match.py` | 특징점 추출·매칭·MAGSAC inlier 계산 | lightglue, OpenCV |
 | `photo-verify/pv/gallery.py` | 거점별 기준 갤러리 생성(증강, 임베딩, 특징점 캐시)과 로드 | 위 두 모듈 |
 | `photo-verify/pv/scorer.py` | 점수 결합, 임계값 로드, 최종 판정 | scikit-learn |
-| `photo-verify/pv/service.py` | FastAPI `POST /verify` (multipart: `site_id`, `image`), 공유 키 헤더 인증, 파일 미저장 | FastAPI |
+| `photo-verify/pv/service.py` | FastAPI `POST /verify?site_id=` (본문은 이미지 원시 바이트, multipart는 1MB를 넘으면 임시 파일에 쓰므로 쓰지 않음), `X-PV-Key` 헤더 인증, 파일 미저장, `GET /healthz` | FastAPI |
 | `photo-verify/eval/run_eval.py` | 매니페스트 기반 평가, 비교 실험, 표·그림 출력 | scikit-learn, matplotlib |
 | `photo-verify/tests/` | pytest 단위·계약 테스트 | pytest |
 
@@ -146,6 +146,8 @@ private/photo-verify/
 | 이미지 디코딩 실패, 크기 초과(기본 10MB) | HTTP 400 |
 | 인증 실패 | HTTP 401 |
 | 모델 오류·시간 초과 | HTTP 503. 앱 연동 단계에서 기존 관찰형 검증으로 대체한다 |
+| 서버 준비 전 요청 | HTTP 503 NOT_READY |
+| site_id 누락 | HTTP 422 (FastAPI 기본) |
 
 ## 8. 테스트
 
