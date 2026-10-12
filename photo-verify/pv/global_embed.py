@@ -8,6 +8,7 @@ import torch
 
 IMAGENET_MEAN = (0.485, 0.456, 0.406)
 IMAGENET_STD = (0.229, 0.224, 0.225)
+DINOV2_HUB = "facebookresearch/dinov2:7764ea0f912e53c92e82eb78a2a1631e92725fc8"
 
 
 class GlobalEmbedder(Protocol):
@@ -37,7 +38,7 @@ POOLINGS = ("gem", "mean", "cls", "cls_mean")
 
 
 def pool_tokens(feats: dict, pooling: str, p: float = 3.0) -> torch.Tensor:
-    """DINOv2 forward_features 결과 → (B, D). LayerNorm된 패치 토큰은 부호가 있어 clamp형 GeM을 쓰면 값이 뭉개진다."""
+    """DINOv2 forward_features 결과 → (B, D). pooling: gem, mean, cls, cls_mean."""
     patch, cls = feats["x_norm_patchtokens"], feats["x_norm_clstoken"]
     if pooling == "gem":
         return gem(patch, p)
@@ -57,7 +58,7 @@ class DinoV2Embedder:
         self.name = variant
         self.pooling = pooling
         self.p = p
-        self.model = torch.hub.load("facebookresearch/dinov2", variant,
+        self.model = torch.hub.load(DINOV2_HUB, variant,
                                     trust_repo=True, skip_validation=True).eval()
 
     @torch.inference_mode()
