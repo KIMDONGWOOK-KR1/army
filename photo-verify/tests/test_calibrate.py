@@ -111,3 +111,44 @@ def test_saturated_logistic_falls_back_to_rule(monkeypatch):
     t = fit_site(s)
     assert t.mode == "rule"
     assert _accepted_negatives(t, s) <= int(np.floor(0.01 * 20))
+
+
+def _high_n_negatives_below_reject(rng, k=40):
+    # 정답·닮은 오답은 s_g가 높고, 셋째 무리는 s_g가 tau_reject 아래지만 inlier가 많아 융합 점수가 높다.
+    s_g = np.r_[rng.uniform(0.8, 0.95, k), rng.uniform(0.85, 0.99, k), rng.uniform(0.3, 0.6, k)]
+    n = np.r_[rng.integers(60, 120, k), rng.integers(2, 10, k), rng.integers(40, 120, k)].astype(float)
+    y = np.r_[np.ones(k), np.zeros(2 * k)].astype(int)
+    return SiteSamples(s_g, n, y)
+
+
+def _accepted_without_reject(t, s):
+    return sum(1 for sg, n, y in zip(s.s_g, s.n, s.y) if y == 0 and passes(t, sg, int(n)))
+
+
+def test_no_early_reject_fit_keeps_far_budget_over_all_negatives():
+    s = _high_n_negatives_below_reject(np.random.default_rng(11))
+    budget = int(np.floor(0.01 * int((s.y == 0).sum())))
+    # 조기 거절을 전제로 보정한 임계값은 tau_reject 아래 오답을 예산에서 빼므로 C_none에 쓰면 예산을 넘는다
+    assert _accepted_without_reject(fit_site(s), s) > budget
+    t = fit_site(s, early_reject=False)
+    assert _accepted_without_reject(t, s) <= budget
+
+
+def test_no_early_reject_rule_mode_far_budget():
+    s = SiteSamples(np.array([0.9, 0.85, 0.88, 0.4, 0.45, 0.42]), np.array([80.0, 70.0, 90.0, 85.0, 95.0, 75.0]),
+                    np.array([1, 1, 1, 0, 0, 0]))
+    t = fit_site(s, early_reject=False)
+    assert t.mode == "rule"
+    assert _accepted_without_reject(t, s) == 0
+    assert t.tau_low == threshold_at_far(s.s_g[s.y == 0], 0.01)  # 모든 오답 기준 s_g 임계값
+    assert t.tau_n > 95  # 모든 오답의 inlier 수 기준
+
+
+def test_logistic_with_negative_inlier_weight_falls_back_to_rule():
+    # inlier가 많을수록 오답인 데이터: 로지스틱 w_n이 음수가 된다
+    rng = np.random.default_rng(11)
+    s_g = np.r_[rng.uniform(0.6, 0.95, 30), rng.uniform(0.1, 0.7, 30)]
+    n = np.r_[rng.integers(5, 20, 30), rng.integers(30, 100, 30)].astype(float)
+    y = np.r_[np.ones(30), np.zeros(30)].astype(int)
+    t = fit_site(SiteSamples(s_g, n, y))
+    assert t.mode == "rule" and t.tau_n >= 8

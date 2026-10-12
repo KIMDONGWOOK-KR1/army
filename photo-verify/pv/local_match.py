@@ -20,6 +20,7 @@ class LocalFeatures:
 
 class LocalMatcher(Protocol):
     name: str
+    max_kp: int
 
     def extract(self, image: np.ndarray) -> LocalFeatures: ...
 
@@ -52,6 +53,7 @@ class SiftMatcher:
     name = "sift"
 
     def __init__(self, max_kp: int = 1024, ratio: float = 0.75):
+        self.max_kp = max_kp
         self.sift = cv2.SIFT_create(nfeatures=max_kp)
         self.ratio = ratio
         self.bf = cv2.BFMatcher(cv2.NORM_L2)
@@ -80,6 +82,7 @@ class LightGlueMatcher:
 
         extractors = {"aliked": ALIKED, "superpoint": SuperPoint}
         self.name = features
+        self.max_kp = max_kp
         self.extractor = extractors[features](max_num_keypoints=max_kp).eval()
         self.matcher = LightGlue(features=features).eval()
 

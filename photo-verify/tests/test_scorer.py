@@ -117,3 +117,30 @@ def test_logistic_early_reject_returns_fused_score_of_zero_inliers():
     d = decide(t, 0.3, [0, 1], never, top_k=2, early_exit="reject")
     assert not d.match and d.pairs_used == [] and d.n is None
     assert d.score == fused_score(t, 0.3, 0)
+
+
+def test_thresholds_roundtrip_with_deploy_metadata(tmp_path):
+    cfg = ThresholdConfig("dinov2_vitb14", "aliked", 3, QualityConfig(), {"gate": RULE}, 1024,
+                          n_refs=5, augment=True, refs_fingerprint={"gate": "abc123"})
+    path = tmp_path / "thresholds.json"
+    save_thresholds(cfg, path)
+    assert load_thresholds(path) == cfg
+
+
+def test_missing_deploy_metadata_loads_as_none(tmp_path):
+    import json
+    path = tmp_path / "t.json"
+    path.write_text(json.dumps({"version": 1, "backbone": "b", "matcher": "m", "top_k": 3,
+                                "sites": {"gate": {"tau_reject": 0.4, "tau_n": 20}}}), encoding="utf-8")
+    cfg = load_thresholds(path)
+    assert (cfg.n_refs, cfg.augment, cfg.refs_fingerprint) == (None, None, None)
+
+
+def test_unknown_mode_rejected(tmp_path):
+    import json
+    path = tmp_path / "t.json"
+    path.write_text(json.dumps({"version": 1, "backbone": "b", "matcher": "m", "top_k": 3,
+                                "sites": {"gate": {"tau_reject": 0.4, "tau_n": 20, "mode": "logit"}}}),
+                    encoding="utf-8")
+    with pytest.raises(ValueError):
+        load_thresholds(path)

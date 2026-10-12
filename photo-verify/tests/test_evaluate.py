@@ -81,3 +81,48 @@ def test_test_fold_rows_do_not_affect_calibration():
     old_dec = {str(r.sample.path): a for r, a in zip(ref.rows, ref.accept) if str(r.sample.path) in untouched}
     new_dec = {str(r.sample.path): a for r, a in zip(new.rows, new.accept) if str(r.sample.path) in untouched}
     assert untouched and old_dec == new_dec
+
+
+def test_far_split_by_negative_label_and_macro_auc_groups():
+    rs = rows()
+    rs.append(Row(Sample(Path("x0"), "gate", "cross_neg", "s1", {}), 0, feat(0.2, 1)))
+    rs.append(Row(Sample(Path("x1"), "gate", "cross_neg", "s2", {}), 1, feat(0.2, 1)))
+    t = by_method(summarize(evaluate(rs)))["C_reject"]
+    assert all(0.0 <= t[k] <= 1.0 for k in ("FAR_hard", "FAR_easy", "FAR_cross"))
+    assert t["auc_groups"] == 2  # (gate, fold 0), (gate, fold 1)
+    site = per_site(evaluate(rs)["C_reject"])[0]
+    assert {"FAR_hard", "FAR_easy", "FAR_cross"} <= set(site)
+    assert np.isnan(by_method(summarize(evaluate(rows())))["C_reject"]["FAR_cross"])
+
+
+def test_macro_auc_does_not_pool_sites_with_different_score_scales():
+    # 거점마다 점수 범위가 달라도 각 거점 안에서 완전히 분리되면 AUC는 1이어야 한다(한데 섞으면 1보다 낮다).
+    out = []
+    for site, lo in (("a", 0.0), ("b", 0.5)):
+        for fold, session in ((0, "s1"), (1, "s2")):
+            for i in range(10):
+                out.append(Row(Sample(Path(f"{site}p{fold}{i}"), site, "pos", session, {}), fold,
+                               feat(lo + 0.3 + i * 0.001, 0)))
+                out.append(Row(Sample(Path(f"{site}n{fold}{i}"), site, "easy_neg", session, {}), fold,
+                               feat(lo + 0.1 + i * 0.001, 0)))
+    t = by_method(summarize(evaluate(out)))["A_global"]
+    assert t["AUC"] == 1.0 and t["auc_groups"] == 4
+
+
+def test_skipped_site_warns_on_stderr(capsys):
+    rs = rows() + [Row(Sample(Path("lonely"), "wall", "pos", "s1", {}), 0, feat(0.9, 80))]
+    evaluate(rs)
+    assert "wall" in capsys.readouterr().err
+
+
+def test_c_none_is_calibrated_without_early_reject(monkeypatch):
+    import pv.evaluate as ev
+    calls = []
+    real = ev.fit_site
+
+    def spy(samples, far=0.01, margin=0.02, early_reject=True):
+        calls.append(early_reject)
+        return real(samples, far, margin, early_reject)
+    monkeypatch.setattr(ev, "fit_site", spy)
+    evaluate(rows())
+    assert calls.count(False) == 2 and calls.count(True) == 2  # fold마다 C_none용 1번, 나머지용 1번

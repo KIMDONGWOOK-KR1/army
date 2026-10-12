@@ -12,6 +12,8 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Callable
 
+import cv2
+import torch
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from starlette.concurrency import run_in_threadpool
@@ -81,6 +83,10 @@ def create_app(verifier_factory: Callable[[], Verifier], api_key: str,
 
 
 def app_from_env() -> FastAPI:
+    # 컨테이너 vCPU 수에 맞춰 연산 스레드를 고정한다. 기본값(호스트 코어 수)이면 2 vCPU에서 과다 구독된다.
+    threads = int(os.environ.get("PV_TORCH_THREADS", "2"))
+    torch.set_num_threads(threads)
+    cv2.setNumThreads(threads)
     data_dir = Path(os.environ.get("PV_DATA_DIR", "/data"))
     return create_app(lambda: Verifier.from_dir(data_dir), os.environ.get("PV_API_KEY", ""),
                       int(os.environ.get("PV_MAX_BYTES", DEFAULT_MAX_BYTES)),

@@ -59,3 +59,21 @@ def test_unknown_pooling_rejected():
     feats = {"x_norm_patchtokens": torch.rand(1, 4, 8), "x_norm_clstoken": torch.rand(1, 8)}
     with pytest.raises(ValueError):
         pool_tokens(feats, "nope", 3.0)
+
+
+def test_pooling_ablation_backbones_registered():
+    from pv.global_embed import EMBEDDERS, dinov2_name
+    for v in ("dinov2_vits14", "dinov2_vitb14"):
+        for pool in ("mean", "cls", "cls_mean"):
+            assert f"{v}_{pool}" in EMBEDDERS
+        assert v in EMBEDDERS
+    assert dinov2_name("dinov2_vitb14", "gem") == "dinov2_vitb14"
+    assert dinov2_name("dinov2_vits14", "cls_mean") == "dinov2_vits14_cls_mean"
+
+
+def test_registry_entries_build_their_own_variant_and_pooling(monkeypatch):
+    seen = []
+    monkeypatch.setattr(torch.hub, "load", lambda repo, variant, **kw: seen.append(variant) or torch.nn.Identity())
+    e = make_embedder("dinov2_vits14_cls")
+    assert (e.name, e.pooling, seen) == ("dinov2_vits14_cls", "cls", ["dinov2_vits14"])
+    assert make_embedder("dinov2_vitb14").pooling == "gem"

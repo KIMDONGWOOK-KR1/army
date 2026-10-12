@@ -76,11 +76,13 @@ def _logistic_tau_n(w_sg: float, w_n: float, bias: float, tau_score: float, tau_
     return max(0, math.ceil(math.expm1(v)))
 
 
-def fit_site(samples: SiteSamples, far: float = 0.01, margin: float = 0.02) -> SiteThresholds:
+def fit_site(samples: SiteSamples, far: float = 0.01, margin: float = 0.02,
+             early_reject: bool = True) -> SiteThresholds:
+    """early_reject=False면 조기 거절 없이 판정하는 구성(C_none)용으로 모든 오답에 FAR 예산을 건다."""
     pos, neg = samples.y == 1, samples.y == 0
     tau_reject = fit_tau_reject(samples.s_g[pos], far)
     tau_accept = fit_tau_accept(samples.s_g[neg], margin)
-    surviving = neg & (samples.s_g >= tau_reject)
+    surviving = neg & (samples.s_g >= tau_reject) if early_reject else neg
     total_neg = int(neg.sum())
     if pos.sum() >= MIN_FOR_LOGISTIC and neg.sum() >= MIN_FOR_LOGISTIC:
         x = np.c_[samples.s_g, np.log1p(samples.n)]
@@ -92,12 +94,15 @@ def fit_site(samples: SiteSamples, far: float = 0.01, margin: float = 0.02) -> S
         scores = np.array([fused_score(prov, float(sg), int(n))
                            for sg, n in zip(samples.s_g, samples.n)])
         tau_score = max(threshold_at_far(scores[surviving], far, total=total_neg), 0.0)
-        if tau_score <= 1.0:  # 1.0 초과면 포화된 오답을 막을 수 없으므로 규칙 방식으로 떨어진다
+        # 1.0 초과면 포화된 오답을 막을 수 없고, 가중치가 음수면(inlier가 많을수록 오답 쪽)
+        # 순차 중단 규칙이 성립하지 않으므로 규칙 방식으로 떨어진다
+        if tau_score <= 1.0 and w_n > 0 and w_sg >= 0:
             return SiteThresholds(tau_reject=tau_reject, mode="logistic", w_sg=w_sg, w_n=w_n,
                                   bias=bias, tau_score=tau_score,
                                   tau_n=_logistic_tau_n(w_sg, w_n, bias, tau_score, tau_reject),
                                   tau_accept=tau_accept)
     t_n = threshold_at_far(samples.n[surviving], far, total=total_neg)
     tau_n = DEFAULT_TAU_N if total_neg == 0 else max(MIN_POINTS, math.ceil(max(t_n, 0.0)))
-    return SiteThresholds(tau_reject=tau_reject, tau_n=tau_n, mode="rule", tau_low=tau_reject,
+    tau_low = tau_reject if early_reject else threshold_at_far(samples.s_g[neg], far, total=total_neg)
+    return SiteThresholds(tau_reject=tau_reject, tau_n=tau_n, mode="rule", tau_low=tau_low,
                           tau_accept=tau_accept)

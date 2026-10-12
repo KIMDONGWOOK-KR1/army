@@ -36,6 +36,7 @@ class CountingMatcher:
     def __init__(self, inner):
         self.inner = inner
         self.name = inner.name
+        self.max_kp = getattr(inner, "max_kp", None)
         self.extract_calls = 0
         self.match_calls = 0
 

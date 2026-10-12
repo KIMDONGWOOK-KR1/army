@@ -36,11 +36,17 @@ images/gate/s1_101.jpg,gate,hard_neg,s1,,,,,
 - 태그는 pos에만 채워도 된다. 비워 둔 값은 보고서에 "(없음)"으로 나온다.
 
 ## 실행
-uv run python eval/run_eval.py --manifest ../private/photo-verify/eval/manifest.csv --refs ../private/photo-verify/refs --out ../private/photo-verify/eval/results --write-thresholds ../private/photo-verify/thresholds.json
+uv run python eval/run_eval.py --manifest ../private/photo-verify/eval/manifest.csv --refs ../private/photo-verify/refs --out ../private/photo-verify/eval/results --write-deploy ../private/photo-verify
+
+`--write-deploy DIR`은 `DIR/thresholds.json`과 `DIR/gallery/<site_id>.npz`를 같은 기준 사진·설정(기준 사진 수, 증강, max_kp)으로 함께 쓴다. 서버는 둘의 설정이나 기준 사진 지문이 다르면 시작하지 않는다. 배포용 갤러리를 `python -m pv.gallery`로 따로 만들지 않는다(그 명령은 실험용).
 
 논문 비교 실험 전체:
 uv run python eval/run_eval.py ... --backbones dinov2_vitb14 dinov2_vits14 clip_vitb16 siglip_vitb16 --matchers aliked superpoint sift --ref-counts 1 3 5 --augment on off
 
-- 첫 번째 설정(--backbones와 --matchers의 첫 값)으로 thresholds.json을 쓴다. 앱 기본값은 dinov2_vitb14 + aliked다.
+풀링 비교(GeM 대비 평균·CLS·CLS+평균): `--backbones dinov2_vitb14 dinov2_vitb14_mean dinov2_vitb14_cls dinov2_vitb14_cls_mean` (vits14도 같은 접미사로 쓸 수 있다). 접미사 없는 이름이 GeM이다.
+
+- 첫 번째 설정(--backbones·--matchers·--ref-counts·--augment의 첫 값)으로 배포 자료를 쓴다. 앱 기본값은 dinov2_vitb14 + aliked다.
 - 보고서의 FAR은 평가 fold에서 실제로 나온 값이며, 보정 fold의 1% 목표보다 높을 수 있다. 논문에는 이 실측값을 그대로 보고한다.
+- FAR_hard·FAR_easy·FAR_cross는 오답 종류별 FAR이다. 쉬운 오답이 전체 FAR을 낮춰 보이게 하므로 논문에는 FAR과 함께 FAR_hard를 보고한다.
+- AUC·EER은 (거점, fold)마다 따로 구해 평균한 값이며(auc_groups = 평균한 묶음 수), RETAKE(품질 미달) 사진은 점수가 없어 AUC·EER 계산에서 빠진다.
 - 보고서의 retake_rate_pos가 높으면 품질 기본값(흐림 60, 밝기 25~235)을 thresholds.json의 quality에서 낮춘다.

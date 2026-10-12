@@ -30,7 +30,7 @@ gcloud builds submit photo-verify --tag $REGION-docker.pkg.dev/$PROJECT/$REPO/ph
 ```
 
 ## 3. 정답 자료와 비밀값 (`photo-verify/`에서. 경로의 `../private`은 저장소 루트의 private/)
-gallery/와 thresholds.json은 비공개 버킷에만 올린다. 공개 접근을 막는다.
+gallery/와 thresholds.json은 비공개 버킷에만 올린다. 공개 접근을 막는다. 둘은 `eval/run_eval.py --write-deploy ../private/photo-verify`가 한 번에 만든 것이어야 한다(갤러리를 다른 설정으로 따로 만들면 서버가 시작을 거부한다).
 ```bash
 gcloud storage buckets create gs://$BUCKET --location=$REGION --uniform-bucket-level-access --public-access-prevention
 gcloud storage cp -r ../private/photo-verify/gallery ../private/photo-verify/thresholds.json gs://$BUCKET/
@@ -49,11 +49,12 @@ gcloud storage buckets add-iam-policy-binding gs://$BUCKET --member "serviceAcco
 ## 5. 배포 (어느 디렉터리에서나)
 ```bash
 gcloud run deploy photo-verify --image $REGION-docker.pkg.dev/$PROJECT/$REPO/photo-verify:<버전> \
-  --region $REGION --cpu 2 --memory 4Gi --min-instances 0 --max-instances 2 --concurrency 2 --timeout 10 \
+  --region $REGION --cpu 2 --memory 4Gi --min-instances 0 --max-instances 2 --concurrency 1 --timeout 10 \
   --service-account $SA --allow-unauthenticated --set-secrets PV_API_KEY=pv-api-key:latest \
   --add-volume name=data,type=cloud-storage,bucket=$BUCKET,readonly=true \
   --add-volume-mount volume=data,mount-path=/data
 ```
+- `--concurrency 1`: 인스턴스마다 모델 잠금이 하나라 판정은 한 번에 하나씩만 돈다. 동시 요청을 받으면 잠금 대기 중 시간 제한을 넘기므로, 추가 요청은 Cloud Run이 대기열에 두거나 인스턴스를 늘리게 한다.
 - `--allow-unauthenticated`: Cloud Run IAM 대신 앱의 X-PV-Key로 막는다. Edge가 Google ID 토큰을 만들 필요가 없다.
 - 행사 당일 운영 시간대에만 `gcloud run services update photo-verify --region $REGION --min-instances 1`, 끝나면 0으로 되돌린다.
 

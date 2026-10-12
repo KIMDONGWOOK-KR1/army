@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from dataclasses import dataclass
 from pathlib import Path
@@ -23,6 +24,10 @@ class Gallery:
     global_vecs: np.ndarray
     global_ref_idx: np.ndarray
     local: list[LocalFeatures]
+    # 배포 단위 확인용 메타. 예전 파일이나 수동으로 만든 갤러리는 None이다.
+    augment: bool | None = None
+    max_kp: int | None = None
+    refs_fingerprint: str | None = None
 
     @property
     def n_refs(self) -> int:
@@ -46,7 +51,8 @@ def augment_views(img: np.ndarray, seed: int = 0, n_color: int = 2, n_crop: int 
 
 
 def build_gallery(site_id: str, refs: list[np.ndarray], embedder: GlobalEmbedder,
-                  matcher: LocalMatcher, augment: bool = True, seed: int = 0) -> Gallery:
+                  matcher: LocalMatcher, augment: bool = True, seed: int = 0,
+                  refs_fingerprint: str | None = None) -> Gallery:
     if not refs:
         raise ValueError("no reference images")
     views, owners = [], []
@@ -56,7 +62,8 @@ def build_gallery(site_id: str, refs: list[np.ndarray], embedder: GlobalEmbedder
         owners += [i] * len(vs)
     vecs = embedder.embed(views).astype(np.float32)
     local = [matcher.extract(to_local_input(img)) for img in refs]
-    return Gallery(site_id, embedder.name, matcher.name, vecs, np.array(owners, np.int64), local)
+    return Gallery(site_id, embedder.name, matcher.name, vecs, np.array(owners, np.int64), local,
+                   augment=augment, max_kp=getattr(matcher, "max_kp", None), refs_fingerprint=refs_fingerprint)
 
 
 def ref_scores(g: Gallery, q: np.ndarray) -> np.ndarray:
@@ -70,7 +77,8 @@ def save_gallery(g: Gallery, path: Path) -> None:
     arrays = {"global_vecs": g.global_vecs, "global_ref_idx": g.global_ref_idx}
     for i, f in enumerate(g.local):
         arrays[f"kp_{i}"], arrays[f"desc_{i}"], arrays[f"size_{i}"] = f.keypoints, f.descriptors, f.image_size
-    meta = json.dumps({"site_id": g.site_id, "backbone": g.backbone, "matcher": g.matcher, "n_refs": g.n_refs})
+    meta = json.dumps({"site_id": g.site_id, "backbone": g.backbone, "matcher": g.matcher, "n_refs": g.n_refs,
+                       "augment": g.augment, "max_kp": g.max_kp, "refs_fingerprint": g.refs_fingerprint})
     Path(path).parent.mkdir(parents=True, exist_ok=True)
     np.savez_compressed(path, meta=np.array(meta), **arrays)
 
@@ -80,18 +88,29 @@ def load_gallery(path: Path) -> Gallery:
         meta = json.loads(str(z["meta"]))
         local = [LocalFeatures(z[f"kp_{i}"], z[f"desc_{i}"], z[f"size_{i}"]) for i in range(meta["n_refs"])]
         return Gallery(meta["site_id"], meta["backbone"], meta["matcher"],
-                       z["global_vecs"], z["global_ref_idx"], local)
+                       z["global_vecs"], z["global_ref_idx"], local, augment=meta.get("augment"),
+                       max_kp=meta.get("max_kp"), refs_fingerprint=meta.get("refs_fingerprint"))
+
+
+def ref_files(d: Path, limit: int | None = None) -> list[Path]:
+    files = sorted(p for p in Path(d).iterdir() if p.suffix.lower() in IMAGE_SUFFIXES)
+    return files if limit is None else files[:limit]
+
+
+def fingerprint_files(files: list[Path]) -> str:
+    """기준 사진 파일 이름과 내용의 지문. 복사해도 mtime과 무관하게 같다."""
+    h = hashlib.sha1()
+    for p in files:
+        h.update(f"{Path(p).name}:{hashlib.sha1(Path(p).read_bytes()).hexdigest()};".encode("utf-8"))
+    return h.hexdigest()[:16]
 
 
 def load_ref_dir(d: Path, limit: int | None = None) -> list[np.ndarray]:
-    files = sorted(p for p in Path(d).iterdir() if p.suffix.lower() in IMAGE_SUFFIXES)
-    if limit is not None:
-        files = files[:limit]
-    return [decode_image(p.read_bytes()) for p in files]
+    return [decode_image(p.read_bytes()) for p in ref_files(d, limit)]
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description="거점별 기준 갤러리 생성")
+    ap = argparse.ArgumentParser(description="거점별 기준 갤러리 생성 (실험용. 배포 자료는 eval/run_eval.py --write-deploy로 만든다)")
     ap.add_argument("--refs", type=Path, required=True)
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--backbone", default="dinov2_vitb14")
@@ -101,7 +120,9 @@ def main() -> None:
     args = ap.parse_args()
     embedder, matcher = make_embedder(args.backbone), make_matcher(args.matcher, args.max_kp)
     for site_dir in sorted(p for p in args.refs.iterdir() if p.is_dir()):
-        g = build_gallery(site_dir.name, load_ref_dir(site_dir), embedder, matcher, augment=not args.no_augment)
+        files = ref_files(site_dir)
+        g = build_gallery(site_dir.name, [decode_image(p.read_bytes()) for p in files], embedder, matcher,
+                          augment=not args.no_augment, refs_fingerprint=fingerprint_files(files))
         save_gallery(g, args.out / f"{site_dir.name}.npz")
         print(f"{site_dir.name}: 기준 {g.n_refs}장, 벡터 {len(g.global_vecs)}개")
 

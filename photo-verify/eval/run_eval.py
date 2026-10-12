@@ -15,11 +15,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from pv.evaldata import assign_folds, cross_site_negatives, load_manifest  # noqa: E402
 from pv.evaluate import (Row, early_accept_safe, evaluate, fit_all, per_site,  # noqa: E402
                          per_tag, summarize)
-from pv.gallery import IMAGE_SUFFIXES, build_gallery, load_ref_dir  # noqa: E402
+from pv.gallery import (IMAGE_SUFFIXES, build_gallery, fingerprint_files, ref_files,  # noqa: E402
+                        save_gallery)
 from pv.global_embed import make_embedder  # noqa: E402
 from pv.local_match import make_matcher  # noqa: E402
 from pv.pipeline import Features, compute_features  # noqa: E402
-from pv.preprocess import QualityConfig  # noqa: E402
+from pv.preprocess import QualityConfig, decode_image  # noqa: E402
 from pv.scorer import ThresholdConfig, save_thresholds  # noqa: E402
 
 TAGS = ("angle", "distance", "time", "weather", "occlusion")
@@ -90,7 +91,11 @@ def run_config(samples, folds, refs_root, out_dir, backbone, matcher_name, n_ref
     if ("m", matcher_name, max_kp) not in cache:
         cache[("m", matcher_name, max_kp)] = make_matcher(matcher_name, max_kp)
     embedder, matcher = cache[("e", backbone)], cache[("m", matcher_name, max_kp)]
-    galleries = {s: build_gallery(s, load_ref_dir(refs_root / s, n_refs), embedder, matcher, augment) for s in sites}
+    galleries = {}
+    for site in sites:
+        files = ref_files(refs_root / site, n_refs)
+        galleries[site] = build_gallery(site, [decode_image(p.read_bytes()) for p in files], embedder, matcher,
+                                        augment, refs_fingerprint=fingerprint_files(files))
     rows = []
     cache_path.parent.mkdir(parents=True, exist_ok=True)
     with cache_path.open("a", encoding="utf-8") as fh:
@@ -104,7 +109,21 @@ def run_config(samples, folds, refs_root, out_dir, backbone, matcher_name, n_ref
                 fh.write(json.dumps({"path": k[0], "site_id": k[1], "fp": fp, "f": features_to_json(f)}) + "\n")
                 fh.flush()
             rows.append(Row(s, folds[s.session], stored[k][1]))
-    return key, rows
+    return key, rows, galleries
+
+
+def write_deploy(out_dir: Path, backbone: str, matcher_name: str, n_refs: int, augment: bool, top_k: int,
+                 max_kp: int, far: float, rows, safe: dict[str, bool], galleries) -> list[Path]:
+    """같은 기준 사진·설정으로 만든 갤러리와 임계값을 한 배포 단위로 쓴다."""
+    sites = fit_all(rows, top_k, far, safe)
+    cfg = ThresholdConfig(backbone, matcher_name, top_k, QualityConfig(), sites, max_kp, n_refs=n_refs,
+                          augment=augment, refs_fingerprint={s: galleries[s].refs_fingerprint for s in sites})
+    written = [Path(out_dir) / "thresholds.json"]
+    save_thresholds(cfg, written[0])
+    for s in sites:
+        written.append(Path(out_dir) / "gallery" / f"{s}.npz")
+        save_gallery(galleries[s], written[-1])
+    return written
 
 
 def main() -> None:
@@ -120,7 +139,7 @@ def main() -> None:
     ap.add_argument("--max-kp", type=int, default=1024)
     ap.add_argument("--far", type=float, default=0.01)
     ap.add_argument("--no-cross-site", action="store_true")
-    ap.add_argument("--write-thresholds", type=Path)
+    ap.add_argument("--write-deploy", type=Path, help="thresholds.json과 gallery/를 쓸 배포 디렉터리")
     args = ap.parse_args()
 
     samples = load_manifest(args.manifest)
@@ -137,7 +156,7 @@ def main() -> None:
         for matcher_name in args.matchers:
             for n_refs in args.ref_counts:
                 for aug in args.augment:
-                    key, rows = run_config(samples, folds, args.refs, args.out, backbone, matcher_name,
+                    key, rows, galleries = run_config(samples, folds, args.refs, args.out, backbone, matcher_name,
                                            n_refs, aug == "on", args.top_k, args.max_kp, cache)
                     out = evaluate(rows, args.top_k, args.far)
                     report += [f"\n## {key}\n", md_table(summarize(out)), "\n### 거점별 (C_reject)\n",
@@ -145,17 +164,20 @@ def main() -> None:
                     for tag in TAGS:
                         report += [f"\n### 조건별 TAR: {tag} (C_reject)\n", md_table(per_tag(out["C_reject"], tag))]
                     if first is None:
-                        first = (backbone, matcher_name, rows, early_accept_safe(out["C_both"]))
+                        first = (backbone, matcher_name, n_refs, aug == "on", rows,
+                                 early_accept_safe(out["C_both"]), galleries)
     args.out.mkdir(parents=True, exist_ok=True)
     path = args.out / f"report-{stamp}.md"
     path.write_text("\n".join(report), encoding="utf-8")
     print(f"보고서: {path}")
-    if args.write_thresholds and first:
-        backbone, matcher_name, rows, safe = first
-        cfg = ThresholdConfig(backbone, matcher_name, args.top_k, QualityConfig(),
-                              fit_all(rows, args.top_k, args.far, safe), args.max_kp)
-        save_thresholds(cfg, args.write_thresholds)
-        print(f"임계값: {args.write_thresholds} (첫 번째 설정 {backbone}+{matcher_name}, 전체 표본으로 보정)")
+    if args.write_deploy and first:
+        backbone, matcher_name, n_refs, aug, rows, safe, galleries = first
+        written = write_deploy(args.write_deploy, backbone, matcher_name, n_refs, aug, args.top_k, args.max_kp,
+                               args.far, rows, safe, galleries)
+        print(f"배포 자료 (첫 번째 설정 {backbone}+{matcher_name}, 기준 {n_refs}장, 증강 {'on' if aug else 'off'}, "
+              f"kp {args.max_kp}, 전체 표본으로 보정):")
+        for p in written:
+            print(f"  {p}")
 
 
 if __name__ == "__main__":

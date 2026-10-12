@@ -91,3 +91,50 @@ def test_from_dir_loads_thresholds_and_galleries(tmp_path, monkeypatch):
     monkeypatch.setattr("pv.pipeline.make_embedder", lambda name: FixedEmbedder([1, 0], name=name))
     v = Verifier.from_dir(tmp_path)
     assert v.verify("gate", jpeg_bytes(warp_view(make_scene(1), seed=4))).match
+
+
+def _meta_gallery(n_refs=2, **meta):
+    matcher = SiftMatcher()
+    refs = [make_scene(i + 1) for i in range(n_refs)]
+    g = manual_gallery("gate", refs, [[1.0, 0.0]] * n_refs, matcher, backbone="fake")
+    for k, v in meta.items():
+        setattr(g, k, v)
+    return matcher, g
+
+
+@pytest.mark.parametrize("cfg_kw,gal_kw", [
+    ({"n_refs": 1}, {"n_refs": 2}),
+    ({"max_keypoints": 512}, {"max_kp": 1024}),
+    ({"augment": True}, {"augment": False}),
+    ({"refs_fingerprint": {"gate": "aaa"}}, {"refs_fingerprint": "bbb"}),
+])
+def test_deploy_metadata_mismatch_fails_at_startup(cfg_kw, gal_kw):
+    matcher, g = _meta_gallery(gal_kw.pop("n_refs", 2), **gal_kw)
+    cfg = ThresholdConfig("fake", "sift", 3, QualityConfig(), {"gate": RULE}, **cfg_kw)
+    with pytest.raises(ValueError):
+        Verifier(FixedEmbedder([1, 0]), matcher, {"gate": g}, cfg)
+
+
+def test_deploy_metadata_match_or_absent_is_accepted():
+    matcher, g = _meta_gallery(2, max_kp=1024, augment=True, refs_fingerprint="aaa")
+    cfg = ThresholdConfig("fake", "sift", 3, QualityConfig(), {"gate": RULE}, 1024, n_refs=5, augment=True,
+                          refs_fingerprint={"gate": "aaa"})
+    Verifier(FixedEmbedder([1, 0]), matcher, {"gate": g}, cfg)  # 기준 사진이 상한(5)보다 적은 것은 허용
+    _, old = _meta_gallery(2)  # 메타가 없는 예전 갤러리
+    Verifier(FixedEmbedder([1, 0]), matcher, {"gate": old}, cfg)
+
+
+@pytest.mark.parametrize("query_seed", [1, 2])  # 1: 같은 장면(일치), 2: 다른 장면(불일치)
+def test_verify_matches_evaluation_decision(query_seed):
+    from pv.scorer import decide
+    matcher = SiftMatcher()
+    refs = [make_scene(1), make_scene(3)]
+    g = manual_gallery("gate", refs, [[1.0, 0.0], [0.6, 0.8]], matcher, backbone="fake")
+    cfg = ThresholdConfig("fake", "sift", 3, QualityConfig(), {"gate": RULE})
+    emb = FixedEmbedder([1.0, 0.0])
+    data = jpeg_bytes(warp_view(make_scene(query_seed), seed=4))
+    v = Verifier(emb, matcher, {"gate": g}, cfg)
+    f = compute_features(emb, matcher, g, data, QualityConfig(), 3, all_refs=True)
+    expected = decide(RULE, f.s_g, f.ranked_refs, lambda r: f.inliers[r], 3, "both").match
+    assert v.verify("gate", data).match == expected
+    assert expected is (query_seed == 1)

@@ -86,6 +86,18 @@ class Verifier:
                 raise ValueError(f"gallery missing for site {site_id}")
             if (g.backbone, g.matcher) != (thresholds.backbone, thresholds.matcher):
                 raise ValueError(f"gallery for site {site_id} was built with other models")
+            # n_refs는 거점당 기준 사진 상한이다. 기준 사진이 상한보다 적은 거점은 갤러리 n_refs가 더 작으므로
+            # 상한을 넘을 때만 불일치로 본다. 정확한 기준 사진 집합은 refs_fingerprint가 확인한다.
+            if thresholds.n_refs is not None and g.n_refs > thresholds.n_refs:
+                raise ValueError(f"gallery for site {site_id} differs from thresholds.json: "
+                                 f"n_refs {g.n_refs} > {thresholds.n_refs}")
+            fp = (thresholds.refs_fingerprint or {}).get(site_id)
+            for what, want, got in (("augment", thresholds.augment, g.augment),
+                                    ("max_keypoints", thresholds.max_keypoints, g.max_kp),
+                                    ("refs_fingerprint", fp, g.refs_fingerprint)):
+                if want is not None and got is not None and want != got:
+                    raise ValueError(f"gallery for site {site_id} differs from thresholds.json: "
+                                     f"{what} {got!r} != {want!r}")
         self.embedder, self.matcher = embedder, matcher
         self.galleries, self.thresholds = galleries, thresholds
         self._lock = threading.Lock()

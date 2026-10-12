@@ -35,24 +35,36 @@ class ThresholdConfig:
     quality: QualityConfig
     sites: dict[str, SiteThresholds]
     max_keypoints: int = 1024
+    # 배포 단위 확인용. 값이 있으면 Verifier가 갤러리 메타와 비교한다.
+    n_refs: int | None = None
+    augment: bool | None = None
+    refs_fingerprint: dict[str, str] | None = None
 
 
 def load_thresholds(path: Path) -> ThresholdConfig:
     raw = json.loads(Path(path).read_text(encoding="utf-8"))
     if raw.get("version") != 1:
         raise ValueError("unsupported thresholds version")
+    for k, v in raw["sites"].items():
+        if v.get("mode", "rule") not in ("logistic", "rule"):
+            raise ValueError(f"unknown mode for site {k}: {v.get('mode')!r}")
+    n_refs, augment, fp = raw.get("n_refs"), raw.get("augment"), raw.get("refs_fingerprint")
     return ThresholdConfig(
         backbone=raw["backbone"], matcher=raw["matcher"], top_k=int(raw["top_k"]),
         quality=QualityConfig(**raw.get("quality", {})),
         sites={k: SiteThresholds(**v) for k, v in raw["sites"].items()},
         max_keypoints=int(raw.get("max_keypoints", 1024)),
+        n_refs=None if n_refs is None else int(n_refs),
+        augment=None if augment is None else bool(augment),
+        refs_fingerprint=None if fp is None else {str(k): str(v) for k, v in fp.items()},
     )
 
 
 def save_thresholds(cfg: ThresholdConfig, path: Path) -> None:
     data = {
         "version": 1, "backbone": cfg.backbone, "matcher": cfg.matcher, "top_k": cfg.top_k,
-        "max_keypoints": cfg.max_keypoints, "quality": asdict(cfg.quality),
+        "max_keypoints": cfg.max_keypoints, "n_refs": cfg.n_refs, "augment": cfg.augment,
+        "refs_fingerprint": cfg.refs_fingerprint, "quality": asdict(cfg.quality),
         "sites": {k: asdict(v) for k, v in cfg.sites.items()},
     }
     Path(path).parent.mkdir(parents=True, exist_ok=True)

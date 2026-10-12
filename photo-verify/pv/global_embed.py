@@ -51,11 +51,16 @@ def pool_tokens(feats: dict, pooling: str, p: float = 3.0) -> torch.Tensor:
     raise ValueError(f"unknown pooling: {pooling}")
 
 
+def dinov2_name(variant: str, pooling: str) -> str:
+    """기본 GeM은 백본 이름 그대로, 다른 풀링은 `<variant>_<pooling>`. 임계값·갤러리가 풀링까지 구분한다."""
+    return variant if pooling == "gem" else f"{variant}_{pooling}"
+
+
 class DinoV2Embedder:
     def __init__(self, variant: str = "dinov2_vitb14", pooling: str = "gem", p: float = 3.0):
         if pooling not in POOLINGS:
             raise ValueError(f"unknown pooling: {pooling}")
-        self.name = variant
+        self.name = dinov2_name(variant, pooling)
         self.pooling = pooling
         self.p = p
         self.model = torch.hub.load(DINOV2_HUB, variant,
@@ -86,11 +91,13 @@ class OpenClipEmbedder:
 
 
 EMBEDDERS: dict[str, Callable[[], GlobalEmbedder]] = {
-    "dinov2_vits14": lambda: DinoV2Embedder("dinov2_vits14"),
-    "dinov2_vitb14": lambda: DinoV2Embedder("dinov2_vitb14"),
+    dinov2_name(v, pool): (lambda v=v, pool=pool: DinoV2Embedder(v, pool))
+    for v in ("dinov2_vits14", "dinov2_vitb14") for pool in POOLINGS
+}
+EMBEDDERS.update({
     "clip_vitb16": lambda: OpenClipEmbedder("clip_vitb16", "ViT-B-16", "openai"),
     "siglip_vitb16": lambda: OpenClipEmbedder("siglip_vitb16", "ViT-B-16-SigLIP", "webli"),
-}
+})
 
 
 def make_embedder(name: str) -> GlobalEmbedder:

@@ -2,7 +2,8 @@ FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PYTHONPATH=/app \
     TORCH_HOME=/opt/models UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy \
-    PV_DATA_DIR=/data PORT=8080
+    PV_DATA_DIR=/data PORT=8080 \
+    OMP_NUM_THREADS=2 MKL_NUM_THREADS=2 PV_TORCH_THREADS=2
 
 RUN apt-get update \
  && apt-get install -y --no-install-recommends git libgl1 libglib2.0-0 \

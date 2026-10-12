@@ -55,3 +55,31 @@ def test_load_ref_dir_sorted_and_limited(tmp_path):
     imgs = load_ref_dir(tmp_path)
     assert len(imgs) == 2
     assert len(load_ref_dir(tmp_path, limit=1)) == 1
+
+
+def test_build_records_deploy_metadata_and_roundtrip(tmp_path):
+    g = build_gallery("gate", [make_scene(1)], MeanColorEmbedder(), SiftMatcher(max_kp=512), augment=False,
+                      refs_fingerprint="abc")
+    assert (g.augment, g.max_kp, g.refs_fingerprint) == (False, 512, "abc")
+    save_gallery(g, tmp_path / "g.npz")
+    h = load_gallery(tmp_path / "g.npz")
+    assert (h.augment, h.max_kp, h.refs_fingerprint) == (False, 512, "abc")
+
+
+def test_old_gallery_without_metadata_loads_as_none(tmp_path):
+    g = manual_gallery("gate", [make_scene(1)], [[1, 0]], SiftMatcher())
+    save_gallery(g, tmp_path / "g.npz")
+    h = load_gallery(tmp_path / "g.npz")
+    assert (h.augment, h.max_kp, h.refs_fingerprint) == (None, None, None)
+
+
+def test_fingerprint_follows_content_not_mtime(tmp_path):
+    import os
+    from pv.gallery import fingerprint_files
+    p = tmp_path / "r1.jpg"
+    p.write_bytes(b"aaaa")
+    a = fingerprint_files([p])
+    os.utime(p, (1, 1))
+    assert fingerprint_files([p]) == a
+    p.write_bytes(b"aaab")
+    assert fingerprint_files([p]) != a

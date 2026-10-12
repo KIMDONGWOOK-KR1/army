@@ -128,3 +128,16 @@ def test_missing_api_key_config_refuses_to_start():
 def test_openapi_docs_disabled():
     with client(StubVerifier()) as c:
         assert c.get("/docs").status_code == 404
+
+
+def test_app_from_env_pins_compute_threads(monkeypatch):
+    import pv.service as service
+    seen = {}
+    monkeypatch.setenv("PV_API_KEY", KEY)
+    monkeypatch.setenv("PV_TORCH_THREADS", "3")
+    monkeypatch.setattr(service.torch, "set_num_threads", lambda n: seen.setdefault("torch", n))
+    monkeypatch.setattr(service.cv2, "setNumThreads", lambda n: seen.setdefault("cv2", n))
+    monkeypatch.setattr(service.Verifier, "from_dir", classmethod(lambda cls, d: StubVerifier()))
+    with TestClient(service.app_from_env()) as c:
+        assert c.get("/healthz").json() == {"ok": True, "ready": True}
+    assert seen == {"torch": 3, "cv2": 3}

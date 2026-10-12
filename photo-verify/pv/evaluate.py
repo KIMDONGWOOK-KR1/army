@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import math
+import sys
 from collections import defaultdict
 from dataclasses import dataclass, field, replace
 
@@ -77,12 +78,16 @@ def evaluate(rows: list[Row], top_k: int = 3, far: float = 0.01) -> dict[str, Ou
             cal = [r for r in rows if r.fold != test_fold and r.sample.site_id == site]
             test = [r for r in rows if r.fold == test_fold and r.sample.site_id == site]
             if not cal or not test:
+                print(f"경고: 거점 {site}는 fold {test_fold} 평가에서 "
+                      f"{'보정' if not cal else '평가'} fold 표본이 없어 건너뜀", file=sys.stderr)
                 continue
             total_neg = sum(1 for r in cal if r.y == 0)
             cal_neg = [r for r in cal if r.y == 0 and r.ok_quality]
             thr_a = threshold_at_far([r.f.s_g for r in cal_neg], far, total=total_neg)
             thr_b = threshold_at_far([math.log1p(n_all(r.f)) for r in cal_neg], far, total=total_neg)
-            t = fit_site(_samples(cal, top_k), far)
+            cal_samples = _samples(cal, top_k)
+            t = fit_site(cal_samples, far)
+            t_none = fit_site(cal_samples, far, early_reject=False)  # 조기 거절이 없으면 모든 오답이 2단계까지 간다
             for r in test:
                 f = r.f
                 if not r.ok_quality:
@@ -93,9 +98,10 @@ def evaluate(rows: list[Row], top_k: int = 3, far: float = 0.01) -> dict[str, Ou
                 nb = math.log1p(n_all(f))
                 out["B_local"].add(r, nb >= thr_b, nb, f.t_pre_ms + f.t_extract_ms + sum(f.t_pair_ms.values()))
                 for name, mode in (("C_none", "none"), ("C_reject", "reject"), ("C_both", "both")):
-                    tm = replace(t, early_accept=t.tau_accept is not None) if mode == "both" else t
+                    base = t_none if mode == "none" else t
+                    tm = replace(t, early_accept=t.tau_accept is not None) if mode == "both" else base
                     d = decide(tm, f.s_g, f.ranked_refs, lambda ref, f=f: f.inliers[ref], top_k, mode)
-                    out[name].add(r, d.match, fused_score(t, f.s_g, n_topk(f, top_k)),
+                    out[name].add(r, d.match, fused_score(base, f.s_g, n_topk(f, top_k)),
                                   est_latency_ms(f, d.pairs_used), early=d.match and not d.pairs_used)
     return out
 
@@ -107,19 +113,46 @@ def _rates(rows: list[Row], accept: list[bool]) -> tuple[float, float]:
     return tar, far_
 
 
+NEG_LABELS = (("FAR_hard", "hard_neg"), ("FAR_easy", "easy_neg"), ("FAR_cross", "cross_neg"))
+
+
+def _far_by_label(rows: list[Row], accept: list[bool]) -> dict[str, float]:
+    out = {}
+    for col, label in NEG_LABELS:
+        a = [ok for r, ok in zip(rows, accept) if r.sample.label == label]
+        out[col] = float(np.mean(a)) if a else NAN
+    return out
+
+
+def _macro_auc_eer(o: Outcome) -> tuple[float, float, int]:
+    """(거점, fold)마다 AUC·EER을 따로 구해 평균한다. 거점별 임계값이 다르므로 점수를 한데 섞지 않는다.
+    RETAKE(점수 None) 행은 빠진다."""
+    groups: dict[tuple[str, int], tuple[list[float], list[float]]] = defaultdict(lambda: ([], []))
+    for r, s in zip(o.rows, o.score):
+        if s is not None:
+            groups[(r.sample.site_id, r.fold)][0 if r.y == 1 else 1].append(s)
+    aucs, eers = [], []
+    for ps, ns in groups.values():
+        if ps and ns:
+            aucs.append(auc(ps, ns))
+            eers.append(eer(ps, ns))
+    if not aucs:
+        return NAN, NAN, 0
+    return float(np.mean(aucs)), float(np.mean(eers)), len(aucs)
+
+
 def summarize(out: dict[str, Outcome]) -> list[dict]:
     table = []
     for method, o in out.items():
         tar, far_ = _rates(o.rows, o.accept)
-        ps = [s for r, s in zip(o.rows, o.score) if s is not None and r.y == 1]
-        ns = [s for r, s in zip(o.rows, o.score) if s is not None and r.y == 0]
+        auc_, eer_, n_groups = _macro_auc_eer(o)
         lat_samples = [lat for r, lat in zip(o.rows, o.latency) if r.ok_quality]
         lat = summarize_ms(lat_samples) if lat_samples else {"p50": NAN, "p95": NAN, "mean": NAN}
         pos_rows = [r for r in o.rows if r.y == 1]
         table.append({
             "method": method, "n_pos": len(pos_rows), "n_neg": len(o.rows) - len(pos_rows),
-            "TAR": tar, "FAR": far_,
-            "AUC": auc(ps, ns) if ps and ns else NAN, "EER": eer(ps, ns) if ps and ns else NAN,
+            "TAR": tar, "FAR": far_, **_far_by_label(o.rows, o.accept),
+            "AUC": auc_, "EER": eer_, "auc_groups": n_groups,
             "lat_mean": lat["mean"], "lat_p50": lat["p50"], "lat_p95": lat["p95"],
             "early_false_accepts": sum(1 for r, e in zip(o.rows, o.early_accept) if e and r.y == 0),
             "retake_rate_pos": (sum(1 for r in pos_rows if not r.ok_quality) / len(pos_rows)) if pos_rows else NAN,
@@ -133,8 +166,9 @@ def per_site(o: Outcome) -> list[dict]:
         groups[r.sample.site_id].append(i)
     table = []
     for site, idx in sorted(groups.items()):
-        tar, far_ = _rates([o.rows[i] for i in idx], [o.accept[i] for i in idx])
-        table.append({"site_id": site, "TAR": tar, "FAR": far_, "n": len(idx)})
+        rs, acc = [o.rows[i] for i in idx], [o.accept[i] for i in idx]
+        tar, far_ = _rates(rs, acc)
+        table.append({"site_id": site, "TAR": tar, "FAR": far_, **_far_by_label(rs, acc), "n": len(idx)})
     return table
 
 
