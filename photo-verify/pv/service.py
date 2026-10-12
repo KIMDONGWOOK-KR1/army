@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import asyncio
 import hmac
+import logging
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -19,6 +20,7 @@ from pv.pipeline import UnknownSite, Verifier
 from pv.preprocess import InvalidImage
 
 DEFAULT_MAX_BYTES = 10 * 1024 * 1024
+logger = logging.getLogger("pv.service")
 
 
 def _error(status: int, code: str) -> JSONResponse:
@@ -70,6 +72,7 @@ def create_app(verifier_factory: Callable[[], Verifier], api_key: str,
         except asyncio.TimeoutError:
             return _error(503, "TIMEOUT")
         except Exception:
+            logger.exception("verify failed")
             return _error(503, "MODEL_ERROR")
         return {"match": result.match, "score": result.score,
                 "reason_code": result.reason_code, "latency_ms": result.latency_ms}

@@ -1,7 +1,10 @@
+import logging
+import os
 import tempfile
 import time
 
 import pytest
+from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 
 from pv.pipeline import UnknownSite, VerifyResult
@@ -84,12 +87,37 @@ def test_healthz_reports_ready_without_auth():
 def test_large_upload_never_touches_temp_files(monkeypatch):
     def forbidden(*a, **k):
         raise AssertionError("사진이 디스크에 쓰이면 안 된다")
+    tmp_dir = tempfile.gettempdir()
+    before = set(os.listdir(tmp_dir))
     for name in ("TemporaryFile", "SpooledTemporaryFile", "NamedTemporaryFile", "mkstemp"):
         monkeypatch.setattr(tempfile, name, forbidden)
+    monkeypatch.setattr("starlette.formparsers.SpooledTemporaryFile", forbidden, raising=False)
     stub = StubVerifier()
     with client(stub) as c:
         r = post(c, body=b"x" * (5 * 1024 * 1024))
     assert r.status_code == 200 and stub.seen == [("gate", 5 * 1024 * 1024)]
+    assert set(os.listdir(tmp_dir)) - before == set()
+
+
+def test_verify_route_declares_no_body_params():
+    app = create_app(lambda: StubVerifier(), KEY)
+    routes = [r for r in app.routes if isinstance(r, APIRoute) and r.path == "/verify"]
+    assert len(routes) == 1
+    route = routes[0]
+    assert route.dependant.body_params == []
+    assert [p.name for p in route.dependant.query_params] == ["site_id"]
+
+
+def test_model_error_is_logged_without_body(caplog):
+    marker = b"PHOTO-BODY-MARKER"
+    with caplog.at_level(logging.ERROR, logger="pv.service"):
+        with client(StubVerifier(exc=RuntimeError("boom"))) as c:
+            r = post(c, body=marker)
+    assert r.json() == {"error": "MODEL_ERROR"}
+    records = [rec for rec in caplog.records if rec.name == "pv.service" and rec.levelno == logging.ERROR]
+    assert len(records) == 1
+    assert marker.decode() not in records[0].getMessage()
+    assert marker.decode() not in caplog.text
 
 
 def test_missing_api_key_config_refuses_to_start():
