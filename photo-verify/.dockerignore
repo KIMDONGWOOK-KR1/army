@@ -6,3 +6,8 @@ bench
 eval
 docs
 *.onnx
+*.npz
+thresholds.json
+private
+.env*
+*.private.local.json
