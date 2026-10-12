@@ -42,4 +42,5 @@ uv run python eval/run_eval.py --manifest ../private/photo-verify/eval/manifest.
 uv run python eval/run_eval.py ... --backbones dinov2_vitb14 dinov2_vits14 clip_vitb16 siglip_vitb16 --matchers aliked superpoint sift --ref-counts 1 3 5 --augment on off
 
 - 첫 번째 설정(--backbones와 --matchers의 첫 값)으로 thresholds.json을 쓴다. 앱 기본값은 dinov2_vitb14 + aliked다.
+- 보고서의 FAR은 평가 fold에서 실제로 나온 값이며, 보정 fold의 1% 목표보다 높을 수 있다. 논문에는 이 실측값을 그대로 보고한다.
 - 보고서의 retake_rate_pos가 높으면 품질 기본값(흐림 60, 밝기 25~235)을 thresholds.json의 quality에서 낮춘다.
