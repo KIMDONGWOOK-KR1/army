@@ -36,13 +36,20 @@ def test_unknown_backbone_raises():
 
 
 @pytest.mark.model
-def test_dinov2_prefers_same_scene():
+def test_dinov2_embedding_sanity():
     emb = make_embedder("dinov2_vits14")
     a = to_global_input(make_scene(1))
-    b = to_global_input(warp_view(make_scene(1), seed=2, brightness=0.8))
-    c = to_global_input(make_scene(9))
+    b = to_global_input(np.clip(make_scene(1).astype(np.float32) * 0.9, 0, 255).astype(np.uint8))
+    stripes = np.zeros((480, 640, 3), np.uint8)
+    for band in range(0, 480, 16):
+        if (band // 16) % 2 == 1:
+            stripes[band:band + 16] = 255
+    c = to_global_input(stripes)
     v = emb.embed([a, b, c])
     assert v.shape == (3, 384)
+    assert np.allclose(np.linalg.norm(v, axis=1), 1.0, atol=1e-5)
+    assert np.allclose(emb.embed([a])[0], v[0], atol=1e-5)
+    assert float(v[0] @ v[1]) > 0.95
     assert float(v[0] @ v[1]) > float(v[0] @ v[2])
 
 
