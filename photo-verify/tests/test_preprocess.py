@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from pv.preprocess import (InvalidImage, check_quality, decode_image,
+from pv.preprocess import (LOCAL_LONG_SIDE, InvalidImage, check_quality, decode_image,
                            to_global_input, to_local_input)
 from pv.synth import make_scene
 
@@ -56,7 +56,9 @@ def test_global_input_is_center_square(shape):
 
 
 def test_local_input_limits_long_side():
-    assert max(to_local_input(np.zeros((3000, 4000, 3), np.uint8)).shape[:2]) == 1024
+    assert LOCAL_LONG_SIDE == 640  # 지연 실측(docs/LATENCY.md)에 따른 기본값
+    assert max(to_local_input(np.zeros((3000, 4000, 3), np.uint8)).shape[:2]) == 640
+    assert max(to_local_input(np.zeros((3000, 4000, 3), np.uint8), 1024).shape[:2]) == 1024
     small = np.zeros((300, 400, 3), np.uint8)
     assert to_local_input(small).shape == small.shape
 

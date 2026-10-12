@@ -7,7 +7,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Callable, Literal
 
-from pv.preprocess import QualityConfig
+from pv.preprocess import LEGACY_LOCAL_LONG_SIDE, LOCAL_LONG_SIDE, QualityConfig
 
 Mode = Literal["logistic", "rule"]
 EarlyExit = Literal["none", "reject", "both"]
@@ -35,6 +35,7 @@ class ThresholdConfig:
     quality: QualityConfig
     sites: dict[str, SiteThresholds]
     max_keypoints: int = 1024
+    local_long_side: int = LOCAL_LONG_SIDE
     # 배포 단위 확인용. 값이 있으면 Verifier가 갤러리 메타와 비교한다.
     n_refs: int | None = None
     augment: bool | None = None
@@ -54,6 +55,7 @@ def load_thresholds(path: Path) -> ThresholdConfig:
         quality=QualityConfig(**raw.get("quality", {})),
         sites={k: SiteThresholds(**v) for k, v in raw["sites"].items()},
         max_keypoints=int(raw.get("max_keypoints", 1024)),
+        local_long_side=int(raw.get("local_long_side", LEGACY_LOCAL_LONG_SIDE)),
         n_refs=None if n_refs is None else int(n_refs),
         augment=None if augment is None else bool(augment),
         refs_fingerprint=None if fp is None else {str(k): str(v) for k, v in fp.items()},
@@ -63,7 +65,7 @@ def load_thresholds(path: Path) -> ThresholdConfig:
 def save_thresholds(cfg: ThresholdConfig, path: Path) -> None:
     data = {
         "version": 1, "backbone": cfg.backbone, "matcher": cfg.matcher, "top_k": cfg.top_k,
-        "max_keypoints": cfg.max_keypoints, "n_refs": cfg.n_refs, "augment": cfg.augment,
+        "max_keypoints": cfg.max_keypoints, "local_long_side": cfg.local_long_side, "n_refs": cfg.n_refs, "augment": cfg.augment,
         "refs_fingerprint": cfg.refs_fingerprint, "quality": asdict(cfg.quality),
         "sites": {k: asdict(v) for k, v in cfg.sites.items()},
     }

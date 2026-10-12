@@ -1,3 +1,5 @@
+import json
+
 import pytest
 
 from pv.preprocess import QualityConfig
@@ -83,10 +85,22 @@ def test_logistic_score_is_stable_for_extremes():
 def test_thresholds_roundtrip(tmp_path):
     cfg = ThresholdConfig(backbone="dinov2_vitb14", matcher="aliked", top_k=3,
                           quality=QualityConfig(blur_var_min=50.0),
-                          sites={"gate": RULE}, max_keypoints=512)
+                          sites={"gate": RULE}, max_keypoints=512, local_long_side=768)
     path = tmp_path / "thresholds.json"
     save_thresholds(cfg, path)
     assert load_thresholds(path) == cfg
+
+
+def test_thresholds_without_local_long_side_load_as_legacy_1024(tmp_path):
+    """해상도 항목이 생기기 전 파일은 1024px 갤러리로 보정됐으므로 1024로 읽는다."""
+    cfg = ThresholdConfig("dinov2_vitb14", "aliked", 3, QualityConfig(), {"gate": RULE})
+    assert cfg.local_long_side == 640
+    path = tmp_path / "thresholds.json"
+    save_thresholds(cfg, path)
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    del raw["local_long_side"]
+    path.write_text(json.dumps(raw), encoding="utf-8")
+    assert load_thresholds(path).local_long_side == 1024
 
 
 def test_unknown_version_rejected(tmp_path):

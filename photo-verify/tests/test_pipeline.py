@@ -107,6 +107,7 @@ def _meta_gallery(n_refs=2, **meta):
     ({"max_keypoints": 512}, {"max_kp": 1024}),
     ({"augment": True}, {"augment": False}),
     ({"refs_fingerprint": {"gate": "aaa"}}, {"refs_fingerprint": "bbb"}),
+    ({"local_long_side": 640}, {"local_long_side": 1024}),
 ])
 def test_deploy_metadata_mismatch_fails_at_startup(cfg_kw, gal_kw):
     matcher, g = _meta_gallery(gal_kw.pop("n_refs", 2), **gal_kw)
@@ -138,3 +139,30 @@ def test_verify_matches_evaluation_decision(query_seed):
     expected = decide(RULE, f.s_g, f.ranked_refs, lambda r: f.inliers[r], 3, "both").match
     assert v.verify("gate", data).match == expected
     assert expected is (query_seed == 1)
+
+
+class ShapeSpyMatcher(CountingMatcher):
+    def __init__(self, inner):
+        super().__init__(inner)
+        self.shapes = []
+
+    def extract(self, image):
+        self.shapes.append(image.shape[:2])
+        return super().extract(image)
+
+
+@pytest.mark.parametrize("side", [512, 768])
+def test_query_uses_configured_local_side_but_quality_stays_at_1024(monkeypatch, side):
+    import pv.pipeline as pipeline
+    seen = []
+    real = pipeline.check_quality
+    monkeypatch.setattr(pipeline, "check_quality", lambda img, cfg: seen.append(img.shape[:2]) or real(img, cfg))
+    matcher = ShapeSpyMatcher(SiftMatcher())
+    g = manual_gallery("gate", [make_scene(1)], [[1.0, 0.0]], matcher, backbone="fake")
+    cfg = ThresholdConfig("fake", "sift", 3, QualityConfig(), {"gate": RULE}, local_long_side=side)
+    data = jpeg_bytes(warp_view(make_scene(1, 1600, 1200), seed=4))
+    matcher.shapes.clear()
+    Verifier(FixedEmbedder([1, 0]), matcher, {"gate": g}, cfg).verify("gate", data)
+    compute_features(FixedEmbedder([1, 0]), matcher, g, data, QualityConfig(), 3, local_long_side=side)
+    assert [max(s) for s in matcher.shapes] == [side, side]
+    assert [max(s) for s in seen] == [1024, 1024]

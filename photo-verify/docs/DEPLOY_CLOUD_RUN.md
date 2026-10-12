@@ -2,7 +2,7 @@
 
 실행은 김동욱이 직접 한다. 개인 명의 결제 계정을 쓰고, 비용은 월별 청구 내역을 근거로 나중에 정산한다.
 
-> **경고: 지연 목표 미달.** 컨테이너(2 vCPU/4 GB) 실측 p95는 스레드 고정 후 약 2.5초(고정 전 약 6.4초)로 2초 목표를 넘는다([LATENCY.md](LATENCY.md)). `--timeout 10`, `PV_TIMEOUT_S=8`, min-instances 0 조합에서는 콜드 스타트(모델 적재 + 첫 요청)가 제한을 넘을 수 있다(콜드 스타트는 아직 재지 않았다). 실사용 전에 지연 결정(ALIKED 해상도 축소 / 다른 특징점 / GPU 전환)을 먼저 끝낸다. 시험 배포라면 `--cpu-boost`와 일시적 min-instances 1을 고려한다.
+> **주의: 지연은 로컬 컨테이너 기준만 확인됐다.** 2단계 입력을 640px로 낮춘 뒤 컨테이너(2 vCPU/4 GB) 실측 서버 처리 p95는 최악 경로(기준 3장·3쌍)에서 1.35초다([LATENCY.md](LATENCY.md)). Cloud Run 실측과 콜드 스타트(모델 적재 + 첫 요청)는 아직 재지 않았다. `--timeout 10`, `PV_TIMEOUT_S=8`, min-instances 0 조합에서는 콜드 스타트가 제한을 넘을 수 있으므로, 시험 배포라면 `--cpu-boost`와 일시적 min-instances 1을 고려한다.
 
 작업 디렉터리는 단계마다 적는다. 저장소 루트는 `army/`, 하위 프로젝트는 `photo-verify/`이다.
 
@@ -67,4 +67,4 @@ uv run python bench/bench_http.py --url $URL --key <키> --site <site_id> --imag
 콜드 스타트 시간(첫 요청)과 p95를 LATENCY.md에 적는다.
 
 ## Modal로 옮길 때
-현재 실측이 이미 2초 기준을 넘었으므로 GPU 전환은 후보 중 하나로 남아 있다(결정 전). 현재 이미지는 pytorch-cpu 인덱스의 CPU 전용 torch를 설치하므로 그대로는 GPU에서 쓸 수 없다. 같은 코드에 torch/torchvision만 CUDA 휠 인덱스에서 설치하는 GPU 이미지 변형이 필요하다. 그 이미지를 Modal GPU 함수로 올리고, gallery/와 thresholds.json은 Modal Volume으로 넘긴다. Edge는 추론 서버 주소 비밀값만 바꾼다. 이 경로는 결정 뒤 별도 안내로 작성한다.
+Cloud Run 실측 p95가 2초를 넘으면 GPU 전환을 검토한다. 현재 이미지는 pytorch-cpu 인덱스의 CPU 전용 torch를 설치하므로 그대로는 GPU에서 쓸 수 없다. 같은 코드에 torch/torchvision만 CUDA 휠 인덱스에서 설치하는 GPU 이미지 변형이 필요하다. 그 이미지를 Modal GPU 함수로 올리고, gallery/와 thresholds.json은 Modal Volume으로 넘긴다. Edge는 추론 서버 주소 비밀값만 바꾼다. 이 경로는 결정 뒤 별도 안내로 작성한다.

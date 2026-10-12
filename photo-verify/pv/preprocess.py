@@ -11,7 +11,12 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 MAX_PIXELS = 40_000_000
 MIN_SIDE = 64
 GLOBAL_SIZE = 224
-LOCAL_LONG_SIDE = 1024
+# 2단계(국소 특징점) 입력의 긴 변. 1024→640에서 ALIKED 추출이 약 2.0→0.8초로 준다(docs/LATENCY.md).
+LOCAL_LONG_SIDE = 640
+# 해상도 항목이 없는 예전 thresholds.json·갤러리가 쓰던 값
+LEGACY_LOCAL_LONG_SIDE = 1024
+# 품질 검사 해상도. 라플라시안 분산은 해상도에 따라 달라지므로 2단계 해상도와 무관하게 고정한다.
+QUALITY_LONG_SIDE = 1024
 
 
 class InvalidImage(ValueError):

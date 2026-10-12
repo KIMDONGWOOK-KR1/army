@@ -70,7 +70,17 @@ def test_old_gallery_without_metadata_loads_as_none(tmp_path):
     g = manual_gallery("gate", [make_scene(1)], [[1, 0]], SiftMatcher())
     save_gallery(g, tmp_path / "g.npz")
     h = load_gallery(tmp_path / "g.npz")
-    assert (h.augment, h.max_kp, h.refs_fingerprint) == (None, None, None)
+    assert (h.augment, h.max_kp, h.refs_fingerprint, h.local_long_side) == (None, None, None, None)
+
+
+def test_build_uses_and_records_local_long_side(tmp_path):
+    big = make_scene(1, 1600, 1200)
+    g = build_gallery("gate", [big], MeanColorEmbedder(), SiftMatcher(), augment=False, local_long_side=512)
+    assert g.local_long_side == 512
+    assert max(g.local[0].image_size) == 512
+    save_gallery(g, tmp_path / "g.npz")
+    assert load_gallery(tmp_path / "g.npz").local_long_side == 512
+    assert build_gallery("gate", [big], MeanColorEmbedder(), SiftMatcher(), augment=False).local_long_side == 640
 
 
 def test_fingerprint_follows_content_not_mtime(tmp_path):

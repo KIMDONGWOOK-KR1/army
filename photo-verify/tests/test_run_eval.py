@@ -76,14 +76,16 @@ def test_write_deploy_produces_unit_that_verifier_loads(tmp_path, monkeypatch, c
     monkeypatch.setattr(sys, "argv", ["run_eval", "--manifest", str(ev / "manifest.csv"), "--refs", str(refs),
                                       "--out", str(tmp_path / "results"), "--backbones", "fake",
                                       "--matchers", "sift", "--ref-counts", "2", "--max-kp", "512",
+                                      "--local-long-side", "512",
                                       "--write-deploy", str(deploy)])
     run_eval.main()
     printed = capsys.readouterr().out
     assert "thresholds.json" in printed and "gate.npz" in printed
     cfg = load_thresholds(deploy / "thresholds.json")
-    assert (cfg.n_refs, cfg.augment, cfg.max_keypoints) == (2, True, 512)
+    assert (cfg.n_refs, cfg.augment, cfg.max_keypoints, cfg.local_long_side) == (2, True, 512, 512)
     assert set(cfg.refs_fingerprint) == {"gate", "wall"}
     monkeypatch.setattr("pv.pipeline.make_embedder", lambda name: MeanColorEmbedder(name))
     v = Verifier.from_dir(deploy)
     assert v.galleries["gate"].n_refs == 2 and v.galleries["gate"].max_kp == 512
+    assert v.galleries["gate"].local_long_side == 512
     assert v.galleries["gate"].refs_fingerprint == cfg.refs_fingerprint["gate"]

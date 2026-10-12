@@ -11,7 +11,8 @@ import numpy as np
 from pv.gallery import Gallery, load_gallery, ref_scores
 from pv.global_embed import GlobalEmbedder, make_embedder
 from pv.local_match import LocalMatcher, inliers_between, make_matcher
-from pv.preprocess import QualityConfig, check_quality, decode_image, to_global_input, to_local_input
+from pv.preprocess import (LOCAL_LONG_SIDE, QUALITY_LONG_SIDE, QualityConfig, check_quality, decode_image,
+                           to_global_input, to_local_input)
 from pv.scorer import EarlyExit, ThresholdConfig, decide, load_thresholds
 
 
@@ -43,10 +44,10 @@ def _since_ms(t: float) -> float:
     return (time.perf_counter() - t) * 1000.0
 
 
-def _prepare(data: bytes, quality_cfg: QualityConfig):
+def _prepare(data: bytes, quality_cfg: QualityConfig, local_long_side: int):
     img = decode_image(data)
-    local_img = to_local_input(img)
-    return img, local_img, check_quality(local_img, quality_cfg)
+    quality = check_quality(to_local_input(img, QUALITY_LONG_SIDE), quality_cfg)
+    return img, to_local_input(img, local_long_side), quality
 
 
 def _rank(embedder: GlobalEmbedder, gallery: Gallery, img: np.ndarray) -> tuple[float, list[int]]:
@@ -56,9 +57,10 @@ def _rank(embedder: GlobalEmbedder, gallery: Gallery, img: np.ndarray) -> tuple[
 
 
 def compute_features(embedder: GlobalEmbedder, matcher: LocalMatcher, gallery: Gallery, data: bytes,
-                     quality_cfg: QualityConfig, top_k: int, all_refs: bool = False) -> Features:
+                     quality_cfg: QualityConfig, top_k: int, all_refs: bool = False,
+                     local_long_side: int = LOCAL_LONG_SIDE) -> Features:
     t = time.perf_counter()
-    img, local_img, quality = _prepare(data, quality_cfg)
+    img, local_img, quality = _prepare(data, quality_cfg, local_long_side)
     f = Features(quality=quality, t_pre_ms=_since_ms(t))
     if quality is not None:
         return f
@@ -94,6 +96,7 @@ class Verifier:
             fp = (thresholds.refs_fingerprint or {}).get(site_id)
             for what, want, got in (("augment", thresholds.augment, g.augment),
                                     ("max_keypoints", thresholds.max_keypoints, g.max_kp),
+                                    ("local_long_side", thresholds.local_long_side, g.local_long_side),
                                     ("refs_fingerprint", fp, g.refs_fingerprint)):
                 if want is not None and got is not None and want != got:
                     raise ValueError(f"gallery for site {site_id} differs from thresholds.json: "
@@ -113,7 +116,7 @@ class Verifier:
         if site_id not in self.thresholds.sites:
             raise UnknownSite(site_id)
         with self._lock:
-            img, local_img, quality = _prepare(data, self.thresholds.quality)
+            img, local_img, quality = _prepare(data, self.thresholds.quality, self.thresholds.local_long_side)
             if quality is not None:
                 return VerifyResult(False, 0.0, "RETAKE", round(_since_ms(t0)))
             g, t = self.galleries[site_id], self.thresholds.sites[site_id]
