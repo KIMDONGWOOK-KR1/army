@@ -26,3 +26,17 @@
 
 ### 한계
 - 합성 장면이라 실제 사진과 특징점 분포가 다르다. 최종 지연은 Task 11의 HTTP 실측과 Task 10의 평가셋 지연으로 다시 잰다.
+
+## Task 11 컨테이너 실측(2vCPU·4GB 제한)
+- 환경: `docker run --cpus 2 --memory 4g`, 이미지 `photo-verify:dev`(python 3.11-slim, DINOv2-B + ALIKED), 호스트 Windows 11 Docker Desktop(Linux 엔진). 합성 `demo` 거점(`tau_reject=-1`, 조기 거절 없음 = 최악 경로에 가까움), 쿼리 1600x1200 합성 사진, 예열 1회 후 30회.
+- DINOv2 허브 코드는 `facebookresearch/dinov2:7764ea0f912e53c92e82eb78a2a1631e92725fc8`로 고정했다.
+
+```
+응답 예: {'match': False, 'score': 0.9393, 'reason_code': 'NO_MATCH', 'latency_ms': 6952}
+왕복(ms): {'p50': 6098.56, 'p95': 6999.53, 'mean': 6179.06}
+서버 처리(ms): {'p50': 6095.0, 'p95': 6952.0, 'mean': 6146.73}
+```
+
+- 판정: 서버 처리 p50 6,095ms, p95 6,952ms로 2,000ms 기준을 약 3배 초과한다. 컨테이너(2vCPU) CPU 추론은 기준 미달이며, Task 12 진행 여부(ONNX, 해상도 축소, kp 축소, Modal 등)는 사용자 결정이 필요하다.
+- 스파이크 추정(3.0~3.2초)보다 큰 이유 후보: 2vCPU 제한, 쿼리 1600x1200 입력(스파이크는 1024x768), Docker Desktop 가상화 오버헤드. 구간별로 분리해 재지는 않았다.
+- 참고: 응답이 `NO_MATCH`(전역 점수 0.9393)로 나왔다. 이번 측정 목적은 지연이며 합성 쿼리의 판정 정확도는 검증하지 않았다.
