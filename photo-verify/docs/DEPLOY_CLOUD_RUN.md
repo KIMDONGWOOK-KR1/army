@@ -2,7 +2,7 @@
 
 실행은 김동욱이 직접 한다. 개인 명의 결제 계정을 쓰고, 비용은 월별 청구 내역을 근거로 나중에 정산한다.
 
-> **경고: 지연 목표 미달.** 컨테이너(2 vCPU/4 GB) 실측 p95는 약 6.4초로 2초 목표를 넘는다(docs/LATENCY.md). `--timeout 10`, `PV_TIMEOUT_S=8`, min-instances 0 조합에서는 콜드 스타트(모델 적재 + 첫 요청)가 제한을 넘을 가능성이 높고, 워밍된 요청도 간신히 들어간다. 실사용 전에 지연 결정(ALIKED 해상도 축소 / 다른 특징점 / GPU 전환)을 먼저 끝낸다. 시험 배포라면 `--cpu-boost`와 일시적 min-instances 1을 고려한다.
+> **경고: 지연 목표 미달.** 컨테이너(2 vCPU/4 GB) 실측 p95는 약 6.4초로 2초 목표를 넘는다([LATENCY.md](LATENCY.md)). `--timeout 10`, `PV_TIMEOUT_S=8`, min-instances 0 조합에서는 콜드 스타트(모델 적재 + 첫 요청)가 제한을 넘을 가능성이 높고, 워밍된 요청도 간신히 들어간다. 실사용 전에 지연 결정(ALIKED 해상도 축소 / 다른 특징점 / GPU 전환)을 먼저 끝낸다. 시험 배포라면 `--cpu-boost`와 일시적 min-instances 1을 고려한다.
 
 작업 디렉터리는 단계마다 적는다. 저장소 루트는 `army/`, 하위 프로젝트는 `photo-verify/`이다.
 
@@ -38,23 +38,26 @@ openssl rand -hex 32 | gcloud secrets create pv-api-key --data-file=-
 ```
 같은 키를 Supabase Edge 비밀값에도 넣는다(앱 연동 단계).
 
-## 4. 배포 (어느 디렉터리에서나)
+## 4. 서비스 계정과 권한 (배포 전, 어느 디렉터리에서나)
+```bash
+gcloud iam service-accounts create photo-verify-run --display-name "photo-verify Cloud Run"
+SA=photo-verify-run@$PROJECT.iam.gserviceaccount.com
+gcloud secrets add-iam-policy-binding pv-api-key --member "serviceAccount:$SA" --role roles/secretmanager.secretAccessor
+gcloud storage buckets add-iam-policy-binding gs://$BUCKET --member "serviceAccount:$SA" --role roles/storage.objectViewer
+```
+
+## 5. 배포 (어느 디렉터리에서나)
 ```bash
 gcloud run deploy photo-verify --image $REGION-docker.pkg.dev/$PROJECT/$REPO/photo-verify:<버전> \
   --region $REGION --cpu 2 --memory 4Gi --min-instances 0 --max-instances 2 --concurrency 2 --timeout 10 \
-  --allow-unauthenticated --set-secrets PV_API_KEY=pv-api-key:latest \
+  --service-account $SA --allow-unauthenticated --set-secrets PV_API_KEY=pv-api-key:latest \
   --add-volume name=data,type=cloud-storage,bucket=$BUCKET,readonly=true \
   --add-volume-mount volume=data,mount-path=/data
 ```
 - `--allow-unauthenticated`: Cloud Run IAM 대신 앱의 X-PV-Key로 막는다. Edge가 Google ID 토큰을 만들 필요가 없다.
-- Cloud Run 서비스 계정에 버킷 읽기 권한(roles/storage.objectViewer)을 준다.
-- 같은 서비스 계정에 비밀값 접근 권한을 준다(서비스 계정은 `gcloud run services describe`로 확인).
-  ```bash
-  gcloud secrets add-iam-policy-binding pv-api-key     --member=serviceAccount:<서비스 계정 이메일> --role=roles/secretmanager.secretAccessor
-  ```
 - 행사 당일 운영 시간대에만 `gcloud run services update photo-verify --region $REGION --min-instances 1`, 끝나면 0으로 되돌린다.
 
-## 5. 확인 (`photo-verify/`에서)
+## 6. 확인 (`photo-verify/`에서)
 ```bash
 URL=$(gcloud run services describe photo-verify --region $REGION --format 'value(status.url)')
 curl -s $URL/healthz
