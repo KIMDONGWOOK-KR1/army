@@ -9,8 +9,7 @@ import {
 import type { FieldStatus } from "./field-3d";
 import { ROLE_COLORS, ROLE_ICONS } from "./role-style";
 
-// 포켓몬고처럼 지도를 가득 채운 이동 화면 위에 떠 있는 표시들.
-// 지도를 가리는 큰 판 없이 위쪽 거점 이름·남은 거리, 아래쪽 내 초상·메뉴·다음 거점만 둔다.
+// 이동 화면: 목적지·거리·협동 상태를 위에, 도착 행동과 내 정보는 아래에 둔다.
 const PORTRAIT = "/hud/c02.webp";
 // 초상 그림이 없으면(404) 장면이 바뀔 때마다 다시 받지 않는다
 let portraitMissing = false;
@@ -98,40 +97,12 @@ export function TravelHud({
       : `${target}까지 ${meters(field.distance)}`;
     sub = modeLine(field);
   }
-  const nextDistance = gpsRequired
-    ? location.distance === null ? "—" : meters(location.distance)
-    : ready
-    ? field.inRange
-      ? "범위 안"
-      : meters(field.distance)
-    : field?.failed && location.distance !== null
-      ? meters(location.distance)
-      : "—";
   const gpsLine = `${location.status}${
     location.distance !== null
       ? ` · 약 ${Math.round(location.distance)}m / ${location.dwell.toFixed(0)}초`
       : ""
   }`;
 
-  // '다음 거점' 칸: 넓은 화면은 아래 오른쪽, 좁은 화면은 위 줄 아래(CSS가 둘 중 하나만 보인다)
-  const next = (className: string) => (
-    <div className={className}>
-      <span className="hud-next-label">다음 거점</span>
-      <b>{site.name}</b>
-      <span className="hud-next-row">
-        <span
-          className="hud-dots"
-          role="img"
-          aria-label={`전체 ${sites.length}곳 중 ${currentSeq}번째`}
-        >
-          {sites.map((p) => (
-            <i key={p.id} className={p.seq <= currentSeq ? "on" : ""} />
-          ))}
-        </span>
-        <span className="hud-next-distance">{nextDistance}</span>
-      </span>
-    </div>
-  );
   return (
     <div
       className={`travel-hud ${site.reverent ? "calm" : ""}`}
@@ -141,7 +112,7 @@ export function TravelHud({
           좁은 폰에서는 '다음 거점' 칸도 이 줄 아래로 올려 이름이 한 줄에 들어가게 한다 */}
       <div className="hud-top">
         <div className="hud-site">
-          <span className="hud-site-seq">거점 0{site.seq}</span>
+          <span className="hud-site-seq">거점 {currentSeq}/{total}</span>
           <h1 data-scene-heading tabIndex={-1}>
             {site.name}
           </h1>
@@ -157,7 +128,6 @@ export function TravelHud({
             </span>
           </div>
           {!demo && <p className="hud-gps">{gpsLine}</p>}
-          {next("hud-next hud-next-top")}
         </div>
         {/* 말풍선도 위 줄 묶음 안에 두어 이름·거리·다음 거점 칸 아래로 흘러가게 한다(겹치지 않게) */}
         {cooperation ?? <SpeechCard
@@ -261,7 +231,6 @@ export function TravelHud({
         </span>
       </button>
 
-      {next("hud-next hud-next-bottom")}
     </div>
   );
 }

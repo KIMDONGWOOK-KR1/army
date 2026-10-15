@@ -31,6 +31,10 @@ test("four roles see their next action, team progress and only earned journal st
     for(const [width,height] of [[320,568],[390,844],[1440,900]]) {
       await scout.setViewportSize({width,height});
       expect(await scout.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+      const topBox = await scout.locator(".hud-top").boundingBox();
+      const actionBox = await scout.locator(".hud-action-area").boundingBox();
+      expect(topBox!.y + topBox!.height).toBeLessThanOrEqual(actionBox!.y);
+
       const a11y=await new AxeBuilder({page:scout}).include('[data-testid="coop-compass"]').withTags(["wcag2a","wcag2aa"]).analyze();
       expect(a11y.violations).toEqual([]);
     }

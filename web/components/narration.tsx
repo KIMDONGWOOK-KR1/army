@@ -12,6 +12,14 @@ export function Narration({
   onClose: () => void;
   auto?: boolean;
 }) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null;
+    const modal = dialog.current;
+    modal?.showModal();
+    modal?.querySelector<HTMLButtonElement>(".narration-close")?.focus();
+    return () => { modal?.close(); if (previous?.isConnected) previous.focus(); };
+  }, []);
   const full = lines.join("\n");
   const [shown, setShown] = useState(0);
   const close = useRef(onClose);
@@ -34,45 +42,31 @@ export function Narration({
     );
     return () => window.clearTimeout(t);
   }, [shown, done, full]);
-  // 자동 시연: 다 쳐지면 잠시 보여 주고 닫는다.
   useEffect(() => {
     if (!auto || !done) return;
-    const t = window.setTimeout(() => close.current(), 2200);
-    return () => window.clearTimeout(t);
+    const timer = window.setTimeout(() => close.current(), 2200);
+    return () => window.clearTimeout(timer);
   }, [auto, done]);
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") close.current();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
   return (
-    <div
-      className="narration"
-      role="dialog"
-      aria-modal="true"
-      aria-label="기록"
-      onClick={() => setShown(full.length)}
-    >
-      <p className="narration-label" aria-hidden="true">
-        記錄
-      </p>
-      <p className="narration-sr">{lines.join(" ")}</p>
-      <div className="narration-text" aria-hidden="true">
-        {full.slice(0, shown)}
-        <span className="narration-caret" />
+    <dialog ref={dialog} className="narration" aria-label="기록" onCancel={(event) => { event.preventDefault(); onClose(); }}>
+      <header className="narration-header">
+        <p className="narration-label" aria-hidden="true">記錄</p>
+        <span>기억을 여는 이야기</span>
+      </header>
+      <div className="narration-body" tabIndex={0} role="region" aria-label="기록 본문" onClick={() => setShown(full.length)}>
+        <p className="narration-sr">{lines.join(" ")}</p>
+        <div className="narration-text" aria-hidden="true">
+          {lines.map((line, index) => {
+            const offset = lines.slice(0, index).reduce((n, text) => n + text.length + 1, 0);
+            const count = Math.max(0, shown - offset);
+            return <p key={index}>{line.slice(0, count)}<span className="narration-pending">{line.slice(count)}</span></p>;
+          })}
+        </div>
       </div>
-      <button
-        className="narration-close"
-        autoFocus
-        onClick={(e) => {
-          e.stopPropagation();
-          onClose();
-        }}
-      >
-        {done ? "계속" : "건너뛰기"}
-      </button>
-    </div>
+      <footer className="narration-footer">
+        {!done && <button className="narration-reveal" onClick={() => setShown(full.length)}>한 번에 읽기</button>}
+        <button className="narration-close" onClick={onClose}>{done ? "계속" : "건너뛰기"}</button>
+      </footer>
+    </dialog>
   );
 }

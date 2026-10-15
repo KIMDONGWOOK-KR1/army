@@ -1,10 +1,11 @@
 // 같은 C02 장병 모형 넷을 사람마다 조금씩 다르게 보이게 하는 값. three 없이 숫자만 다뤄 단위 시험으로 본다.
 //
 // 값은 참가자 식별자(멤버 id, 없으면 호출명)에서 늘 같게 나온다: 네 사람의 폰이 같은 동료를
-// 같은 모습으로 본다. 얼굴 모형은 건드리지 않고 피부 무늬의 색만 살짝 바꾸며, 키·몸집은 ±4% 안,
+// 같은 모습으로 본다. 얼굴은 눈·눈썹·입꼬리·볼을 부드럽게 변형하며, 키·몸집은 ±4% 안,
 // 둥근 안경은 일부만 쓴다. 서기 동작의 시작 시점과 빠르기를 어긋나게 해 넷이 똑같이 숨 쉬지 않게 한다.
 
 export type SoldierVariant = {
+  face: number; // 차분함·호기심·밝은 미소·집중, 참가자마다 고정
   skin: number; // SKIN_TONES 차례
   height: number; // 키 배율(0.96~1.04)
   width: number; // 어깨·몸통 너비 배율(0.96~1.04)
@@ -60,6 +61,7 @@ export function soldierVariant(seed: string): SoldierVariant {
   const phase = next() * r.phase;
   const pace = r.pace[0] + next() * (r.pace[1] - r.pace[0]);
   return {
+    face: Math.floor(next() * 4),
     skin,
     height: round4(height),
     width: round4(Math.min(1 + r.scale, Math.max(1 - r.scale, width))),
@@ -74,6 +76,7 @@ const round4 = (x: number) => Math.round(x * 1e4) / 1e4;
 // 첫 화면 네 장병: 보직마다 고정된 모습(피부색이 넷 다 다르고 한 사람만 안경을 쓴다)
 export const HOME_VARIANTS = {
   commander: {
+    face: 0,
     skin: 0,
     height: 1.03,
     width: 1.0,
@@ -82,6 +85,7 @@ export const HOME_VARIANTS = {
     pace: 0.95,
   },
   scout: {
+    face: 1,
     skin: 2,
     height: 0.98,
     width: 0.97,
@@ -90,6 +94,7 @@ export const HOME_VARIANTS = {
     pace: 1.02,
   },
   signal: {
+    face: 2,
     skin: 3,
     height: 1.0,
     width: 1.04,
@@ -98,6 +103,7 @@ export const HOME_VARIANTS = {
     pace: 0.92,
   },
   cipher: {
+    face: 3,
     skin: 1,
     height: 0.97,
     width: 0.98,

@@ -436,6 +436,7 @@ export function crewSoldier(
     role ? ROLE_COLORS[role] : NEUTRAL_COLOR,
     height,
     {
+      face: variant.face,
       skin: SKIN_TONES[variant.skin] ?? SKIN_BASE,
       skinBase: SKIN_BASE,
       height: variant.height,

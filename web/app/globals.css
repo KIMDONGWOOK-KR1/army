@@ -3,15 +3,6 @@
 @import "@fontsource/noto-sans-kr/600.css";
 @import "@fontsource/noto-serif-kr/600.css";
 @import "@fontsource/noto-serif-kr/700.css";
-/* 게임 글꼴 메이플스토리체(넥슨, 무료 서체). 눈누 배포본을 jsDelivr에서 받는다.
-   굵은 꼴 한 벌만 써서 제목·버튼·숫자를 어떤 굵기로 불러도 같은 글꼴이 나오게 한다. */
-@font-face {
-  font-family: "Maplestory";
-  src: url("https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_20-04@2.1/MaplestoryOTFBold.woff") format("woff");
-  font-weight: 100 900;
-  font-style: normal;
-  font-display: swap;
-}
 :root {
   --paper: #f3eedf;
   --card: #fffdf5;
@@ -21,14 +12,14 @@
   --red: #b62c17;
   --line: #b5b7a6;
   --gold: #c7ac6f;
-  /* 게임 글꼴: 로고·제목·버튼·숫자를 메이플스토리체 하나로(hh 2026-10-10). 한자 도장 글자는 뒤 글꼴로 넘어간다 */
-  --serif: "Maplestory", "Noto Sans KR", sans-serif;
+  /* UI는 로컬 Pretendard, 역사 기록에는 별도 명조체를 쓴다. */
+  --serif: var(--font-interface), "Noto Sans KR", sans-serif;
   /* 기록 글꼴: 사초·추모처럼 차분해야 하는 장면 */
   --calm: "Noto Serif KR", "Batang", serif;
   --sky: #8ed3f5;
   --sun: #ffc53d;
   --edge: #1f2a44;
-  --sans: "Noto Sans KR", "Malgun Gothic", system-ui, sans-serif;
+  --sans: var(--font-interface), "Noto Sans KR", "Malgun Gothic", system-ui, sans-serif;
   --mono: ui-monospace, "Courier New", monospace;
   color-scheme: light;
 }
@@ -97,8 +88,8 @@ h1,
 h2,
 h3 {
   font-family: var(--serif);
-  font-weight: 400;
-  letter-spacing: 0.01em;
+  font-weight: 700;
+  letter-spacing: -0.025em;
   text-wrap: balance;
 }
 h1[tabindex]:focus {
@@ -557,8 +548,8 @@ html[data-mockup] .game-viewport {
   padding: 12px 20px;
   font-family: var(--serif);
   font-size: 16px;
-  font-weight: 400;
-  letter-spacing: 0.01em;
+  font-weight: 700;
+  letter-spacing: -0.025em;
   border: 2px solid #40537f;
   border-radius: 5px;
   box-shadow: 0 3px 0 #788cb9;
@@ -2290,68 +2281,77 @@ html[data-mockup] .game-viewport {
 
 /* 타자 나레이션: 시작·거점 도착·사초 보상에서만 흑백 1980 기록 화면 */
 .narration {
-  position: absolute;
+  position: fixed;
   inset: 0;
-  z-index: 50;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  border: 0;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  gap: 28px;
-  padding: 40px 28px 32px;
+  gap: 24px;
+  padding: max(28px, env(safe-area-inset-top)) 24px max(24px, env(safe-area-inset-bottom));
   background: radial-gradient(ellipse at 50% 45%, #2a2721, #12110e 80%);
   color: #efe6cf;
-  animation: narration-in 0.5s ease-out;
-  cursor: pointer;
+  animation: narration-in 0.3s ease-out;
+  overflow: hidden;
 }
+.narration::backdrop { background: #12110e; }
+.narration-header, .narration-footer {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.narration-header > span { font: 500 12px/1.5 var(--sans); letter-spacing: .16em; color: #c6bfae; }
 .narration-label {
-  align-self: flex-start;
   font: 700 15px var(--sans);
-  letter-spacing: 0.3em;
-  color: #e9604a;
-  border: 2px solid #e9604a;
-  padding: 2px 6px 2px 10px;
+  letter-spacing: .3em;
+  color: #f47c66;
+  border: 1px solid currentColor;
+  padding: 4px 7px 4px 11px;
   transform: rotate(-3deg);
 }
-.narration-sr {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
+.narration-sr { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
+.narration-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #817866 transparent;
+  display: flex;
+  flex-direction: column;
+  padding: 12px 4px;
 }
 .narration-text {
-  min-height: 9.5em;
-  font:
-    600 19px/2 "Noto Serif KR",
-    "Batang",
-    serif;
-  white-space: pre-line;
+  margin-block: auto;
+  width: 100%;
+  max-width: 34rem;
+  align-self: center;
+  font: 600 clamp(17px, 4.4vw, 21px)/1.9 var(--calm);
   word-break: keep-all;
-  max-width: 560px;
+  overflow-wrap: anywhere;
 }
-.narration-caret {
-  display: inline-block;
-  width: 0.55em;
-  height: 1.05em;
-  margin-left: 2px;
-  vertical-align: -0.15em;
-  background: #efe6cf;
-  animation: narration-caret 0.9s steps(1) infinite;
-}
-.narration-close {
-  align-self: flex-end;
-  min-height: 46px;
-  padding: 8px 22px;
-  background: transparent;
-  color: #efe6cf;
-  border: 2px solid #efe6cf;
+.narration-text p + p { margin-top: 1.1em; }
+.narration-pending { opacity: 0; }
+.narration-footer { border-top: 1px solid #514b3f; padding-top: 16px; }
+.narration-reveal, .narration-close {
+  min-height: 48px;
+  padding: 10px 16px;
+  font: 600 15px/1.4 var(--sans);
   border-radius: 12px;
-  font: 700 15px var(--sans);
+  color: #efe6cf;
+  background: transparent;
+  border: 1px solid #817866;
 }
-.narration-close:focus-visible {
-  outline-color: #ffc53d;
-}
+.narration-reveal { border-color: transparent; padding-inline: 0; color: #d7cfbd; }
+.narration-close { margin-left: auto; min-width: 104px; background: #efe6cf; color: #28251e; border-color: #efe6cf; }
+.narration :focus-visible { outline: 2px solid #ffc53d; outline-offset: 3px; }
+@media(max-height: 600px) { .narration { padding: 20px; gap: 16px; } .narration-text { font-size: 17px; line-height: 1.8; } }
 @keyframes narration-in {
   from {
     opacity: 0;
@@ -4526,3 +4526,48 @@ select {
 .scene-mission>.mission-stage,.scene-lock>.lock-stage,.scene-sacho>.sacho-scene { overflow:visible; }
 .scene-report>.reward-stage { padding:26px 20px; }
 .scene-report .private-digit { flex-shrink:0; }
+
+/* 통일된 서체와 작은 화면의 콘텐츠 흐름. */
+.title-lockup h1 { font-weight: 850; letter-spacing: -.065em; }
+.game-canvas :is(h1,h2,h3,.dialogue-line,.dog-tag b,.closing-title) { font-weight: 700; }
+.game-scene:is(.scene-done,.scene-result,.scene-closing) { overflow-y: auto; }
+.game-console { flex-shrink: 0; }
+.game-scene :is(input,textarea,select) { font-size: 16px; }
+.game-scene :is(.eyebrow,.kicker) { letter-spacing: .08em; }
+@media(max-height: 640px) {
+  .scene-home { overflow-y: auto; }
+  .scene-home .title-copy { padding-top: 12px; }
+  .scene-home .title-console { padding: 12px 16px; }
+}
+
+/* 임무·자물쇠·완료 화면도 첫 화면과 같은 종이/숲색으로 연결한다. */
+.mission-stage, .lock-stage { background: var(--card); border-color: var(--line); border-radius: 16px; box-shadow: 0 3px 0 #263a3714; }
+.choices button { border: 1px solid #7c8879; border-radius: 10px; background: #fffdf5; color: var(--ink); }
+.choices button[aria-pressed="true"] { border-color: var(--green); background: #e5eddf; box-shadow: inset 0 0 0 1px var(--green); }
+.clue-hint { background: #f1ebd9; border-left-color: #a28b57; color: var(--ink); border-radius: 0 8px 8px 0; }
+.lock-digits input { border-color: #52675d; box-shadow: 0 3px 0 #263a3726; border-radius: 12px; color: var(--ink); }
+.sacho-scene, .completion { background: radial-gradient(ellipse, #fffdf5, #f0e9d5); }
+.completion h1 { line-height: 1.45; }
+.game-console .button { box-shadow: 0 3px 0 #263a3726; }
+
+/* 이동 화면: 목적지는 한 번만, 하단 조작은 작은 한 줄로. */
+.hud-top { max-height: calc(100% - 168px); overflow-y: auto; scrollbar-width: thin; pointer-events: auto; padding: 2px; }
+.hud-top > * { flex-shrink: 0; }
+.hud-site-seq { color: var(--ink); background: var(--card); border: 1px solid var(--line); box-shadow: none; }
+.hud-distance, .hud-speech { border: 1px solid var(--line); box-shadow: 0 3px 12px #263a3726; }
+.hud-distance { border-radius: 14px; }
+.hud-action-area { bottom: calc(var(--hud-bottom) + 84px); }
+.hud-action { border: 1px solid #2c4841; border-radius: 14px; font: 650 16px/1.4 var(--sans); box-shadow: 0 3px 0 #263a3733; }
+.hud-action.ready { background: var(--green); color: #fffdf5; animation: none; }
+.hud-player { flex-direction: row; gap: 8px; align-items: center; width: 190px; padding: 8px; background: var(--card); border: 1px solid var(--line); border-radius: 16px; }
+.hud-portrait { width: 44px; height: 44px; flex-shrink: 0; border: 2px solid #fffdf5; box-shadow: 0 0 0 1px var(--role); }
+.hud-player-plate { min-width: 0; margin: 0; padding: 0; text-align: left; border: 0; box-shadow: none; background: transparent; }
+.hud-player-role { justify-content: flex-start; }
+.hud-xp { height: 4px; box-shadow: none; background: #dce1d8; }
+.hud-xp i { box-shadow: none; background: var(--green); }
+.hud-main { left: auto; right: 12px; margin: 0; width: 56px; height: 56px; bottom: var(--hud-bottom); border: 1px solid var(--line); background: var(--card); box-shadow: 0 3px 8px #263a3726; }
+.hud-main-seal { width: 30px; height: 30px; font-size: 22px; }
+.hud-locate { bottom: calc(var(--hud-bottom) + 76px); }
+.hud-action-area { max-width: calc(100% - 88px); left: 12px; transform: none; }
+.hud-round { border: 1px solid var(--line); box-shadow: 0 3px 8px #263a3726; }
+.scene-travel .field-credit { bottom: calc(var(--hud-bottom, 12px) + 144px); }
