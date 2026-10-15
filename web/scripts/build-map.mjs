@@ -7,6 +7,7 @@
 //   origin   기준점 위치
 //   anchors  { 이름: 위치 }  거점·모형을 세울 자리
 //   legs     [[출발, (거쳐 갈 곳…), 도착], …]  anchors 사이 도보 경로(길 그물에서 최단 경로)
+//   carCost  차도(차가 다니는 길·service)를 보행로보다 몇 배 멀게 칠지(기본 1.4). 클수록 보도로 돈다
 //   boxes    { 이름: 건물 이름 | {id, faces} }  건물 윤곽에 맞춘 회전 상자(모형 맞춤용).
 //            id는 OSM id(w…/r…), faces는 정면이 바라볼 anchors 이름
 //   heights  { OSM id: { h | levels, src } }  지도 태그보다 믿을 만한 높이(m)·층수와 그 근거.
@@ -462,14 +463,14 @@ for (const [key, spec] of specs) {
   anchors[key] = [box.c[0] + box.f[0] * gap, box.c[1] + box.f[1] * gap];
 }
 
-// 걷는 사람은 보행로를 좋아한다: 차도는 1.4배 멀게 친다
+// 걷는 사람은 보행로를 좋아한다: 차도는 설정 carCost배(기본 1.4) 멀게 친다
 const graph = new Map();
 const link = (a, b2, d) => {
   if (!graph.has(a)) graph.set(a, []);
   graph.get(a).push([b2, d]);
 };
 for (const r of out.roads) {
-  const cost = r.foot ? 1 : 1.4;
+  const cost = r.foot ? 1 : (config.carCost ?? 1.4);
   for (let i = 1; i < r.refs.length; i++) {
     const a = nodes.get(r.refs[i - 1]), c = nodes.get(r.refs[i]);
     if (!a || !c) continue;

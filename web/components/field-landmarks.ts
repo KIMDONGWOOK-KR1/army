@@ -280,6 +280,36 @@ function memorialStone(b: Batch) {
   b.add(UNIT.cyl, C.bronze, at([2.6, pad + 0.9, 0.6], [0.18, 1.8, 0.18]));
   b.add(UNIT.sphere, C.bronze, at([2.6, pad + 1.95, 0.6], [0.3, 0.45, 0.3]));
 }
+// 낮춘 원형 마당 둘레를 따라 뒤쪽(−z) 반원에 낮은 돌벽을 세운다. 벽면에는 이름 줄을 옅게 새긴다.
+// 조용한 구역이라 돌빛과 흰 꽃만 쓴다(실제 화단의 분홍 핑크뮬리는 흰 꽃으로 바꿔 둔다).
+export const MEMORIAL_WALL = { r: 7, h: 1.8, t: 0.4, from: -1.75, to: 1.75, n: 14 };
+function memorialWall(b: Batch) {
+  const W = MEMORIAL_WALL;
+  b.add(UNIT.circle, C.curb, at([0, 0.04, 0], [W.r + 1.6, 0.08, W.r + 1.6]));
+  b.add(UNIT.circle, C.pave, at([0, 0.06, 0], [W.r - 0.3, 0.1, W.r - 0.3]));
+  const seg = ((W.to - W.from) * W.r) / W.n;
+  for (let i = 0; i < W.n; i++) {
+    const a = W.from + ((i + 0.5) / W.n) * (W.to - W.from),
+      x = Math.sin(a) * W.r,
+      z = -Math.cos(a) * W.r;
+    const face = new THREE.Matrix4()
+      .makeTranslation(x, W.h / 2, z)
+      .multiply(new THREE.Matrix4().makeRotationY(-a));
+    b.add(rbox(seg + 0.05, W.h, W.t, 0.04), "#5f6266", face);
+    // 이름 줄: 벽 안쪽 면에 얇은 밝은 띠 넷
+    for (let k = 0; k < 4; k++)
+      b.add(
+        rbox(seg * 0.8, 0.05, 0.02, 0.01),
+        "#9a9da1",
+        face.clone().multiply(new THREE.Matrix4().makeTranslation(0, -0.45 + k * 0.32, W.t / 2 + 0.01)),
+      );
+  }
+  // 벽 앞 흰 꽃 화단(국화를 올리는 자리)
+  for (let i = 0; i < 18; i++) {
+    const a = W.from + 0.1 + (i / 17) * (W.to - W.from - 0.2);
+    b.add(UNIT.bush, C.white, at([Math.sin(a) * (W.r - 0.9), 0.3, -Math.cos(a) * (W.r - 0.9)], [0.45, 0.3, 0.45]), 0.9);
+  }
+}
 function bloomSculpture(b: Batch) {
   b.add(UNIT.circle, C.pave, at([0, 0.1, 0], [3.2, 0.2, 3.2]));
   for (let i = 0; i < 3; i++) {
@@ -410,6 +440,8 @@ function model(build: (b: Batch, win: Windows) => void) {
 export const gateModel = () => model((b) => gate(b));
 // 5·18 사적지 표지석(동쪽)과 '피어나다'(서쪽)
 export const stoneModel = () => model((b) => memorialStone(b));
+// 용봉열사 추모의 벽: 원점은 낮춘 원형 마당 가운데, 열린 쪽(+z)으로 들어온다. 실제 크기(m).
+export const memorialWallModel = () => model((b) => memorialWall(b));
 export const bloomModel = () => model((b) => bloomSculpture(b));
 // 용봉탑: 원점은 로터리 잔디섬 가운데(반지름 3.2).
 export const towerModel = () => model((b) => yongbongTower(b));

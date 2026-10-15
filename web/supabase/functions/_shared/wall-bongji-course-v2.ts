@@ -9,46 +9,30 @@ export function fullDemoV2Input(id: string) {
   const { content, privateInput } = yongbongDemoInput(id);
   const scene = (id: string, text: string, trigger: SceneText["trigger"] = "enter"): SceneText =>
     ({ id, channel: "screen", text: `[합성] ${text}`, trigger });
-  const fields = (labels: Record<string, string>) => Object.entries(labels).map(([id, label]) =>
-    ({ id, label: `[합성] ${label}`, required: true, maxLen: 300 }));
-  const record = (id: string, prompt: string, labels: Record<string, string>, extra: Partial<Step> = {}): Step =>
-    ({ id, prompt: `[합성] ${prompt}`, type: "record-form", grading: "record", confirmed: true,
-      fields: fields(labels), sourceRequired: true, sourceIds: ["MOCK-W"], maxLen: 300, ...extra });
+  // 추모의 벽은 미션 없이 헌화만 한다: 역할마다 '국화 올리기' 확인 하나(2026-10-10 팀 결정)
+  const tribute = (id: string): Step => ({ id, type: "confirm", grading: "confirm", confirmed: true,
+    prompt: "국화 한 송이를 올려 추모한다.", sourceRequired: false });
   const steps: Record<Role, Step[]> = {
-    scout: [
-      { id: "W-01.people", type: "words", grading: "set-hash", confirmed: true,
-        prompt: "[합성] 연습 인물 가·나를 찾아 두 이름을 입력하라.", answerCount: 2,
-        sourceRequired: true, sourceIds: ["MOCK-W"] },
-      record("W-01.activities", "두 인물의 활동과 출처를 각각 기록하고 이름은 팀에 말로 전달하라.",
-        { activity_a: "인물 A 활동", source_a: "인물 A 출처", activity_b: "인물 B 활동", source_b: "인물 B 출처" },
-        { requires: [{ role: "scout", stepId: "W-01.people" }] }),
-    ],
-    signal: [record("W-02.values", "정찰원의 보고를 듣고 활동과 연결되는 가치를 근거와 함께 기록하라.",
-      { activity: "전달받은 활동", value: "연결한 가치", reason: "그렇게 본 근거" }, { requiresReports: ["scout"] })],
-    cipher: [
-      { id: "W-03.judgement", type: "truefalse", grading: "hash", confirmed: true,
-        prompt: "[합성] 두 연습 인물의 활동을 같은 것으로 단정해도 되는지 판단하라.",
-        statements: ["[합성] 활동이 다르다는 자료가 있어도 두 활동은 같다."], requiresReports: ["scout"] },
-      record("W-03.revision", "두 활동과 시기를 비교하고 단정한 문장을 고쳐라.",
-        { comparison: "활동·시기 비교", revision: "고친 문장", evidence: "수정 근거" },
-        { requires: [{ role: "cipher", stepId: "W-03.judgement" }], requiresReports: ["scout"] }),
-    ],
-    commander: [record("W-04.facts", "세 역할의 보고를 듣고 사실 비교를 기록하라.",
-      { common: "공통으로 확인한 점", difference: "다르게 확인한 점" }, { requiresReports: ["scout", "signal", "cipher"] })],
+    scout: [tribute("W-01.tribute")],
+    signal: [tribute("W-02.tribute")],
+    cipher: [tribute("W-03.tribute")],
+    commander: [tribute("W-04.tribute")],
   };
+  // 소개 글(hh 2026-10-10 확정). 사실관계는 전남대 5·18 민주길 누리집(용봉열사 추모의 벽) 기준, 현장 안내판과 한 번 더 맞춘다.
+  const intro = "민주화운동에 헌신하다 세상을 떠난 전남대 열사 스무 분을 기리는 자리다. 5·18 당시 희생된 학생부터 그 뒤 민주화운동에 몸 바친 이들까지 이름이 새겨져 있다. 잠시 걸음을 멈추고, 각자 국화 한 송이를 올려 마음을 전하자.";
   const template = { prompt: "[합성] 낱말 세 개를 골라 공동 문장과 근거를 작성하라.",
     wordChoices: ["[합성] 살피기", "[합성] 비교하기", "[합성] 이어가기", "[합성] 질문하기"], wordCount: 3 };
   const wall: Stage = {
-    id: "wall", seq: content.stages.length + 1, kind: "memorial", name: "추모의 벽", confirmed: false, quiet: true,
+    id: "wall", seq: content.stages.length + 1, kind: "memorial", name: "용봉열사 추모의 벽", confirmed: false, quiet: true,
     arrival: { mode: "gps", require: "all", confirmed: false, lat: null, lng: null, radiusM: 10, noticeM: 25, dwellSec: 5 },
     scoring: { enabled: false, confirmed: true, hintPenalty: { 1: 0, 2: 0, 3: 0 }, noHintBonus: 0 },
-    narration: [scene("W-00.enter", "화면과 대화로 조용히 확인하라."), scene("W-06.done", "공동 기록을 보관했다. 잠시 머무르거나 이동할 수 있다.", "stage-complete")],
-    roles: Object.fromEntries(ROLES.map((role) => [role, { intro: scene(`W-${role}.intro`, `${role} 조사 연습`),
+    narration: [{ id: "W-00.enter", channel: "screen", text: intro, trigger: "enter" },
+      { id: "W-06.done", channel: "screen", text: "네 송이의 국화를 올렸다. 잠시 머무르거나 이동할 수 있다.", trigger: "stage-complete" }],
+    roles: Object.fromEntries(ROLES.map((role) => [role, { intro: { id: `W-${role}.intro`, channel: "screen", text: intro, trigger: "enter" },
       scenes: [], digit: false, steps: steps[role] }])) as unknown as Stage["roles"],
-    completion: { type: "confirm", labels: Object.fromEntries(ROLES.map((r) => [r, "공동 문장과 근거 확인"])) as Record<Role, string> },
-    recordTemplate: structuredClone(template),
-    sacho: { id: "sacho-wall", name: "사초③ · 공동 확인 기록", sections: ["개인 조사", "공동 문장", "공동 근거"],
-      char: "記", body: "[합성] 서로 다른 활동을 비교하고 공동 문장과 근거를 확인했다." },
+    completion: { type: "tribute", label: "국화 올리기" },
+    sacho: { id: "sacho-wall", name: "사초③ · 추모의 기록", sections: ["헌화"],
+      char: "念", body: "네 사람이 용봉열사 추모의 벽 앞에 국화 한 송이씩을 올리고 열사들을 기억했다." },
   };
   const bongji: Stage = {
     id: "bongji", seq: wall.seq + 1, kind: "epilogue", name: "봉지", confirmed: false, quiet: false,
@@ -60,15 +44,12 @@ export function fullDemoV2Input(id: string) {
     completion: { type: "joint-record" }, recordTemplate: structuredClone(template),
   };
   content.name = "[개발용] 정문부터 봉지까지 전체 흐름";
-  content.sources.push({ id: "MOCK-W", title: "[합성] 인물·활동 연습 자료", url: "https://example.com/mock-wall" });
   content.stages.push(wall, bongji);
   for (const stage of [wall, bongji]) {
     privateInput.stages[stage.id] = {
       roles: Object.fromEntries(ROLES.map((role) => [role, { hints: [1, 2, 3].map((level) => `[합성] ${role} 확인 안내 ${level}`) }])) as CourseV2PrivateInput["stages"][string]["roles"],
       steps: Object.fromEntries(ROLES.flatMap((role) => stage.roles[role]!.steps.map((s) => [s.id, {
-        explanation: `[합성] ${s.id} 확인 안내`,
-        ...(s.id === "W-01.people" ? { answer: ["연습 인물 가", "연습 인물 나"] } : {}),
-        ...(s.id === "W-03.judgement" ? { answer: ["false"] } : {}),
+        explanation: stage.id === "wall" ? "국화 한 송이를 올려 추모했다." : `[합성] ${s.id} 확인 안내`,
       }]))),
     };
   }

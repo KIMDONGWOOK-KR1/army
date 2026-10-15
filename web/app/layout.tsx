@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import "@fontsource/bagel-fat-one/400.css";
 import "./globals.css";
 import { mockupBootScript } from "@/components/mockup-view";
 export const metadata: Metadata = {
@@ -11,6 +10,8 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  // 아이폰 노치·아래 막대 영역까지 그리고, 글자·버튼은 env(safe-area-inset-*)로 비켜 둔다
+  viewportFit: "cover",
   themeColor: "#213c2c",
 };
 export default function Layout({ children }: { children: React.ReactNode }) {

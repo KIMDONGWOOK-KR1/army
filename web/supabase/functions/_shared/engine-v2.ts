@@ -9,7 +9,7 @@ import {
 import { ROLES } from "./types.ts";
 import { projectJournalV2 } from "./project-journal-v2.ts";
 import { researchV2, sharedRecordsV2, visitV2 } from "./yongbong-v2.ts";
-import { closingProjectionV2, draftV2, requireDraftVersion, resultV2 } from "./closing-v2.ts";
+import { closingProjectionV2, completionLabelV2, draftV2, requireDraftVersion, resultV2 } from "./closing-v2.ts";
 import type {
   Command,
   Course,
@@ -255,7 +255,8 @@ export function projectGameV2(
       completion: completed ? {
         at: completed.at,
         method: completed.method,
-        label: stage.kind === "memorial" ? "공동 확인 완료" : stage.kind === "epilogue" ? "공동 기록 완료" : completed.method === "explained" ? "해설 확인 후 복원" : "조사 후 복원",
+        label: stage.kind === "memorial" || stage.kind === "epilogue"
+          ? completionLabelV2(stage) : completionLabelV2(stage, completed.method),
         ...(visitV2(stage, state) ? { visit: visitV2(stage, state) } : {}),
       } : null,
       ...(stage.altModes?.length ? { visit: visitV2(stage, state) } : {}),
@@ -443,7 +444,7 @@ function finish(
   return {
     opened: true,
     method,
-    label: method === "explained" ? "해설 확인 후 복원" : "조사 후 복원",
+    label: stage.completion.type === "tribute" ? completionLabelV2(stage) : method === "explained" ? "해설 확인 후 복원" : "조사 후 복원",
     sacho_id: stage.sacho?.id ?? null,
     ...(visitV2(stage, state) ? { visit: visitV2(stage, state) } : {}),
   };
@@ -562,6 +563,9 @@ async function execute(
   }
   if (stage.completion.type === "joint-record" && ["submit-step", "submit-report", "request-hint"].includes(cmd.action)) {
     fail("WRONG_PHASE", "회고 작성과 공동 동의로 진행하라.");
+  }
+  if (stage.completion.type === "tribute" && ["submit-report", "request-hint"].includes(cmd.action)) {
+    fail("WRONG_PHASE", "헌화 단계에서는 국화를 올리는 것으로 진행하라.");
   }
   switch (cmd.action) {
     case "draft-memorial-record":
@@ -772,6 +776,13 @@ async function execute(
       unlock(stage, progress);
       result = { step_id: step.id, accepted, status: p.status };
       metadata = { step_id: step.id, accepted, method: method! };
+      // 헌화: 국화를 올리면 본인 보고까지 끝나고, 네 사람이 모두 올리면 거점을 마친다
+      if (accepted && stage.completion.type === "tribute") {
+        progress[role].reported = true;
+        if (ROLES.every((r) => progress[r].reported)) {
+          result = { ...result, ...finish(game, course, now, "field") };
+        }
+      }
       break;
     }
     case "request-hint": {

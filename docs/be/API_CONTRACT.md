@@ -402,27 +402,15 @@ courseId는 소문자로 시작하는 ID, stepId는 `G-03.freq` 형태의 대문
 
 ### 추모의 벽
 
-`stage_id:"wall"`, `kind:"memorial"`, `quiet:true`, `scoring.enabled:false`, `completion.type:"confirm"`이다. 단계별 개인 조사→보고는 기존 submit-step/submit-report를 사용한다. 정찰원 두 인물 이름은 해시 검증 후 평문을 저장하지 않는다. 개인 기록은 인물 A/B의 활동·출처를 기록한다. 통신원의 활동·가치 연결은 자유 기록이며 1:1 map-hash 정답으로 제한하지 않는다. 선행 보고를 기다리는 유형과 의존성은 self.mission에서 읽는다.
+**2026-10-10 팀 결정으로 헌화형으로 바꿨다.** 추모의 벽은 조사 미션·공동 기록 없이 소개 글을 읽고 각자 국화 한 송이를 올리는 것으로 마친다.
 
-전원 보고 후 지휘관이 `draft-memorial-record`로 공동 기록을 작성한다. `stage.recordTemplate`은 `prompt, wordChoices, wordCount`이며 이번 코스는 낱말 세 개다. 답이 정해진 채점 문제가 아니고 선택·필수 본문 형식만 검사한다. words는 템플릿 선택지의 문자열 배열(순서 유지, 반복 허용), text/reason은 각각 1~600자다. **최초 작성도 `draft_version:0`을 전송**한다. 수정은 현재 버전을 보낸다. 정규화한 본문·근거·낱말이 같으면 버전·확인을 유지하고, 달라지면 버전 +1 및 네 확인 초기화다.
+`stage_id:"wall"`, `kind:"memorial"`, `quiet:true`, `scoring.enabled:false`, `completion:{type:"tribute", label:"국화 올리기"}`다. 역할마다 `grading:"confirm"` 단계가 정확히 하나 있어야 하며 seed가 다른 구성을 거절한다(`tribute`는 추모 단계에서만 허용).
 
-각 역할은 `confirm-stage`에 자신이 읽은 `draft_version`을 전송한다. 전원 조사·보고 및 동일 버전 네 확인 후 사초③를 저장하고 `playing/cleared`가 된다. 완료 후 초안 수정은 거절한다. 공통 기록의 self 예시(합성):
-
-```json
-{
-  "memorial_record": {
-    "draft_version": 1,
-    "words": ["[합성] 살피기", "[합성] 비교하기", "[합성] 이어가기"],
-    "text": "[합성] 팀이 함께 작성한 문장",
-    "reason": "[합성] 서로 비교한 근거",
-    "confirm_mask": [true, false, false, false]
-  }
-}
-```
-
-확인 배열 순서는 commander/scout/signal/cipher다. 초안 전에는 `null`. 본문은 game_public·game_events에 포함하지 않는다. `self.journal[].memorial_record`는 해당 추모 완료 후 팀 공통 기록을 제공하고, 개인 entries는 계속 본인만 조회한다.
-
-추모 단계에는 숫자·자물쇠·감점·점수·카운트다운·진동을 표시하지 않는다. `self.lock:null`, `self.digit:null`, 호환 필드 `attempts_left:0`이며 개방 액션과 confirm-explanation은 거절한다. 역할별 힌트는 무료이고 해설 처리 후에도 전원 보고·공동 확인이 필요하다. 화면의 10초 머무르기는 선택형 로컬 휴식으로 언제든 끝낼 수 있고 숫자 카운트다운이나 서버 완료 조건이 아니다. 도착부터 자동 효과음·배경음을 차단하고 이후 봉지에서도 자동으로 음량을 복구하지 않는다.
+- 헌화는 기존 `submit-step`으로 보낸다: `{action:"submit-step", stage_id:"wall", step_id:"<본인 단계 ID>", answer:"confirmed", method:"field"}`. 받아들이면 본인 보고까지 함께 완료되어 `game.report_mask`가 헌화 여부를 나타낸다(화면의 국화 수).
+- 네 사람이 모두 올리면 그 요청에서 사초③을 저장하고 `playing/cleared`가 된다. 완료 표시 이름은 `헌화 완료`다.
+- `submit-report`·`request-hint`·자물쇠·해설 개방·`draft-memorial-record`·`confirm-stage`는 이 단계에서 거절한다. 점수·감점·숫자·자물쇠·카운트다운·진동은 표시하지 않는다.
+- 도착부터 자동 효과음·배경음을 차단하고 이후 봉지에서도 자동으로 음량을 복구하지 않는다. 완료 후 10초 머무르기는 선택형 로컬 휴식이다.
+- 공동 기록용 `memorial_record`·`confirm` 완료 유형은 엔진에 남아 있지만 현재 코스에서는 쓰지 않는다. 소개 글은 시연 문안이며 실제 문안은 현장 확인 뒤 확정한다.
 
 ### 봉지
 

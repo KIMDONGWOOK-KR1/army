@@ -73,7 +73,7 @@
   min-width: 0;
 }
 .root :global(.verify-field) {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
 }
 .root input:not([type=checkbox]):not([data-frequency-input]),
@@ -85,7 +85,7 @@
   padding: 10px 12px;
   border: 1px solid #b4baaa;
   border-radius: 8px;
-  background: #fffdf6;
+  background-color: #fffdf6;
   color: #252e24;
   font: inherit;
   font-size: 16px;
@@ -123,7 +123,7 @@
   padding: 0;
   display: grid;
   gap: 8px;
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1.6;
 }
 .journal {
@@ -134,5 +134,5 @@
 }
 .journal h4, .journal h5 {
   margin: 12px 0 8px;
-  font-size: 15px;
+  font-size: 16px;
 }

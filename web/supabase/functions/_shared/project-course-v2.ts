@@ -93,6 +93,8 @@ export function projectPublicStageV2(course: CourseV2, stageId: string) {
         cipher: s.completion.labels.cipher,
       },
     }
+    : s.completion.type === "tribute"
+    ? { type: "tribute" as const, label: s.completion.label }
     : { type: "joint-record" as const };
   return {
     schema_version: 2 as const,

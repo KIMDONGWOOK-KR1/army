@@ -494,6 +494,13 @@ export function validateCourseV2Content(input: unknown): CourseV2Content {
           ROLES.map((role) => [role, str(labels[role], stageId)]),
         ) as Record<Role, string>,
       };
+    } else if (c.type === "tribute") {
+      exact(c, ["type", "label"], stageId);
+      // 헌화는 문제 없이 역할마다 확인 한 번(국화 올리기)만 둔다
+      if (ROLES.some((role) =>
+        roles[role]?.steps.length !== 1 || roles[role]!.steps[0].grading !== "confirm"
+      )) fail(stageId, "헌화 단계는 역할마다 확인 단계 하나만 둔다.");
+      completion = { type: "tribute", label: str(c.label, stageId) };
     } else {
       exact(c, ["type"], stageId);
       if (c.type !== "joint-record") {
@@ -523,6 +530,9 @@ export function validateCourseV2Content(input: unknown): CourseV2Content {
       (!stage.quiet || scoring.enabled || completion.type === "lock" ||
         ROLES.some((role) => roles[role]?.digit))
     ) fail(stageId, "추모 단계에는 점수·숫자·자물쇠를 둘 수 없다.");
+    if (completion.type === "tribute" && stage.kind !== "memorial") {
+      fail(stageId, "헌화 완료는 추모 단계에만 사용한다.");
+    }
     if (a.sacho !== undefined) {
       const s = obj(a.sacho, stageId);
       keys(s, ["id", "name", "sections", "char", "body"], stageId);

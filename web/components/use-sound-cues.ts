@@ -6,10 +6,14 @@ import {
   isSoundName,
   moodForScene,
   play,
+  playCue,
   setBgmLevel,
+  setFileLevel,
+  setMemorialState,
   setSceneQuiet,
   startBgm,
 } from "@/lib/sound";
+import { trackForScene } from "@/lib/sound-files";
 import { judgeCue } from "@/lib/judge-cue";
 import type { Command, Snapshot } from "@/supabase/functions/_shared/types";
 
@@ -36,6 +40,9 @@ export function useSoundCues({
   reverent,
   hushed = false,
   silent = false,
+  epilogue = false,
+  final = false,
+  wall = false,
   narration,
   reportKey,
   reported,
@@ -46,6 +53,12 @@ export function useSoundCues({
   // 이동 중 5·18 조용한 구역 안(배경음을 추모 숨결로 낮춘다)
   hushed?: boolean;
   silent?: boolean;
+  // 봉지(회고) 단계인가 — 08
+  epilogue?: boolean;
+  // 최종 결과 화면인가 — 09 한 번, 그 뒤로 곡 없음
+  final?: boolean;
+  // 추모의 벽 단계인가(사초 소리 1/3)
+  wall?: boolean;
   narration: boolean;
   // 같은 거점·보직인지 가리는 열쇠(보고가 막 끝났을 때만 숫자 획득 소리를 낸다)
   reportKey: string;
@@ -79,9 +92,22 @@ export function useSoundCues({
   }, []);
 
   const mood = moodForScene(scene, reverent, hushed);
-  useEffect(() => startBgm(mood), [mood]);
+  // 음원 파일 반복 곡(01·03·04·05·08). 못 불러오면 엔진이 mood의 합성 배경음으로 대신한다
+  const track = trackForScene({ scene, reverent, hushed, epilogue, final });
+  useEffect(() => startBgm(final ? null : mood, track), [mood, track, final]);
   const level = bgmLevelForScene(scene, narration, mood);
   useEffect(() => setBgmLevel(level), [level]);
+  useEffect(() => setFileLevel(narration ? 0.5 : 1), [narration]);
+  // 묵념(06 한 번, 05의 새소리를 내린다)과 추모의 벽(사초 소리 1/3)
+  const bowing = scene === "memorial";
+  useEffect(() => setMemorialState({ wall, bowing }), [wall, bowing]);
+  useEffect(() => () => setMemorialState({ wall: false, bowing: false }), []);
+  // 최종 결과: 09를 한 번(끝나도 다른 곡을 붙이지 않는다)
+  const wasFinal = useRef(final);
+  useEffect(() => {
+    if (final && !wasFinal.current) playCue("09");
+    wasFinal.current = final;
+  }, [final]);
   useEffect(() => () => startBgm(null), []);
 
   const lastScene = useRef(scene);
@@ -92,9 +118,10 @@ export function useSoundCues({
     if (from === "travel" && ARRIVAL.includes(scene))
       play("arrive", { calm: reverent });
     // 자물쇠가 열려 사초를 되찾는 순간(마지막 거점은 곧바로 완료 화면). 열림 소리가 끝난 뒤 울린다.
-    else if ((scene === "sacho" || scene === "done") && ARRIVAL.includes(from))
+    // 최종 결과로 넘어갈 때는 사초 소리 대신 09만 낸다
+    else if ((scene === "sacho" || scene === "done") && ARRIVAL.includes(from) && !final)
       play("sacho", { delay: 1.1 });
-  }, [scene, reverent]);
+  }, [scene, reverent, final]);
 
   const report = useRef({ key: reportKey, reported });
   useEffect(() => {
