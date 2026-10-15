@@ -44,7 +44,7 @@ export const NEXT: Record<Track, Track[]> = {
 // 정문·추모 구역·추모의 벽·묵념은 음악 없이 조용히(팀 결정 DECISIONS.md의 '추모 단계 무음'과도 같다).
 // 다시 켜려면 MEMORIAL_SOUND = true, 크기는 TRACK_GAIN에서.
 export const MEMORIAL_SOUND = false;
-export const TRACK_GAIN: Partial<Record<LoopTrack, number>> = { "04": 0.35 };
+export const TRACK_GAIN: Partial<Record<LoopTrack, number>> = { "01": 0.8, "03": 0.85, "04": 0.3, "08": 0.7 };
 export const FADE_OUT = 0.6;
 export const FADE_IN = 1.5;
 // 단발 곡이 나는 동안 배경음을 이만큼 낮춘다
@@ -144,6 +144,7 @@ export function createFileDeck(
   ctx: BaseAudioContext,
   out: AudioNode,
   hooks: { onFail?: (track: Track) => void; onStart?: (track: LoopTrack) => void } = {},
+  cueOut: AudioNode = out,
 ): FileDeck {
   const buffers = new Map<Track, AudioBuffer>();
   const loading = new Map<Track, Promise<AudioBuffer | null>>();
@@ -251,7 +252,7 @@ export function createFileDeck(
         const g = ctx.createGain();
         g.gain.value = gain;
         // 단발 곡은 배경음 낮춤(duck)을 거치지 않고 바로 낸다
-        src.connect(g).connect(out);
+        src.connect(g).connect(cueOut);
         src.start(at, 0);
         if (track !== "06") {
           const d = duck.gain;

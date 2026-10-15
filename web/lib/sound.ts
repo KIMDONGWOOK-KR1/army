@@ -18,6 +18,7 @@
 // - 끄기 상태는 localStorage "hoguk:sound"("off"=끔)에 남긴다. 아무 값이 없으면 켠 상태다.
 // - 배경음 갈래는 DEFAULT_BGM_STYLE(명랑)이다. 주소에 ?bgm=a|b|c|d를 붙이면 그 갈래로 들어 볼 수
 //   있다(브라우저에서 처음 배경음을 고를 때 한 번만 읽고, 틀린 값은 무시한다).
+import { DEFAULT_MIX, MIX_KEY, clampVolume, mixLevels, readMix, type AudioMix } from "./audio-mix";
 import {
   DEFAULT_BGM_STYLE,
   MOODS,
@@ -74,6 +75,8 @@ const state = {
   // 음원 파일 배경음(반복 곡)과 그 음량 버스
   files: null as FileDeck | null,
   fileBus: null as GainNode | null,
+  cueBus: null as GainNode | null,
+  mix: null as AudioMix | null,
   fileLevel: 1,
   // 원하는 반복 곡(undefined: 파일을 쓰지 않고 합성 배경음만)
   track: undefined as LoopTrack | null | undefined,
@@ -141,6 +144,32 @@ export function setMuted(muted: boolean) {
   applyMute();
   for (const l of state.listeners) l();
 }
+export function getAudioMix(): AudioMix {
+  if (!state.mix) state.mix = readMix(storage());
+  return state.mix;
+}
+export const getServerAudioMix = () => DEFAULT_MIX;
+export function setAudioMix(patch: Partial<AudioMix>) {
+  const old = getAudioMix();
+  state.mix = { music: clampVolume(patch.music, old.music), effects: clampVolume(patch.effects, old.effects) };
+  try { storage()?.setItem(MIX_KEY, JSON.stringify(state.mix)); } catch {}
+  applyMix();
+  for (const listener of state.listeners) listener();
+}
+function applyMix() {
+  const { ctx, chain, fileBus, cueBus } = state;
+  if (!ctx || !chain) return;
+  const levels = mixLevels(getAudioMix(), state.level, state.fileLevel);
+  for (const [node, value] of [[chain.bgm, levels.synth], [fileBus, levels.files],
+    [cueBus, levels.effects], [chain.sfx.ui, levels.effects], [chain.sfx.music, levels.effects]] as const) {
+    if (!node) continue;
+    try {
+      const param = (node as GainNode).gain;
+      param.cancelScheduledValues(ctx.currentTime);
+      param.setTargetAtTime(value, ctx.currentTime, 0.08);
+    } catch {}
+  }
+}
 function applyMute() {
   const { ctx, chain } = state;
   if (!ctx || !chain) return;
@@ -205,12 +234,16 @@ function context(): AudioContext | null {
     fileBus.gain.value = state.fileLevel;
     fileBus.connect(chain.master);
     state.fileBus = fileBus;
+    const cueBus = ctx.createGain();
+    cueBus.connect(chain.master);
+    state.cueBus = cueBus;
+    applyMix();
     state.files = createFileDeck(ctx, fileBus, {
       // 못 불러온 곡은 합성 배경음으로 대신한다
       onFail: () => syncBgm(),
       onStart: (track) =>
         window.dispatchEvent(new CustomEvent("hoguk:bgm-file", { detail: { track } })),
-    });
+    }, cueBus);
     // 꺼 둔 채 열었으면 처리도 멈춰 둔다(켜면 resume)
     if (isMuted() || state.sceneQuiet) void ctx.suspend().catch(() => {});
   } catch {
@@ -271,6 +304,11 @@ export function installSoundListeners(): () => void {
     document.addEventListener("visibilitychange", onVisible);
     const onStorage = (e: StorageEvent) => {
       if (e.key === SOUND_KEY) setMuted(e.newValue === "off");
+      if (e.key === MIX_KEY || e.key === null) {
+        state.mix = readMix(storage());
+        applyMix();
+        for (const listener of state.listeners) listener();
+      }
     };
     window.addEventListener("storage", onStorage);
     state.uninstall = () => {
@@ -396,7 +434,7 @@ export function setBgmLevel(level: number) {
   const { ctx, chain } = state;
   if (!ctx || !chain) return;
   try {
-    chain.bgm.gain.setTargetAtTime(state.level, ctx.currentTime, 0.35);
+    chain.bgm.gain.setTargetAtTime(state.level * getAudioMix().music, ctx.currentTime, 0.35);
   } catch {}
 }
 // 보직 공개(02)·사초(07) 음원. 받아 둔 파일이 있어 틀 수 있으면 true(못 틀면 합성 소리로 대신한다)
@@ -433,7 +471,7 @@ export function setFileLevel(level: number) {
   const { ctx, fileBus } = state;
   if (!ctx || !fileBus) return;
   try {
-    fileBus.gain.setTargetAtTime(state.fileLevel, ctx.currentTime, 0.35);
+    fileBus.gain.setTargetAtTime(state.fileLevel * getAudioMix().music, ctx.currentTime, 0.35);
   } catch {}
 }
 function syncBgm() {

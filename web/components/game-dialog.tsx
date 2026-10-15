@@ -34,7 +34,7 @@ export function GameDialog({
           <X size={20} />
         </button>
       </div>
-      <div className="dialog-body">{children}</div>
+      <div className="dialog-body" tabIndex={0} role="region" aria-label={`${title} 내용`}>{children}</div>
     </dialog>
   );
 }

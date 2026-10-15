@@ -13,14 +13,14 @@
   font-display: swap;
 }
 :root {
-  --paper: #fef4da;
-  --card: #fffaef;
-  --ink: #1e2942;
-  --muted: #3c4b6f;
-  --green: #253252;
+  --paper: #f3eedf;
+  --card: #fffdf5;
+  --ink: #263a37;
+  --muted: #59655c;
+  --green: #2c4841;
   --red: #b62c17;
-  --line: #7a8ebd;
-  --gold: #ffca4d;
+  --line: #b5b7a6;
+  --gold: #c7ac6f;
   /* 게임 글꼴: 로고·제목·버튼·숫자를 메이플스토리체 하나로(hh 2026-10-10). 한자 도장 글자는 뒤 글꼴로 넘어간다 */
   --serif: "Maplestory", "Noto Sans KR", sans-serif;
   /* 기록 글꼴: 사초·추모처럼 차분해야 하는 장면 */
@@ -4482,3 +4482,35 @@ select {
   background-position: right 13px center;
   background-size: 12px 8px;
 }
+
+/* Final prototype: quiet paper controls around the playful campus. */
+.game-console, .game-window { border-width:1px; border-color:var(--line); box-shadow:0 4px 0 rgba(38,58,55,.12); }
+.button { border-width:1px; border-radius:10px; font-family:var(--sans); font-weight:600; box-shadow:0 3px 0 rgba(38,58,55,.16); }
+.button.primary { background:var(--green); color:var(--card); border-color:var(--green); }
+.button.secondary { background:var(--card); border-color:var(--line); }
+.title-kicker { background:transparent; color:var(--ink); font:600 12px/1.5 var(--sans); letter-spacing:.16em; padding:0; }
+.title-lockup h1 { color:var(--ink); text-shadow:0 2px 0 var(--paper); }
+.title-edition { font-family:var(--calm); letter-spacing:.2em; }
+.title-console { background:var(--card); border-radius:16px; padding:16px 20px; }
+.title-console .dialogue-line { font:600 16px/1.7 var(--sans); margin-bottom:12px; }
+.title-guide-row { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:-8px; margin-bottom:4px; }
+.title-guide-row > span { font-size:12px; color:var(--muted); }
+.title-guide-row button { display:flex; align-items:center; gap:6px; min-height:44px; padding:8px 0 8px 12px; background:none; border:0; font-size:13px; font-weight:600; text-decoration:underline; text-underline-offset:4px; }
+.game-dialog { border:1px solid var(--line); border-radius:16px; background:var(--card); }
+.dialog-title h2 { font:700 20px/1.5 var(--sans); }
+.guide-copy > p { font-size:14px; }
+@media(max-width:360px) { .title-console { padding:12px; } .title-console .dialogue-line { font-size:14px; } }
+
+.game-hud { background:var(--ink); border-bottom:1px solid var(--gold); color:var(--card); }
+.game-dialog { box-shadow:0 20px 64px #13231c55; }
+.game-dialog[open] { display:flex; flex-direction:column; overflow:hidden; }
+.dialog-title { flex-shrink:0; background:var(--paper); border-bottom:1px solid var(--line); }
+.dialog-body { min-height:0; overflow-y:auto; }
+.title-console { gap:8px; }
+.title-guide-row { width:100%; margin:0; }
+.title-console .dialogue-line { margin-bottom:4px; }
+.title-console .demo-button { background:transparent; box-shadow:none; border:0; min-height:44px; }
+.title-console .title-actions { row-gap:4px; }
+.title-console .console-footnote { margin-top:0; }
+.button.primary:hover:not(:disabled) { background:#3b5950; }
+@media(min-width:761px) { .title-console { padding:12px 24px; min-height:0; } .title-guide-row { width:min(720px,100%); } .title-copy { padding-top:18px; } }

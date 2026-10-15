@@ -159,6 +159,7 @@ export function HomeHero({ fallback }: { fallback: ReactNode }) {
       // 그림자 상자는 기준 카메라 자리에 묶어 카메라가 돌아도 그림자 지도를 자꾸 다시 그리지 않는다
       const anchorCam = new THREE.Object3D();
       let dist = 40;
+      let compiled = false;
       const place = (cam: THREE.Object3D, az: number, d: number, el: number) => {
         const a = outward + az;
         cam.position.set(
@@ -180,7 +181,7 @@ export function HomeHero({ fallback }: { fallback: ReactNode }) {
           botEl = stage?.querySelector("[data-hero-bottom]");
         const bandTop = topEl ? topEl.getBoundingClientRect().bottom - r.top : h * 0.3,
           bandBot = botEl ? botEl.getBoundingClientRect().top - r.top : h * 0.8;
-        dist = heroDistance(h, bandBot - bandTop, camera.fov);
+        dist = heroDistance(h, bandBot - bandTop, camera.fov, w);
         camera.setViewOffset(w, h, 0, bandOffset(h, bandTop, bandBot), w, h);
         camera.updateProjectionMatrix();
         // 지도 출처(ODbL)는 버튼판 바로 위 오른쪽에 둔다
@@ -188,7 +189,7 @@ export function HomeHero({ fallback }: { fallback: ReactNode }) {
           credit.current.style.top = `${Math.max(0, bandBot - 18)}px`;
         place(anchorCam, 0, dist, HOME.elevation);
         light.invalidate();
-        if (reduced) draw(performance.now());
+        if (reduced && compiled) draw(performance.now());
       };
 
       const stats: HomeStats | null =
@@ -263,8 +264,8 @@ export function HomeHero({ fallback }: { fallback: ReactNode }) {
       const loop = (t: number) => {
         frame = 0;
         if (!alive || document.hidden || core.lost) return;
-        frame = requestAnimationFrame(loop);
-        if (t - prev < (reduced ? 500 : step)) return;
+        if (!reduced) frame = requestAnimationFrame(loop);
+        if (!reduced && t - prev < step) return;
         prev = t;
         draw(t);
       };
@@ -290,6 +291,7 @@ export function HomeHero({ fallback }: { fallback: ReactNode }) {
         .compileAsync(scene, camera)
         .catch(() => undefined)
         .then(() => {
+          compiled = true;
           if (alive) wake();
         });
 

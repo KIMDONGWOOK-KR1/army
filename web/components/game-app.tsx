@@ -45,6 +45,8 @@ import { GameDialog } from "./game-dialog";
 import { DevControls } from "./dev-controls";
 import { DemoScenes } from "./demo-scenes";
 import { SoundToggle } from "./sound-toggle";
+import { SoundSettings } from "./sound-settings";
+import { JourneyGuide, RoleLegend } from "./journey-guide";
 import { play } from "@/lib/sound";
 import { MemorialDeparture, ResultV2 } from "./closing-v2";
 import { useCueSend, useSoundCues } from "./use-sound-cues";
@@ -853,11 +855,13 @@ export default function GameApp({
                     전남대편
                     <span />
                   </div>
+                  <RoleLegend />
                 </div>
               </div>
               <section className="game-console title-console" data-hero-bottom>
+                <div className="title-guide-row"><span>4인 협동 · 각자의 폰으로</span><button type="button" onClick={() => setModal("guide")}>탐방 안내 <ArrowRight size={14} /></button></div>
                 <p className="dialogue-line">
-                  흩어진 단서를 찾아, 우리의 기억을 함께 완성하라.
+                  흩어진 단서를 모아, 함께 기억을 완성하라.
                 </p>
                 <div className="title-actions">
                   <button
@@ -1675,7 +1679,7 @@ export default function GameApp({
                   <Smartphone size={18} />
                 </button>
               )}
-              <SoundToggle variant="menu" />
+              <SoundSettings />
               {dev && soloDemo && s && (
                 <DevControls snapshot={s} busy={busy} send={send} />
               )}
@@ -1760,28 +1764,9 @@ export default function GameApp({
             </div>
           ) : (
             <div className="guide-copy">
-              {/* 제목은 어절 덩어리로 묶어 단어 중간에서 줄이 바뀌지 않게 한다 */}
-              <h3>
-                <span className="nowrap">관찰하고,</span>{" "}
-                <span className="nowrap">말로 나누고,</span>{" "}
-                <span className="nowrap">함께 기록하라.</span>
-              </h3>
+              <JourneyGuide />
               <p>
-                네 사람이 각자 폰으로 같은 방에 들어와 함께 걸어요. 코스는{" "}
-                <b>정문 → 용봉관 → 추모의 벽 → 봉지</b> 순서예요.
-              </p>
-              <ol className="guide-steps">
-                <li>각자 내 화면의 단서를 풀어요.</li>
-                <li>얻은 숫자를 지휘관에게 말로 전해요.</li>
-                <li>네 숫자가 모이면 지휘관이 자물쇠를 열어요.</li>
-                <li>자물쇠가 열리면 네 사람 모두 사초를 받아요.</li>
-              </ol>
-              <p>
-                추모의 벽에서는 문제 없이 잠시 묵념하고 국화를 올려요.
-                마지막 봉지에서는 오늘을 돌아보며 함께 기록을 남겨요.
-              </p>
-              <p>
-                {v2
+                {!s ? "출발 준비에서 위치 사용을 요청해요. 이동 중에는 주변을 먼저 살피고, 멈춰서 화면을 확인해요." : v2
                   ? simulatedArrival
                     ? "거점에 가까워지면 화면의 도착 버튼을 눌러요. 네 사람이 모두 도착하면 다음 화면이 열려요."
                     : `거점 ${site?.radiusM ?? 10}m 안에 들어가 잠시 기다리면 도착이 확인돼요. 네 사람이 모두 도착해야 다음 화면이 열려요.`

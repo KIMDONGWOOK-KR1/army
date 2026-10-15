@@ -37,21 +37,23 @@ test("four sessions lay flowers at the memorial, write reflections, refresh cons
     console.log("Synthetic full-course: entering wall");
     stageId = "wall";
     for (const p of pages) await p.goto("/");
+    for (const p of pages) await p.evaluate(() => {
+      (window as unknown as { heard: string[] }).heard = [];
+      window.addEventListener("hoguk:sound", (e) => (window as unknown as { heard: string[] }).heard.push((e as CustomEvent<string>).detail));
+    });
     for (const p of pages) await call(p, "report-arrival", { method: "simulated" });
-    for (const p of pages) {
-      await expect(p.locator('[data-scene="memorial"]')).toBeVisible();
+    // 네 화면을 함께 확인한다. 3D 묵념이 먼저 끝났으면 이미 국화 화면이어야 한다.
+    await Promise.all(pages.map(async p => {
+      await expect(p.locator('[data-scene="memorial"], [data-scene="mission"]')).toBeVisible();
       await expect(p.locator(".hud-score")).toHaveCount(0);
       await expect(p.getByRole("button", { name: "팀 자물쇠로" })).toHaveCount(0);
-      await p.evaluate(() => {
-        (window as unknown as { heard: string[] }).heard = [];
-        window.addEventListener("hoguk:sound", (e) => (window as unknown as { heard: string[] }).heard.push((e as CustomEvent<string>).detail));
-      });
-    }
-    // 도착하면 먼저 벽 앞에서 묵념한다(끝나면 저절로 넘어가고, '묵념 마치기'로 바로 넘길 수도 있다)
-    for (const p of pages) {
-      await p.getByRole("button", { name: "묵념 마치기", exact: true }).click();
+      const finish = p.getByRole("button", { name: "묵념 마치기", exact: true });
+      if (await finish.isVisible()) {
+        try { await finish.click({ timeout: 2000 }); }
+        catch { await expect(p.locator('[data-scene="mission"]')).toBeVisible(); }
+      }
       await expect(p.locator('[data-scene="mission"]')).toBeVisible();
-    }
+    }));
     // 추모의 벽: 소개를 읽고 각자 국화 한 송이를 올린다(문제·공동 기록 없음)
     for (const p of pages) await expect(p.getByTestId("tribute")).toContainText("국화 0송이");
     for (const [i, role] of (["scout", "signal", "cipher", "commander"] as const).entries()) {

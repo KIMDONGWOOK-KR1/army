@@ -398,6 +398,29 @@ const popScale = (t: number) => {
 
 export type CrewSoldier = ReturnType<typeof crewSoldier>;
 
+function capBadge(role: Role): PropSpec {
+  return { socket: "head", pivot: [0, 0.87, 0.255], parts: () => {
+    const color = ROLE_COLORS[role];
+    const parts: Part[] = [{ g: new THREE.CylinderGeometry(0.061, 0.061, 0.012, 20), color: C.cream, m: mat([0, 0.87, 0.255], [Math.PI / 2, 0, 0]) }];
+    const z = 0.266;
+    if (role === "commander") {
+      parts.push(stick([-0.019,0.837,z], [-0.019,0.904,z], 0.006,color));
+      parts.push(box([0.039,0.028,0.008],[0,0.889,z],color,0.003));
+    } else if (role === "scout") {
+      parts.push(box([0.037,0.037,0.008],[0,0.87,z],color,0.003,[0,0,Math.PI/4]));
+      parts.push(stick([0,0.84,z+0.005],[0,0.9,z+0.005],0.004,C.cream));
+    } else if (role === "signal") {
+      for (const [x,h] of [[-0.024,0.025],[0,0.044],[0.024,0.065]]) parts.push(box([0.011,h,0.008],[x,0.84+h/2,z],color,0.003));
+    } else {
+      parts.push({g:new THREE.TorusGeometry(0.016,0.005,6,12),color,m:mat([-0.013,0.884,z])});
+      parts.push(stick([0,0.872,z],[0.026,0.846,z],0.005,color));
+      parts.push(stick([0.016,0.856,z],[0.028,0.868,z],0.005,color));
+    }
+    return parts;
+  }};
+}
+const BADGES = Object.fromEntries((Object.keys(SPECS) as Role[]).map(role => [role, capBadge(role)])) as Record<Role, PropSpec>;
+
 // 보직 소품과 사람마다 다른 모습을 입힌 장병. role이 null이면(로비) 완장·고리를 중립색으로 둔다.
 // setRole(role, pop)으로 보직을 공개하면 소품이 제자리에서 튀어나오고 색이 바뀐다.
 export function crewSoldier(
@@ -433,7 +456,7 @@ export function crewSoldier(
     shown = next;
     hero.setColor(next ? ROLE_COLORS[next] : NEUTRAL_COLOR);
     if (!next) return;
-    worn = SPECS[next].map((spec) => {
+    worn = [...SPECS[next], BADGES[next]].map((spec) => {
       const m = propMesh(spec);
       hero.sockets[spec.socket].add(m);
       return m;
