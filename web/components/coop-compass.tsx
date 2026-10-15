@@ -13,7 +13,7 @@ export function CoopCompass({ snapshot, onRecords, compact = false }: {
   const guide = coopGuide(snapshot);
   const index = snapshot.course.sites.findIndex(site => site.id === snapshot.stage.id);
   const Icon = guide.quiet ? Flower2 : Footprints;
-  return <section className={`${styles.compass} ${compact ? styles.compact : ""}`} data-testid="coop-compass" tabIndex={compact ? 0 : undefined} aria-label="우리 탐방과 내 다음 행동">
+  return <section className={`${styles.compass} ${compact ? styles.compact : ""}`} data-testid="coop-compass" data-quiet={guide.quiet} tabIndex={compact ? 0 : undefined} aria-label="우리 탐방과 내 다음 행동">
     <div className={styles.top}><span><Icon size={16} aria-hidden="true" /> {index + 1}/{snapshot.course.sites.length} · {snapshot.stage.name}</span>
       <button type="button" onClick={onRecords}><BookOpen size={16} aria-hidden="true" />기록첩</button></div>
     <p className={styles.action}><b>{snapshot.self.role ? ROLE_NAMES[snapshot.self.role] : "우리 팀"} · 지금 할 일</b>{guide.action}</p>

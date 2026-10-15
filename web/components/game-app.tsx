@@ -847,7 +847,7 @@ export default function GameApp({
               <section className="game-console title-console" data-hero-bottom>
                 <div className="title-guide-row"><span>4인 협동 · 각자의 폰으로</span><button type="button" onClick={() => setModal("guide")}>탐방 안내 <ArrowRight size={14} /></button></div>
                 <p className="dialogue-line">
-                  흩어진 단서를 모아, 함께 기억을 완성하라.
+                  우리의 단서를 모아, 기억을 이어 볼까요?
                 </p>
                 <div className="title-actions">
                   <button

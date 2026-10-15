@@ -1,5 +1,5 @@
 .sectionHeading { display:flex; flex-wrap:wrap; align-items:baseline; justify-content:space-between; gap:8px; }
-.sectionHeading h3 { font:700 17px/1.5 var(--sans); }
+.sectionHeading h3 { font:400 20px/1.5 var(--game); }
 .sectionHeading > span { color:var(--muted); font-size:12px; }
 .sound { border-top:1px solid var(--line); margin-top:8px; padding-top:20px; display:grid; gap:16px; }
 .presets { display:flex; gap:8px; }
@@ -25,7 +25,7 @@
 .roles { display:grid; grid-template-columns:1fr 1fr; gap:16px 12px; }
 .roles article { display:flex; align-items:flex-start; gap:10px; }
 .badge { flex:none; width:40px; height:40px; border-radius:50%; color:var(--role-color); background:color-mix(in srgb,var(--role-color) 10%,var(--card)); display:grid; place-items:center; border:1px solid color-mix(in srgb,var(--role-color) 40%,transparent); }
-.roles h4 { font:700 15px/1.5 var(--sans); margin:0 0 4px; }
+.roles h4 { font:400 18px/1.5 var(--game); margin:0 0 4px; }
 .roles p { font-size:13px; line-height:1.7; color:var(--muted); }
 .reminder { display:flex; gap:12px; align-items:flex-start; padding:16px; background:#e8eee7; border-radius:8px; font-size:14px; }
 .reminder svg { flex:none; margin-top:4px; }
@@ -36,3 +36,8 @@
 .guide p { margin:0; }
 .guide h3 { margin:0; }
 .legend { width:fit-content; margin-inline:auto; padding:6px 10px; border-radius:8px; background:rgba(255,253,245,.9); }
+
+.legend { background:transparent; padding:0; gap:6px; margin-top:12px; }
+.legend span { background:#fffaf0f2; border:1px solid color-mix(in srgb,var(--role-color) 30%,#fffaf0); border-radius:999px; padding:4px 8px; font:400 12px/1.5 var(--game); box-shadow:0 2px 0 #263a3710; }
+.presets button { border-radius:999px; font:400 16px/1.5 var(--game); }
+.presets button[aria-pressed=true] { background:#347c66; border-color:#347c66; }

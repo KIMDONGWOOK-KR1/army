@@ -1,14 +1,14 @@
-.compass { flex:0 0 auto; min-width:0; margin:10px 12px 0; padding:0 13px 10px; color:#263a37; background:#fffdf5; border:1px solid #b5b7a6; border-radius:16px; font-family:var(--font-sans),sans-serif; }
+.compass { flex:0 0 auto; min-width:0; margin:10px 12px 0; padding:0 13px 10px; color:#263a37; background:#fffdf5; border:1px solid #b5b7a6; border-radius:24px; font-family:var(--sans); }
 .top { display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:12px; }
 .top>span { display:flex; align-items:center; gap:5px; min-width:0; }
 .top button { display:flex; align-items:center; justify-content:center; gap:5px; min-height:44px; flex-shrink:0; background:none; border:0; color:#2c4841; font:inherit; font-weight:700; cursor:pointer; }
 .top button:focus-visible,.team summary:focus-visible { outline:3px solid #305c88; outline-offset:2px; border-radius:6px; }
-.action { display:grid; gap:4px; font-size:14px; line-height:1.6; margin:0 0 8px; word-break:keep-all; overflow-wrap:anywhere; }
-.action b { font-size:12px; color:#536048; }
+.action { display:grid; gap:4px; font:400 17px/1.55 var(--game); margin:0 0 8px; word-break:keep-all; overflow-wrap:anywhere; }
+.action b { font:600 11px/1.6 var(--sans); color:#536048; }
 .team { border-top:1px solid #d8d9cb; }
 .team summary { display:flex; align-items:center; gap:6px; min-height:44px; font-size:12px; list-style:none; cursor:pointer; }
 .team summary::-webkit-details-marker { display:none; }
-.team summary strong { margin-left:auto; font-weight:600; text-align:right; }
+.team summary strong { margin-left:auto; padding:3px 8px; border-radius:999px; background:#def0e7; color:#265f50; font-weight:600; text-align:right; }
 .team[open] summary>svg:last-child { transform:rotate(180deg); }
 .team ul { display:grid; grid-template-columns:1fr 1fr; gap:12px 8px; list-style:none; margin:4px 0 12px; padding:0; }
 .team li { display:flex; gap:8px; align-items:center; min-width:0; }
@@ -21,16 +21,28 @@
 .privacy { font-size:12px; line-height:1.6; color:#59655c; margin:4px 0 0; }
 .compact { margin:0; width:100%; max-width:440px; max-height:42dvh; overflow-y:auto; box-shadow:0 4px 14px #263a3714; }
 .passport { padding:20px; border:1px solid #b5b7a6; border-radius:18px; background:#f3eedf; color:#263a37; margin-bottom:20px; }
-.eyebrow { font:700 12px var(--font-sans),sans-serif; letter-spacing:.08em; }
+.eyebrow { font:700 12px var(--sans); letter-spacing:.08em; }
 .passport h2 { font-size:23px; line-height:1.5; margin:10px 0; }
 .passport>p { font-size:13px; line-height:1.7; }
 .passport ol { list-style:none; padding:0; margin:20px 0; display:grid; gap:10px; }
 .passport li { display:flex; align-items:center; gap:12px; background:#fffdf5; border:1px dashed #a6ac9a; padding:10px; border-radius:12px; }
 .passport li[data-state="current"] { border:2px solid #2c4841; }
 .passport li[data-state="complete"] { background:#e6eddc; border-style:solid; }
-.stamp { width:38px; height:38px; flex:0 0 auto; display:grid; place-items:center; border:1px solid #8b987c; border-radius:50%; font:700 13px var(--font-sans),sans-serif; }
+.stamp { width:38px; height:38px; flex:0 0 auto; display:grid; place-items:center; border:1px solid #8b987c; border-radius:50%; font:700 13px var(--sans); }
 .passport li>div { display:grid; gap:4px; }
 .passport li b { font-size:14px; }
 .passport li div>span { font-size:12px; color:#59655c; }
 @media(max-width:360px) { .team ul { grid-template-columns:1fr; } .compass { padding-inline:10px; } }
 @media(max-height:640px) { .compact { max-height:30dvh; } }
+
+/* 공동 목표는 읽기 쉬운 한 장, 진행 수는 민트 배지로 분리한다. */
+.compass { border-color:#c4d6c5; border-top:3px solid #83bda6; box-shadow:0 3px 0 #2c484112; }
+.top button { color:#256956; }
+.avatar { background:#fffaf0; border-width:2px; }
+.passport { background:#f8f1da; border-color:#d6c6a1; border-radius:24px; }
+.passport h2 { font-family:var(--game); font-weight:400; }
+.passport li[data-state="complete"] .stamp { background:#347c66; color:#fffdf5; border-color:#347c66; }
+.passport li[data-state="current"] { border-color:#347c66; }
+.compass[data-quiet="true"] { border-top-color:#b5b7a6; }
+.compass[data-quiet="true"] .action { font:600 15px/1.7 var(--calm); }
+.compass[data-quiet="true"] .team summary strong { background:#ececdf; color:#46534a; }

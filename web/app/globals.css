@@ -12,14 +12,15 @@
   --red: #b62c17;
   --line: #b5b7a6;
   --gold: #c7ac6f;
-  /* UI는 로컬 Pretendard, 역사 기록에는 별도 명조체를 쓴다. */
-  --serif: var(--font-interface), "Noto Sans KR", sans-serif;
+  /* 기존 제목 토큰은 게임 표시체로 연결한다. 긴 설명은 --sans로 분리한다. */
+  --game: var(--font-game), "Noto Sans KR", sans-serif;
+  --serif: var(--game);
   /* 기록 글꼴: 사초·추모처럼 차분해야 하는 장면 */
   --calm: "Noto Serif KR", "Batang", serif;
   --sky: #8ed3f5;
   --sun: #ffc53d;
   --edge: #1f2a44;
-  --sans: var(--font-interface), "Noto Sans KR", "Malgun Gothic", system-ui, sans-serif;
+  --sans: "Noto Sans KR", "Malgun Gothic", system-ui, sans-serif;
   --mono: ui-monospace, "Courier New", monospace;
   color-scheme: light;
 }
