@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useState, type ReactNode, type CSSProperties } from "react";
 import { ArrowRight, Footprints, LocateFixed, Navigation } from "lucide-react";
 import {
   ROLE_NAMES,
@@ -48,6 +48,7 @@ export function TravelHud({
   onDemoArrival,
   onManualArrival,
   onMenu,
+  cooperation,
 }: {
   site: SiteInfo;
   sites: SiteInfo[];
@@ -64,6 +65,7 @@ export function TravelHud({
   onDemoArrival: () => void;
   onManualArrival: () => void;
   onMenu: () => void;
+  cooperation?: ReactNode;
 }) {
   const ready = !!field && !field.loading && !field.failed;
   const gpsRequired = !!v2Arrival && !v2Arrival.simulated;
@@ -158,7 +160,7 @@ export function TravelHud({
           {next("hud-next hud-next-top")}
         </div>
         {/* 말풍선도 위 줄 묶음 안에 두어 이름·거리·다음 거점 칸 아래로 흘러가게 한다(겹치지 않게) */}
-        <SpeechCard
+        {cooperation ?? <SpeechCard
           key={site.id}
           text={
             site.seq === 1
@@ -169,7 +171,7 @@ export function TravelHud({
                   ? "모은 기록을 품고 봉지로 가서 함께 돌아보자."
                   : "증언의 사초를 품고, 용봉관에 겹친 시간을 찾아라."
           }
-        />
+        />}
       </div>
       <span className="hud-sr" role="status">
         {inRange ? "도착 범위에 들어섰다." : ""}

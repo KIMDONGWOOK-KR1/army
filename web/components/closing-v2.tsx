@@ -1,4 +1,5 @@
 "use client";
+import { ExpeditionPassport } from "./coop-compass";
 import { plain } from "@/lib/practice-text";
 import { useEffect, useState } from "react";
 import type { GameResponse, V2Response } from "@/lib/game-snapshot";
@@ -108,6 +109,7 @@ export function ResultV2({ snapshot: s }: { snapshot: V2Response }) {
   if (!result) return null;
   return <section className={styles.result} data-testid="result-v2">
     <h1 data-scene-heading tabIndex={-1}>함께 완성한 기록</h1>
+    <ExpeditionPassport snapshot={s} />
     <p>조사 {result.investigation.completed}/{result.investigation.total} · 사초 {result.sacho.completed}/{result.sacho.total}</p>
     {result.stages.map((stage) => <section key={stage.stage_id} className={styles.card}>
       <h2>{stage.name} · {stage.completion}</h2><p>{plain(stage.summary)}</p>

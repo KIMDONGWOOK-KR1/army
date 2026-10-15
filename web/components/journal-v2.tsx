@@ -1,4 +1,5 @@
 "use client";
+import { ExpeditionPassport } from "./coop-compass";
 import { plain } from "@/lib/practice-text";
 import type { V2Response } from "@/lib/game-snapshot";
 import styles from "./mission-v2.module.css";
@@ -13,7 +14,7 @@ const methods: Record<string, string> = {
 
 export function JournalV2({ snapshot }: { snapshot: V2Response }) {
   return (
-    <div className={`record-grid ${styles.journal}`} data-testid="journal-v2">
+    <div><ExpeditionPassport snapshot={snapshot} /><div className={`record-grid ${styles.journal}`} data-testid="journal-v2">
       {snapshot.course.sites.filter((site) => site.id !== "bongji").map((site) => {
         const acquired = snapshot.game.acquired_sites.find((s) =>
           s.id === site.id
@@ -77,6 +78,6 @@ export function JournalV2({ snapshot }: { snapshot: V2Response }) {
           </article>
         );
       })}
-    </div>
+    </div></div>
   );
 }

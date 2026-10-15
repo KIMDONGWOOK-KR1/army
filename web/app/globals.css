@@ -4514,3 +4514,15 @@ select {
 .title-console .console-footnote { margin-top:0; }
 .button.primary:hover:not(:disabled) { background:#3b5950; }
 @media(min-width:761px) { .title-console { padding:12px 24px; min-height:0; } .title-guide-row { width:min(720px,100%); } .title-copy { padding-top:18px; } }
+
+/* Cooperative guidance participates in layout; small screens can scroll without losing actions. */
+.game-scene:is(.scene-mission,.scene-report,.scene-lock,.scene-waiting,.scene-sacho) { overflow-y:auto; }
+.game-scene:is(.scene-mission,.scene-report,.scene-lock,.scene-waiting,.scene-sacho)>* { flex-shrink:0; }
+.hud-top>[data-testid="coop-compass"] { flex:1 0 100%; }
+@media(max-height:640px) { .hud-top:has([data-testid="coop-compass"]) .hud-next-top { display:none; } }
+
+/* Keep a single readable scroll flow when the team roster is expanded. */
+.game-scene:is(.scene-mission,.scene-report,.scene-lock,.scene-waiting,.scene-sacho)>:is(.mission-stage,.lock-stage,.waiting-stage,.sacho-scene,.reward-stage) { flex:0 0 auto; min-height:min-content; max-height:none; }
+.scene-mission>.mission-stage,.scene-lock>.lock-stage,.scene-sacho>.sacho-scene { overflow:visible; }
+.scene-report>.reward-stage { padding:26px 20px; }
+.scene-report .private-digit { flex-shrink:0; }

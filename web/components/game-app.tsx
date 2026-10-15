@@ -36,6 +36,7 @@ import {
 import { Mission, LockPanel } from "./mission";
 import { MissionV2, LockPanelV2 } from "./mission-v2";
 import { JournalV2 } from "./journal-v2";
+import { CoopCompass } from "./coop-compass";
 import { Crew, NextStageAction } from "./yongbong-panel";
 import { closingLines, NextStopCard, sachoEyebrow } from "./next-stop";
 import { isPracticeStage, plain } from "@/lib/practice-text";
@@ -711,24 +712,6 @@ export default function GameApp({
       </div>
     </div>
   );
-  // 보고를 마친 대원에게: 네 보직의 보고 현황을 글로 보여 주고, 다음에 무슨 일이 일어나는지 알린다
-  const reportRoll = (
-    <div className="report-roll" data-testid="report-roll">
-      <p>지휘관이 자물쇠를 열면 다음 화면으로 넘어가요.</p>
-      <ul>
-        {ROLES.map((r, i) => {
-          const Icon = icons[r], done = !!s?.game.report_mask[i];
-          return (
-            <li key={r} className={done ? "complete" : ""}>
-              <Icon size={16} aria-hidden="true" />
-              <span className="nowrap">{ROLE_NAMES[r]}</span>{" "}
-              <span className="nowrap">· {done ? "보고 완료" : "보고 대기"}</span>
-            </li>
-          );
-        })}
-      </ul>
-    </div>
-  );
   return (
     <div className="game-viewport">
       <div className="game-canvas" ref={canvas}>
@@ -831,6 +814,9 @@ export default function GameApp({
           key={sceneKey}
           id="main-content"
         >
+          {v2 && ["mission", "report", "lock", "waiting", "sacho"].includes(scene) && (
+            <CoopCompass snapshot={v2} onRecords={() => setModal("records")} />
+          )}
           {scene === "title" ? (
             <>
               <div className="title-backdrop">
@@ -1229,6 +1215,7 @@ export default function GameApp({
                 }}
               />
               <TravelHud
+                cooperation={v2 ? <CoopCompass snapshot={v2} compact onRecords={() => setModal("records")} /> : undefined}
                 site={site!}
                 sites={s!.course.sites}
                 currentSeq={s!.game.current_site_seq}
@@ -1317,7 +1304,6 @@ export default function GameApp({
                       : "지휘관에게 이 숫자를 말로 전하라. 함께 찾아야 기록이 열린다."}
                   </p>
                 </div>
-                {v2 && role !== "commander" && reportRoll}
                 <button
                   className="button primary"
                   onClick={() =>
@@ -1378,7 +1364,7 @@ export default function GameApp({
                   <h1 data-scene-heading tabIndex={-1}>
                     동료들의 기록을 기다린다.
                   </h1>
-                  {v2 ? reportRoll : reports}
+                  {!v2 && reports}
                   {!v2 && <p>
                     각자의 숫자를 말로 나누어라.
                     <br />
