@@ -1,7 +1,11 @@
 import { randomBytes, randomUUID } from "node:crypto";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { defineConfig } from "@playwright/test";
 
-const baseURL = "http://127.0.0.1:3014";
+const port = process.env.PLAYWRIGHT_PORT ?? "3014";
+const baseURL = `http://127.0.0.1:${port}`;
 process.env.PLAYWRIGHT_NO_COPY_PROMPT = "1";
 
 // Only the local synthetic engine is exercised; no existing dev project or
@@ -16,6 +20,7 @@ export default defineConfig({
   preserveOutput: "never",
   use: {
     baseURL,
+    channel: process.env.PLAYWRIGHT_CHANNEL,
     viewport: { width: 390, height: 844 },
     reducedMotion: "reduce",
     actionTimeout: 10000,
@@ -35,12 +40,13 @@ export default defineConfig({
     },
   },
   webServer: {
-    command: "node node_modules/next/dist/bin/next dev --webpack --hostname 127.0.0.1 --port 3014",
+    command: `node node_modules/next/dist/bin/next dev --webpack --hostname 127.0.0.1 --port ${port}`,
     url: baseURL,
     reuseExistingServer: false,
     timeout: 120000,
     env: {
       NEXT_PUBLIC_BACKEND: "local",
+      LOCAL_GAME_DATA_DIR: mkdtempSync(join(tmpdir(), "mino-gate-e2e-")),
       LOCAL_V2_COURSE_ID: `jnu-demo-dev-ui-${randomUUID().slice(0, 20)}`,
       ANSWER_SALT: randomBytes(32).toString("hex"),
     },

@@ -3,6 +3,14 @@ import { DomainError } from "./game-core.ts";
 import { ROLES } from "./types.ts";
 import type { Command, CourseV2, Game, GameV2State, Role, SharedDraftV2, Stage } from "./types.ts";
 
+export function completionLabelV2(stage: Stage, method?: "field" | "explained") {
+  if (stage.completion.type === "tribute") return "헌화 완료";
+  if (method === "explained") return "해설 확인 후 복원";
+  if (stage.kind === "memorial") return "공동 확인 완료";
+  if (stage.kind === "epilogue") return "공동 기록 완료";
+  return "조사 후 복원";
+}
+
 export function requireDraftVersion(cmd: Command, version: number) {
   if (!Number.isSafeInteger(cmd.draft_version) || cmd.draft_version !== version) {
     throw new DomainError("STALE_DRAFT", "공동 기록이 변경되었다. 최신 문장과 근거를 다시 확인하라.");
@@ -58,8 +66,7 @@ export function resultV2(game: Game, course: CourseV2) {
     stages: stages.map((s) => {
       const progress = state.progress[s.id];
       return { stage_id: s.id, name: s.name, summary: s.sacho?.body ?? "", quiet: s.quiet,
-        completion: state.completed[s.id]?.method === "explained" ? "해설 확인 후 복원" :
-          s.kind === "memorial" ? "공동 확인 완료" : "조사 후 복원",
+        completion: completionLabelV2(s, state.completed[s.id]?.method),
         visit_mode: state.altMode?.[s.id] ?? "onsite",
         arrival_method: game.arrivals.some((a) => a.siteId === s.id && a.simulated) ? "simulated" : "gps",
         roles: ROLES.map((role) => {

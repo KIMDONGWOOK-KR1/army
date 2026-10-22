@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import { useGameAny } from "./use-game";
 import { useLocation } from "./use-location";
-import { allowsSimulatedArrival } from "@/supabase/functions/_shared/arrival-policy";
+import { allowsSimulatedArrival, hasGpsArrival, isGpsReviewCourse } from "@/supabase/functions/_shared/arrival-policy";
 import { useLockDraft } from "./use-lock-draft";
 import {
   handoffPane,
@@ -64,6 +64,7 @@ import {
   narrationLines,
   narrationSeen,
 } from "@/lib/narration";
+import { gateNarrationFrames, nextNarrationFrame, type NarrationFrame } from "@/lib/gate-narration";
 import {
   ROLES,
   ROLE_NAMES,
@@ -212,6 +213,9 @@ export default function GameApp({
   const soloDemo = !!s?.game.demo && !v2;
   const isContentReview = s?.course.demo === true &&
     s.course.id.startsWith("jnu-demo-dev-review-");
+  const gpsReview = !!v2 && isGpsReviewCourse(v2.course);
+  const gpsCoordinatesPending = gpsReview && v2.stage.kind !== "prologue" &&
+    !hasGpsArrival(v2.stage.arrival);
   const simulatedArrival = !!v2 && allowsSimulatedArrival(v2.course, v2.stage.arrival);
   const ownArrival = !!v2?.self.role &&
     v2.game.arrival_mask[ROLES.indexOf(v2.self.role)];
@@ -244,6 +248,9 @@ export default function GameApp({
     return next;
   }, [rawRetry, rememberCompletion]);
   const location = useLocation(s, send), lockDraft = useLockDraft(s);
+  useEffect(() => {
+    if (gpsCoordinatesPending) location.stop();
+  }, [gpsCoordinatesPending, v2?.game.id, v2?.stage.id]);
   useEffect(() => {
     if (!v2 || v2.game.site_phase !== "cleared") {
       setCompletionNotice(null);
@@ -514,21 +521,40 @@ export default function GameApp({
   ) : v2?.stage.narration.filter((line) =>
     line.trigger === narrationTrigger
   ).map((line) => line.text) ?? [];
-  const [narration, setNarration] = useState<string | null>(null);
+  const narrationFrames: NarrationFrame[] = v2 && !legacyGate &&
+    v2.stage.id === "gate" && ARRIVAL_SCENES.includes(scene)
+    ? gateNarrationFrames({
+      stageId: v2.stage.id,
+      role: v2.self.role,
+      commonLines: stageNarration,
+      mission: v2.self.mission,
+    })
+    : narrationKey && (!v2 || stageNarration.length > 0) ? [{
+      key: narrationKey,
+      lines: v2 ? stageNarration : narrationLines(
+        narrationKey.split(":")[0] as "intro" | "arrive" | "sacho", site,
+      ),
+      kind: "common",
+    }] : [];
+  const narrationSignature = JSON.stringify(narrationFrames);
+  const [openNarration, setOpenNarration] = useState<{ gameId: string; key: string } | null>(null);
+  const readNarrations = useRef(new Set<string>());
+  const enabledNarration = narrationEnabled();
+  const activeNarration = enabledNarration && openNarration && openNarration.gameId === gameId
+    ? narrationFrames.find((frame) => frame.key === openNarration.key)
+    : undefined;
+  const narration = activeNarration?.key ?? null;
+  const hasReadNarration = (key: string) => !!gameId && (
+    readNarrations.current.has(`${gameId}:${key}`) || narrationSeen(gameId, key)
+  );
   useEffect(() => {
-    if (!gameId) return setNarration(null);
-    setNarration((open) => {
-      if (open && open !== narrationKey) markNarrationSeen(gameId, open);
-      if (v2 && stageNarration.length === 0) return null;
-      if (open === narrationKey) return open;
-      return narrationKey &&
-        !stop &&
-        narrationEnabled() && (!v2 || stageNarration.length > 0) &&
-        !narrationSeen(gameId, narrationKey)
-        ? narrationKey
-        : null;
+    if (!gameId || stop || !enabledNarration) return setOpenNarration(null);
+    setOpenNarration((open) => {
+      if (open?.gameId === gameId && narrationFrames.some((frame) => frame.key === open.key)) return open;
+      const next = nextNarrationFrame(narrationFrames, hasReadNarration);
+      return next ? { gameId, key: next.key } : null;
     });
-  }, [gameId, narrationKey, stop, !!v2, stageNarration.join("\n")]);
+  }, [gameId, narrationSignature, stop, enabledNarration]);
   // 이동 중 5·18 조용한 구역 안인가(배경음을 추모 숨결로). 지도가 아직 위치를 알리기 전에는
   // 이 다리가 시작하는 자리(앞 거점)가 추모 거점이었는지로 어림한다(정문을 막 떠나는 길).
   const leavingReverent = !!s?.course.sites.find(
@@ -541,10 +567,10 @@ export default function GameApp({
     scene,
     reverent: !!site?.reverent,
     hushed,
-    silent: !!v2 && (v2.stage.kind === "memorial" || v2.self.journal.some((j) => j.memorial_record)),
+    silent: !!v2 && (v2.stage.kind === "memorial" || v2.self.journal.some((j) => j.memorial_record || j.label === "헌화 완료")),
     narration: !!narration,
     reportKey: `${gameId}:${site?.id}:${role}`,
-    reported: !!s?.self.reported,
+    reported: !!s?.self.reported && v2?.stage.completion.type !== "tribute",
     digits: lockDraft.digits,
   });
   useAutoplay({
@@ -622,9 +648,12 @@ export default function GameApp({
     if (was > 0 && crew > was) play("join");
   }, [crew]);
   const closeNarration = () => {
-    if (gameId && narration) markNarrationSeen(gameId, narration);
-    setNarration(null);
-    requestAnimationFrame(focusHeading);
+    if (!gameId || !narration) return;
+    readNarrations.current.add(`${gameId}:${narration}`);
+    markNarrationSeen(gameId, narration);
+    const next = nextNarrationFrame(narrationFrames, hasReadNarration);
+    setOpenNarration(next ? { gameId, key: next.key } : null);
+    if (!next) requestAnimationFrame(focusHeading);
   };
   const closeStop = () => {
     if (gameId && stop) markStopSeen(gameId, stop);
@@ -634,7 +663,7 @@ export default function GameApp({
   const reports = (
     <div className="report-progress">
       <span>
-        {s?.game.report_mask.filter(Boolean).length ?? 0} / 4 보직 보고 완료
+        {s?.game.report_mask.filter(Boolean).length ?? 0} / 4 {v2?.stage.completion.type === "tribute" ? "헌화 완료" : "보직 보고 완료"}
       </span>
       <div>
         {(v2 ? ROLES : s?.current_site.lockOrder ?? ROLES).map((r, i) => {
@@ -644,7 +673,7 @@ export default function GameApp({
               role="img"
               key={r}
               className={s?.game.report_mask[i] ? "complete" : ""}
-              aria-label={`${ROLE_NAMES[r]} ${s?.game.report_mask[i] ? "보고 완료" : "대기"}`}
+              aria-label={`${ROLE_NAMES[r]} ${s?.game.report_mask[i] ? v2?.stage.completion.type === "tribute" ? "헌화 완료" : "보고 완료" : "대기"}`}
             >
               <Icon size={16} />
               {s?.game.report_mask[i] && <Check size={11} />}
@@ -1078,9 +1107,9 @@ export default function GameApp({
                       </button>
                       <button
                         className="button primary"
-                        disabled={busy}
+                        disabled={busy || gpsCoordinatesPending}
                         onClick={() => {
-                          location.start();
+                          if (!gpsCoordinatesPending) location.start();
                           void send({ action: "set-ready" });
                         }}
                       >
@@ -1106,6 +1135,23 @@ export default function GameApp({
               </section>
             </>
           ) : scene === "travel" ? (
+            gpsCoordinatesPending ? (
+              <section className="game-console" data-testid="gps-review-pending">
+                <div className="console-copy">
+                  <span className="eyebrow">정식 콘텐츠 GPS 검수</span>
+                  <h1 data-scene-heading tabIndex={-1}>
+                    {site!.name} GPS 좌표 등록 대기
+                  </h1>
+                  <p role="status">
+                    이 거점의 GPS 좌표가 아직 확정되지 않았다. 좌표가 확정된 새 코스와 새 방에서 다시 확인할 수 있다.
+                  </p>
+                  <p>이 GPS 검수 코스에서는 모의 도착으로 건너뛸 수 없다.</p>
+                </div>
+                <button className="button secondary" onClick={() => setModal("menu")}>
+                  메뉴
+                </button>
+              </section>
+            ) : (
             <div className="travel-stage">
               <Field3D
                 siteSeq={site!.seq}
@@ -1155,6 +1201,7 @@ export default function GameApp({
                 onMenu={() => setModal("menu")}
               />
             </div>
+            )
           ) : scene === "mission" ? (
             <>
               <div className="mission-header">
@@ -1294,7 +1341,7 @@ export default function GameApp({
           ) : scene === "sacho" ? (
             <>
               <div className="sacho-scene" data-testid={v2 ? "stage-v2-completed" : undefined}>
-                <span className="eyebrow">기억 복원 · {site!.name}</span>
+                <span className="eyebrow">{v2?.stage.completion.type === "tribute" ? "헌화 완료" : "기억 복원"} · {site!.name}</span>
                 <div className="sacho-character">{site!.sacho.char || (v2 ? "記" : "")}</div>
                 <h1 data-scene-heading tabIndex={-1}>
                   {site!.sacho.name}
@@ -1308,7 +1355,7 @@ export default function GameApp({
               </div>
               <section className="game-console">
                 <p className="dialogue-line">
-                  {v2 ? `함께 복원한 ${site!.name} 기록을 보관했다.` : "다음 거점에 또 하나의 기억이 기다린다."}
+                  {v2?.stage.completion.type === "tribute" ? "네 사람이 국화를 올리고 추모의 시간을 함께했다." : v2 ? `함께 복원한 ${site!.name} 기록을 보관했다.` : "다음 거점에 또 하나의 기억이 기다린다."}
                 </p>
                 {v2 ? (
                   <><MemorialDeparture key={`${v2.game.id}:${v2.stage.id}`} snapshot={v2} busy={busy} send={send} />
@@ -1408,13 +1455,14 @@ export default function GameApp({
             onClose={closeStop}
           />
         )}
-        {narration && !stop && (
+        {activeNarration && !stop && (
           <Narration
-            key={narration}
-            lines={v2 ? stageNarration : narrationLines(
-              narration.split(":")[0] as "intro" | "arrive" | "sacho",
-              site,
-            )}
+            key={`${gameId}:${activeNarration.key}`}
+            lines={activeNarration.lines}
+            label={activeNarration.label}
+            closeLabel={activeNarration.closeLabel}
+            kind={activeNarration.kind}
+            emphasis={activeNarration.emphasis}
             onClose={closeNarration}
             auto={auto && !v2}
           />
@@ -1627,7 +1675,9 @@ export default function GameApp({
               </p>
               <p>
                 {v2
-                  ? simulatedArrival
+                  ? gpsCoordinatesPending
+                    ? `${site?.name ?? "이 거점"} GPS 좌표 등록 대기 중이다. 모의 도착으로 건너뛸 수 없다.`
+                    : simulatedArrival
                     ? "각자가 본인 모의 도착 버튼으로 개발 시연을 진행한다."
                     : `GPS를 켜고 반경 ${site?.radiusM ?? 10}m 안에서 5초간 기다리라. 네 명 모두 도착해야 미션이 열린다.`
                   : "위치 확인이 어려우면 이동 시작 30초 후 지휘관이 수동 도착할 수 있다."}
@@ -1635,7 +1685,9 @@ export default function GameApp({
               </p>
               <p>
                 <Shield size={16} /> 추모 공간을 존중하며 안전하게 이동하라.
-                {isContentReview
+                {gpsReview
+                  ? "정식 콘텐츠 GPS 검수 · 네 명 모두 현장 반경 안에서 GPS 도착을 확인한다."
+                  : isContentReview
                   ? "정식 콘텐츠 검수 · 모의 도착. 실제 현장 GPS 검증에 해당하지 않는다."
                   : (s?.course.demo ?? backend === "local")
                     ? v2?.stage.arrival.confirmed ? "GPS 좌표는 지정됐으며 문항은 시연용이다." : "시연 코스의 실제 좌표와 문항은 미확정이다."

@@ -8,6 +8,12 @@ const at = (reverent: boolean, ok: boolean) =>
   }) as unknown as Parameters<typeof judgeCue>[1];
 
 describe("판정 소리", () => {
+  it("헌화는 정답·실패 판정 소리를 내지 않는다", () => {
+    for (const accepted of [true, false]) {
+      const response = { ...at(true, true)!, result: { accepted }, stage: { completion: { type: "tribute" } } };
+      expect(judgeCue({ action: "submit-step" }, response)).toBeNull();
+    }
+  });
   it("v2 문제 판정과 해설 개방의 응답에 맞는 소리를 낸다", () => {
     const response = (result: Record<string, unknown>) => ({ result, current_site: { reverent: true } }) as Parameters<typeof judgeCue>[1];
     expect(judgeCue({ action: "submit-step" }, response({ accepted: true }))?.name).toBe("clue-correct");

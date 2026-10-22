@@ -1,11 +1,12 @@
 import { yongbongDemoInput } from "./yongbong-course-v2.ts";
 import { prepareCourseV2 } from "./prepare-course-v2.ts";
 import { jnuGpsArrival } from "./jnu-gps.ts";
+import { prepareWallTributeV2 } from "./prepare-wall-tribute-v2.ts";
 import { ROLES } from "./types.ts";
 import type { CourseV2PrivateInput, Role, SceneText, Stage, Step } from "./types.ts";
 
-/** Offsite development only. No actual scenario sentences or personal names. */
-export function fullDemoV2Input(id: string) {
+/** Offsite development fixtures; only the selected wall uses the shared public tribute definition. */
+export function fullDemoV2Input(id: string, wallMode: "tribute" | "confirm" = "tribute") {
   const { content, privateInput } = yongbongDemoInput(id);
   const scene = (id: string, text: string, trigger: SceneText["trigger"] = "enter"): SceneText =>
     ({ id, channel: "screen", text: `[합성] ${text}`, trigger });
@@ -72,9 +73,11 @@ export function fullDemoV2Input(id: string) {
       }]))),
     };
   }
-  return { content, privateInput };
+  // The explicit confirm option is retained for immutable-course compatibility fixtures.
+  return wallMode === "tribute" ? prepareWallTributeV2(content, privateInput) : { content, privateInput };
 }
-export function fullDemoCourseV2(id: string, salt: string) {
-  const { content, privateInput } = fullDemoV2Input(id);
+// The third argument is shared by preset factories; this preset has no confirmed wall GPS.
+export function fullDemoCourseV2(id: string, salt: string, _gps = false, wallMode: "tribute" | "confirm" = "tribute") {
+  const { content, privateInput } = fullDemoV2Input(id, wallMode);
   return prepareCourseV2(content, privateInput, salt);
 }

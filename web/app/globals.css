@@ -482,7 +482,7 @@ html[data-mockup] .game-viewport {
 .console-copy p,
 .dialogue-line {
   font: 700 16px/1.9 var(--sans);
-  text-wrap: pretty;
+  text-wrap: balance;
 }
 .console-actions {
   display: flex;
@@ -2271,8 +2271,11 @@ html[data-mockup] .game-viewport {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 28px;
-  padding: 40px 28px 32px;
+  gap: clamp(18px, 3vh, 28px);
+  padding-block: clamp(24px, 6vh, 48px) max(24px, env(safe-area-inset-bottom, 0px));
+  padding-inline: max(clamp(22px, 4vw, 40px), calc((100% - 640px) / 2));
+  min-height: 0;
+  overflow: hidden;
   background: radial-gradient(ellipse at 50% 45%, #2a2721, #12110e 80%);
   color: #efe6cf;
   animation: narration-in 0.5s ease-out;
@@ -2280,12 +2283,16 @@ html[data-mockup] .game-viewport {
 }
 .narration-label {
   align-self: flex-start;
-  font: 700 15px var(--sans);
+  flex-shrink: 0;
+  font: 700 clamp(13px, 1.25vw, 15px)/1.5 var(--sans);
   letter-spacing: 0.3em;
   color: #e9604a;
   border: 2px solid #e9604a;
   padding: 2px 6px 2px 10px;
   transform: rotate(-3deg);
+}
+.narration[data-narration-kind="personal"] .narration-label {
+  letter-spacing: 0.08em;
 }
 .narration-sr {
   position: absolute;
@@ -2296,14 +2303,29 @@ html[data-mockup] .game-viewport {
   white-space: nowrap;
 }
 .narration-text {
-  min-height: 9.5em;
+  min-height: 0;
+  width: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   font:
-    600 19px/2 "Noto Serif KR",
+    600 clamp(18px, calc(16px + 0.4vw), 22px)/1.85 "Noto Serif KR",
     "Batang",
     serif;
+  letter-spacing: -0.01em;
   white-space: pre-line;
   word-break: keep-all;
-  max-width: 560px;
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
+  max-width: 640px;
+}
+.narration-line {
+  display: block;
+  white-space: normal;
+  text-wrap: balance;
+}
+.narration-line + .narration-line {
+  margin-top: 0.55em;
 }
 .narration-caret {
   display: inline-block;
@@ -2316,6 +2338,7 @@ html[data-mockup] .game-viewport {
 }
 .narration-close {
   align-self: flex-end;
+  flex-shrink: 0;
   min-height: 46px;
   padding: 8px 22px;
   background: transparent;
@@ -2326,6 +2349,12 @@ html[data-mockup] .game-viewport {
 }
 .narration-close:focus-visible {
   outline-color: #ffc53d;
+}
+@media (max-height: 500px) {
+  .narration {
+    gap: 14px;
+    padding-block: 18px max(18px, env(safe-area-inset-bottom, 0px));
+  }
 }
 @keyframes narration-in {
   from {

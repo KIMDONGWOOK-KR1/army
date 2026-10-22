@@ -14,6 +14,25 @@ import { prepareDemoSeed } from "../scripts/seed-demo-course";
 import { domainHttpStatus } from "../supabase/functions/_shared/game-core";
 
 describe("v2 gate engine", () => {
+  it("reveals only the caller's personal introduction after all arrivals", async () => {
+    const t = await team({ arrive: false });
+    const gate = t.course.stages.find((stage) => stage.id === "gate")!;
+    for (const role of ROLES) {
+      const view = projectGameV2(t.game, t.course, t.user(role), t.now());
+      expect(view.self.mission).toBeNull();
+      for (const other of ROLES) expect(JSON.stringify(view)).not.toContain(gate.roles[other]!.intro.text);
+    }
+    for (const role of ROLES) await t.call(role, { action: "report-arrival", method: "simulated" });
+    for (const role of ROLES) {
+      const view = projectGameV2(t.game, t.course, t.user(role), t.now());
+      expect(view.self.mission?.intro.text).toBe(gate.roles[role]!.intro.text);
+      for (const other of ROLES) {
+        expect(JSON.stringify({ game: view.game, course: view.course, stage: view.stage })).not.toContain(gate.roles[other]!.intro.text);
+        if (other !== role) expect(JSON.stringify(view)).not.toContain(gate.roles[other]!.intro.text);
+      }
+    }
+    for (const role of ROLES) expect(JSON.stringify(t.events)).not.toContain(gate.roles[role]!.intro.text);
+  });
   it("runs four roles through dependencies, reports, lock and private sacho", async () => {
     const t = await team();
     expect(t.game.phase).toBe("mission");

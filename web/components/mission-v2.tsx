@@ -2,6 +2,7 @@
 
 import { type FormEvent, useState } from "react";
 import { BookOpen, Check, LockKeyhole, Radio } from "lucide-react";
+import { personalMissionBody } from "@/lib/gate-narration";
 import {
   type GameResponse,
   isV2Response,
@@ -21,6 +22,9 @@ import styles from "./mission-v2.module.css";
 import { RetroPanel, SharedDraftPanel } from "./closing-v2";
 import { YongbongPanel } from "./yongbong-panel";
 import { MissionAsset } from "./mission-asset";
+import { usesGateStory } from "@/lib/story-play";
+import { StoryMission } from "./story-mission";
+import { TributePanel } from "./tribute-v2";
 
 type Props = {
   snapshot: V2Response;
@@ -142,6 +146,10 @@ export function MissionV2({ snapshot, busy, send, onShowDigit }: Props & { onSho
   const { mission, role } = self;
   if (!mission || !role) return <p role="status">본인 조사를 불러오는 중…</p>;
   if (stage.completion.type === "joint-record") return <RetroPanel snapshot={snapshot} busy={busy} send={send} />;
+  if (stage.completion.type === "tribute") return <TributePanel snapshot={snapshot} busy={busy} send={send} />;
+  if (usesGateStory(stage.id, mission.steps)) return <StoryMission
+    key={`${game.id}:${stage.id}:${role}:${mission.steps.map((step) => step.id).join("|")}`}
+    snapshot={snapshot} busy={busy} send={send} onShowDigit={onShowDigit} />;
   const cleared = game.stage_phase === "done" || game.site_phase === "cleared";
   const complete = (step: Step) =>
     ["done", "explained"].includes(self.step_progress[step.id]?.status);
@@ -170,7 +178,7 @@ export function MissionV2({ snapshot, busy, send, onShowDigit }: Props & { onSho
             {mission.steps.filter(complete).length} / {mission.steps.length}
           </span>
         </div>
-        {mission.intro.trigger === "enter" && <p>{mission.intro.text}</p>}
+        {mission.intro.trigger === "enter" && <p>{stage.id === "gate" ? personalMissionBody(mission.intro.text) : mission.intro.text}</p>}
         {scenes.map((scene) => <p key={scene.id}>{scene.text}</p>)}
       </div>
       <MissionAsset asset={mission.asset} stageId={stage.id} role={role} />

@@ -5,6 +5,8 @@ import type { Stage } from "./types.ts";
 export const JNU_GPS_POINTS = {
   gate: { lat: 35.172851, lng: 126.905149 },
   yongbong: { lat: 35.175722, lng: 126.906345 },
+  // 2026-10-23 user-provided CSV reference point; field validation remains separate.
+  wall: { lat: 35.178197, lng: 126.907996 },
   bongji: { lat: 35.177269, lng: 126.906604 },
 } as const;
 
@@ -12,6 +14,8 @@ export function jnuGpsArrival(site: keyof typeof JNU_GPS_POINTS): Stage["arrival
   return {
     mode: "gps", confirmed: true, require: "all",
     ...JNU_GPS_POINTS[site], radiusM: 10, noticeM: 20, dwellSec: 5,
-    note: "2026-10-09 사용자 지정 좌표·시험 반경 10m. 휴대폰 4대 현장 검증은 별도.",
+    note: site === "wall"
+      ? "2026-10-23 사용자 제공 CSV 기준 좌표·시험 반경 10m. 휴대폰 4대 현장 검증은 별도."
+      : "2026-10-09 사용자 지정 좌표·시험 반경 10m. 휴대폰 4대 현장 검증은 별도.",
   };
 }

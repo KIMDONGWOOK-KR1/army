@@ -118,7 +118,9 @@ export function ResultV2({ snapshot: s }: { snapshot: V2Response }) {
     {result.stages.map((stage) => <section key={stage.stage_id} className={styles.card}>
       <h2>{stage.name} · {stage.completion}</h2><p>{stage.summary}</p>
       <p>도착: {stage.arrival_method === "simulated" ? "모의 확인" : "GPS 확인"}{stage.visit_mode === "outdoor" ? " · 외부 대체 조사" : ""}</p>
-      <ul>{stage.roles.map((r) => <li key={r.role}>{ROLE_NAMES[r.role]} · 조사 {r.completed}/{r.total} · 보고 {r.reported ? "완료" : "대기"}
+      <ul>{stage.roles.map((r) => stage.completion === "헌화 완료" ? <li key={r.role}>
+        {ROLE_NAMES[r.role]} · {r.reported ? "국화를 올림" : "헌화 대기"}
+      </li> : <li key={r.role}>{ROLE_NAMES[r.role]} · 조사 {r.completed}/{r.total} · 보고 {r.reported ? "완료" : "대기"}
         {` · 힌트 ${r.hint_level}단계 · 해설 ${r.explained}건 · 기록 ${r.records}건 · 교차 확인 ${r.cross_checks}건`}
         {!!r.methods.length && <><br />확인 방식: {r.methods.map((m) => ({ field: "현장", official_digital: "공식 디지털 자료", explained: "해설", simulated: "모의", proxy: "대리 확인" }[m])).join(", ")}</>}
       </li>)}</ul>

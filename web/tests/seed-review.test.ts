@@ -2,14 +2,14 @@ import { describe, expect, it } from "vitest";
 import { prepareReviewSeed, REVIEW_DEV_PROJECT_REF } from "../scripts/seed-review-course";
 import { fullDemoV2Input } from "../supabase/functions/_shared/wall-bongji-course-v2";
 import { assertEdgeCourseAllowed } from "../supabase/functions/_shared/deployment";
-import { allowsSimulatedArrival } from "../supabase/functions/_shared/arrival-policy";
+import { allowsSimulatedArrival, hasGpsArrival } from "../supabase/functions/_shared/arrival-policy";
 import { answerHashV2 } from "../supabase/functions/_shared/answer-v2";
 import { projectStageV2 } from "../supabase/functions/_shared/project-course-v2";
 import { ROLES } from "../supabase/functions/_shared/types";
 
 // Synthetic fixtures only. Tests never read private authoring files or deployed credentials.
 function setup() {
-  const source = fullDemoV2Input("jnu-demo-dev-test-source");
+  const source = fullDemoV2Input("jnu-demo-dev-test-source", "confirm");
   source.content.demo = false; source.privateInput.synthetic = false;
   const before = structuredClone(source);
   const args = ["--dev-project-ref", REVIEW_DEV_PROJECT_REF, "--course-id", "jnu-demo-dev-review-test", "content.json", "answers.json"];
@@ -19,7 +19,90 @@ function setup() {
   return { source, before, args, env, load };
 }
 
+function gpsSetup() {
+  const t = setup();
+  for (const [index, stage] of t.source.content.stages.entries()) {
+    stage.arrival = {
+      mode: "gps", require: "all", confirmed: stage.id !== "wall",
+      lat: stage.id === "wall" ? null : 37 + index / 1000,
+      lng: stage.id === "wall" ? null : 127 + index / 1000,
+      radiusM: 10, noticeM: 25, dwellSec: 5,
+    };
+  }
+  return { ...t, before: structuredClone(t.source),
+    gpsArgs: [...t.args.map((arg) => arg === "jnu-demo-dev-review-test" ? "jnu-demo-dev-review-gps-test" : arg), "--arrival-mode", "gps"] };
+}
+
 describe("private content dev review registration preparation", () => {
+  it("preserves the same tribute content and source GPS, allowing only the wall to wait for coordinates", async () => {
+    const t = gpsSetup();
+    const { course } = await prepareReviewSeed([...t.gpsArgs, "--wall-mode", "tribute"], t.env, t.load);
+    const { course: simulated } = await prepareReviewSeed([...t.args, "--wall-mode", "tribute"], t.env, t.load);
+    expect(course.id).toBe("jnu-demo-dev-review-gps-test");
+    expect(course.stages.filter((stage) => hasGpsArrival(stage.arrival)).map((stage) => stage.id))
+      .toEqual(["gate", "yongbong", "bongji"]);
+    for (const stage of course.stages) {
+      expect(stage.arrival).toEqual(t.source.content.stages.find((source) => source.id === stage.id)!.arrival);
+      expect(allowsSimulatedArrival(course, stage.arrival)).toBe(false);
+      const sameStage = simulated.stages.find((candidate) => candidate.id === stage.id)!;
+      const { arrival: gpsArrival, ...gpsContent } = stage;
+      const { arrival: simulatedArrival, ...simulatedContent } = sameStage;
+      expect(gpsContent).toEqual(simulatedContent);
+      expect(gpsArrival.mode).toBe("gps");
+      expect(simulatedArrival.mode).toBe("none");
+      expect(course.private.stages[stage.id].roles).toEqual(simulated.private.stages[stage.id].roles);
+      for (const [stepId, privateStep] of Object.entries(course.private.stages[stage.id].steps)) {
+        const { answerHash: gpsHash, ...gpsPrivate } = privateStep;
+        const { answerHash: simulatedHash, ...simulatedPrivate } = simulated.private.stages[stage.id].steps[stepId];
+        expect(gpsPrivate).toEqual(simulatedPrivate);
+        if (gpsHash) expect(gpsHash).not.toBe(simulatedHash); // Each immutable ID has its own answer hash scope.
+      }
+    }
+    expect(course.stages.find((stage) => stage.id === "wall")).toMatchObject({
+      completion: { type: "tribute" },
+      arrival: { mode: "gps", require: "all", confirmed: false, lat: null, lng: null },
+    });
+    expect(t.source).toEqual(t.before);
+  });
+
+  it("rejects GPS mode/ID mismatches and unknown modes before reading private inputs", async () => {
+    const t = gpsSetup();
+    let reads = 0;
+    const load = async () => { reads++; return null; };
+    for (const args of [
+      [...t.args, "--arrival-mode", "gps"],
+      t.gpsArgs.filter((arg) => !["--arrival-mode", "gps"].includes(arg)),
+      t.gpsArgs.map((arg) => arg === "gps" ? "simulated" : arg),
+      [...t.args, "--arrival-mode", "mixed"],
+    ]) await expect(prepareReviewSeed(args, t.env, load)).rejects.toThrow();
+    expect(reads).toBe(0);
+  });
+
+  it("rejects missing GPS outside the wall and does not approve or replace invalid arrival settings", async () => {
+    for (const patch of [
+      { confirmed: false, lat: null, lng: null },
+      { mode: "none" as const },
+      { require: "any" as const },
+      { dwellSec: 0 },
+    ]) {
+      const t = gpsSetup();
+      Object.assign(t.source.content.stages.find((stage) => stage.id === "gate")!.arrival, patch);
+      const before = structuredClone(t.source);
+      await expect(prepareReviewSeed(t.gpsArgs, t.env, t.load)).rejects.toThrow();
+      expect(t.source).toEqual(before);
+    }
+    for (const patch of [
+      { mode: "none" as const },
+      { require: "any" as const },
+      { confirmed: true },
+      { lat: 37, lng: 127 },
+    ]) {
+      const t = gpsSetup();
+      Object.assign(t.source.content.stages.find((stage) => stage.id === "wall")!.arrival, patch);
+      await expect(prepareReviewSeed(t.gpsArgs, t.env, t.load)).rejects.toThrow();
+    }
+  });
+
   it("creates a separate dev copy without changing the authoring input or GPS", async () => {
     const t = setup(), { course } = await prepareReviewSeed(t.args, t.env, t.load);
     expect(t.source).toEqual(t.before);
@@ -43,6 +126,26 @@ describe("private content dev review registration preparation", () => {
       expect(JSON.stringify(projected)).not.toMatch(/"(answerHash|private|hints|explanation)"/);
       if (role !== "commander") expect(projected.self).not.toHaveProperty("transfer_clue");
     }
+  });
+  it("changes the review wall only with the explicit tribute option and leaves the original untouched", async () => {
+    const t = setup();
+    const oldReview = await prepareReviewSeed(t.args, t.env, t.load);
+    const { course } = await prepareReviewSeed([...t.args, "--wall-mode", "tribute"], t.env, t.load);
+    expect(oldReview.course.stages.find((stage) => stage.id === "wall")!.completion.type).toBe("confirm");
+    expect(course.stages.find((stage) => stage.id === "wall")).toMatchObject({
+      completion: { type: "tribute" }, quiet: true, scoring: { enabled: false }, arrival: { mode: "none", require: "all" },
+    });
+    expect(course.stages.find((stage) => stage.id === "wall")).not.toHaveProperty("recordTemplate");
+    for (const stage of course.stages.filter((stage) => stage.id !== "wall")) {
+      expect(stage).toEqual(oldReview.course.stages.find((other) => other.id === stage.id));
+      expect(course.private.stages[stage.id]).toEqual(oldReview.course.private.stages[stage.id]);
+    }
+    expect(Object.keys(course.private.stages.wall.steps)).toHaveLength(4);
+    for (const step of Object.values(course.private.stages.wall.steps)) expect(Object.keys(step)).toEqual(["explanation"]);
+    expect(t.source).toEqual(t.before);
+    let reads = 0;
+    await expect(prepareReviewSeed([...t.args, "--wall-mode", "unknown"], t.env, async () => { reads++; return null; })).rejects.toThrow();
+    expect(reads).toBe(0);
   });
   it("rejects another project or URL and non-review or overlong identifiers before reading input", async () => {
     const t = setup();
