@@ -35,8 +35,12 @@ def _empty(image: np.ndarray, dim: int) -> LocalFeatures:
 def count_inliers(pts0: np.ndarray, pts1: np.ndarray, thresh_px: float = 3.0) -> int:
     if len(pts0) < MIN_POINTS:
         return 0
-    _, mask = cv2.findFundamentalMat(np.asarray(pts0, np.float64), np.asarray(pts1, np.float64),
-                                     cv2.USAC_MAGSAC, thresh_px, 0.999, 10000)
+    try:
+        _, mask = cv2.findFundamentalMat(np.asarray(pts0, np.float64), np.asarray(pts1, np.float64),
+                                         cv2.USAC_MAGSAC, thresh_px, 0.999, 10000)
+    except cv2.error:
+        # 흔들린 사진처럼 일치점이 적고 퇴화되면 MAGSAC이 모델 없이 예외를 던진다. 기하 검증 실패로 본다.
+        return 0
     return 0 if mask is None else int(mask.ravel().astype(bool).sum())
 
 
