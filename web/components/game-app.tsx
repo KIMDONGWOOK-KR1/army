@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import { useGameAny } from "./use-game";
 import { useLocation } from "./use-location";
-import { allowsSimulatedArrival } from "@/supabase/functions/_shared/arrival-policy";
+import { allowsSimulatedArrival, hasGpsArrival, isGpsReviewCourse } from "@/supabase/functions/_shared/arrival-policy";
 import { useLockDraft } from "./use-lock-draft";
 import {
   handoffPane,
@@ -213,6 +213,9 @@ export default function GameApp({
   const soloDemo = !!s?.game.demo && !v2;
   const isContentReview = s?.course.demo === true &&
     s.course.id.startsWith("jnu-demo-dev-review-");
+  const gpsReview = !!v2 && isGpsReviewCourse(v2.course);
+  const gpsCoordinatesPending = gpsReview && v2.stage.kind !== "prologue" &&
+    !hasGpsArrival(v2.stage.arrival);
   const simulatedArrival = !!v2 && allowsSimulatedArrival(v2.course, v2.stage.arrival);
   const ownArrival = !!v2?.self.role &&
     v2.game.arrival_mask[ROLES.indexOf(v2.self.role)];
@@ -245,6 +248,9 @@ export default function GameApp({
     return next;
   }, [rawRetry, rememberCompletion]);
   const location = useLocation(s, send), lockDraft = useLockDraft(s);
+  useEffect(() => {
+    if (gpsCoordinatesPending) location.stop();
+  }, [gpsCoordinatesPending, v2?.game.id, v2?.stage.id]);
   useEffect(() => {
     if (!v2 || v2.game.site_phase !== "cleared") {
       setCompletionNotice(null);
@@ -1101,9 +1107,9 @@ export default function GameApp({
                       </button>
                       <button
                         className="button primary"
-                        disabled={busy}
+                        disabled={busy || gpsCoordinatesPending}
                         onClick={() => {
-                          location.start();
+                          if (!gpsCoordinatesPending) location.start();
                           void send({ action: "set-ready" });
                         }}
                       >
@@ -1129,6 +1135,23 @@ export default function GameApp({
               </section>
             </>
           ) : scene === "travel" ? (
+            gpsCoordinatesPending ? (
+              <section className="game-console" data-testid="gps-review-pending">
+                <div className="console-copy">
+                  <span className="eyebrow">정식 콘텐츠 GPS 검수</span>
+                  <h1 data-scene-heading tabIndex={-1}>
+                    {site!.name} GPS 좌표 등록 대기
+                  </h1>
+                  <p role="status">
+                    이 거점의 GPS 좌표가 아직 확정되지 않았다. 좌표가 확정된 새 코스와 새 방에서 다시 확인할 수 있다.
+                  </p>
+                  <p>이 GPS 검수 코스에서는 모의 도착으로 건너뛸 수 없다.</p>
+                </div>
+                <button className="button secondary" onClick={() => setModal("menu")}>
+                  메뉴
+                </button>
+              </section>
+            ) : (
             <div className="travel-stage">
               <Field3D
                 siteSeq={site!.seq}
@@ -1178,6 +1201,7 @@ export default function GameApp({
                 onMenu={() => setModal("menu")}
               />
             </div>
+            )
           ) : scene === "mission" ? (
             <>
               <div className="mission-header">
@@ -1651,7 +1675,9 @@ export default function GameApp({
               </p>
               <p>
                 {v2
-                  ? simulatedArrival
+                  ? gpsCoordinatesPending
+                    ? `${site?.name ?? "이 거점"} GPS 좌표 등록 대기 중이다. 모의 도착으로 건너뛸 수 없다.`
+                    : simulatedArrival
                     ? "각자가 본인 모의 도착 버튼으로 개발 시연을 진행한다."
                     : `GPS를 켜고 반경 ${site?.radiusM ?? 10}m 안에서 5초간 기다리라. 네 명 모두 도착해야 미션이 열린다.`
                   : "위치 확인이 어려우면 이동 시작 30초 후 지휘관이 수동 도착할 수 있다."}
@@ -1659,7 +1685,9 @@ export default function GameApp({
               </p>
               <p>
                 <Shield size={16} /> 추모 공간을 존중하며 안전하게 이동하라.
-                {isContentReview
+                {gpsReview
+                  ? "정식 콘텐츠 GPS 검수 · 네 명 모두 현장 반경 안에서 GPS 도착을 확인한다."
+                  : isContentReview
                   ? "정식 콘텐츠 검수 · 모의 도착. 실제 현장 GPS 검증에 해당하지 않는다."
                   : (s?.course.demo ?? backend === "local")
                     ? v2?.stage.arrival.confirmed ? "GPS 좌표는 지정됐으며 문항은 시연용이다." : "시연 코스의 실제 좌표와 문항은 미확정이다."

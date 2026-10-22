@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { gateNarrationFrames, nextNarrationFrame } from "../lib/gate-narration";
+import { gateNarrationFrames, nextNarrationFrame, personalMissionBody } from "../lib/gate-narration";
 import { ROLES, type RoleMission, type SceneText } from "../supabase/functions/_shared/types";
 
 const scene = (text: string, trigger: SceneText["trigger"] = "enter"): SceneText => ({
   id: `synthetic-${trigger}`, channel: "narration", text, trigger,
 });
-const mission = (intro = scene("[합성 개인 임무]\n내 안내만 읽는다.")):
+const mission = (intro = scene("[합성 담당 임무]\n내 안내만 읽는다.")):
   Pick<RoleMission, "intro" | "scenes"> => ({
     intro,
     scenes: [scene("합성 대체 안내"), scene("나중에 열릴 안내", "role-complete")],
@@ -28,10 +28,17 @@ describe("정문 본인 나레이션 순서", () => {
 
   it("본인 intro를 우선하고 다른 이벤트의 안내를 미리 섞지 않는다", () => {
     const personal = frames()[1];
-    expect(personal.lines).toEqual(["[합성 개인 임무]\n내 안내만 읽는다."]);
-    expect(personal.emphasis).toBe("first-line");
+    expect(personal.lines).toEqual(["내 안내만 읽는다."]);
+    expect(personal.emphasis).toBeUndefined();
     expect(JSON.stringify(personal)).not.toContain("나중에 열릴 안내");
     expect(JSON.stringify(personal)).not.toContain("합성 대체 안내");
+  });
+
+  it("이전 코스의 중복 임무 제목만 없애고 본문의 대괄호 자료는 유지한다", () => {
+    expect(personalMissionBody("[합성 담당 임무]\r\n첫 문장.\n[자료 A] 두 번째 문장."))
+      .toBe("첫 문장.\n[자료 A] 두 번째 문장.");
+    expect(personalMissionBody("[자료 A]\n단서를 확인한다."))
+      .toBe("[자료 A]\n단서를 확인한다.");
   });
 
   it("intro가 비어 있으면 본인 enter 장면만 대체로 사용한다", () => {

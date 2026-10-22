@@ -2,6 +2,7 @@
 
 import { type FormEvent, useState } from "react";
 import { BookOpen, Check, LockKeyhole, Radio } from "lucide-react";
+import { personalMissionBody } from "@/lib/gate-narration";
 import {
   type GameResponse,
   isV2Response,
@@ -177,7 +178,7 @@ export function MissionV2({ snapshot, busy, send, onShowDigit }: Props & { onSho
             {mission.steps.filter(complete).length} / {mission.steps.length}
           </span>
         </div>
-        {mission.intro.trigger === "enter" && <p>{mission.intro.text}</p>}
+        {mission.intro.trigger === "enter" && <p>{stage.id === "gate" ? personalMissionBody(mission.intro.text) : mission.intro.text}</p>}
         {scenes.map((scene) => <p key={scene.id}>{scene.text}</p>)}
       </div>
       <MissionAsset asset={mission.asset} stageId={stage.id} role={role} />

@@ -28,6 +28,7 @@
 - `report-arrival`: `{action:"report-arrival", game_id, stage_id, request_id, method:"gps"}`. 본인만 기록하며 네 명 모두 도착해야 문제·힌트·보고·자물쇠가 열린다. 응답 형식은 기존 Snapshot과 동일하며 `game.arrival_mask`와 `game.site_phase`로 진행을 확인한다.
 - `manual`, `manual:true`, `qr`는 `FORBIDDEN`. 확정 GPS 코스의 `simulated`도 `FORBIDDEN`. GPS 좌표·전원 조건·반경·5초 설정이 유효하지 않으면 `CONTENT_UNCONFIRMED`. 도착 전 미션 액션은 `WRONG_PHASE`.
 - `method:"simulated"`는 기존 dev ID의 `demo:true`이면서 `arrival.confirmed:false`인 실내 개발 시연에만 남긴다. `v1-gate-gps`는 문항이 시연용이어도 `arrival.confirmed:true`이므로 모의 도착을 허용하지 않는다.
+- 최신 콘텐츠의 GPS 검수 ID `jnu-demo-dev-review-gps-*`는 미확정 거점에서도 `simulated`를 허용하지 않는다. 추모의 벽 좌표가 `null`이면 GPS 도착은 `CONTENT_UNCONFIRMED`, 수동·QR·모의 도착은 `FORBIDDEN`이다. FE는 해당 거점에서 좌표 등록 대기 안내를 표시하며 지도·도착 버튼을 숨긴다. 등록 방법은 [최신 콘텐츠 GPS 적용](../fe/GATE_TRIBUTE_INTEGRATION.md#최신-콘텐츠의-gps-검수-적용)을 따른다.
 - 도착 기록은 재접속 시 유지된다. 이번 조건은 미션 최초 개방 조건이며 도착 후 반경을 벗어날 때 미션을 다시 잠그는 기능은 아니다.
 - 브라우저가 GPS를 판정하고 서버가 인증된 사용자의 도착 보고를 신뢰한다. 직접 API 호출·위치 조작을 서버에서 물리적으로 인증하는 방식은 아니다.
 - 확정 좌표·현장 시험 및 새 코스 리비전 적용은 [GPS 적용 안내](GPS_APPLY.md)를 따른다. 합성 fixtures는 계속 합성 좌표·상태를 사용한다.

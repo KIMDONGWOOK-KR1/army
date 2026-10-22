@@ -1,11 +1,11 @@
 "use client";
 import { ResultV2 } from "./closing-v2";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useGameV2 } from "./use-game";
 import { VerifyMission } from "./verify-mission";
 import { useLocation } from "./use-location";
-import { allowsSimulatedArrival } from "@/supabase/functions/_shared/arrival-policy";
+import { allowsSimulatedArrival, hasGpsArrival, isGpsReviewCourse } from "@/supabase/functions/_shared/arrival-policy";
 import { ROLE_NAMES, ROLES } from "@/supabase/functions/_shared/types";
 
 export default function VerifyApp() {
@@ -26,9 +26,15 @@ export default function VerifyApp() {
     s.course.id.startsWith("jnu-demo-dev-");
   const isContentReview = s?.course.demo === true &&
     s.course.id.startsWith("jnu-demo-dev-review-");
+  const gpsReview = !!s && isGpsReviewCourse(s.course);
+  const gpsCoordinatesPending = gpsReview && s.stage.kind !== "prologue" &&
+    !hasGpsArrival(s.stage.arrival);
   const myIndex = s?.self.role ? ROLES.indexOf(s.self.role) : -1;
   const location = useLocation(s, send);
   const canSimulate = !!s && allowsSimulatedArrival(s.course, s.stage.arrival);
+  useEffect(() => {
+    if (gpsCoordinatesPending) location.stop();
+  }, [gpsCoordinatesPending, s?.game.id, s?.stage.id]);
 
   return (
     <div className="verify-page">
@@ -36,10 +42,12 @@ export default function VerifyApp() {
         <header className="verify-card verify-stack">
           <h1>전체 코스 v2 확인용 화면</h1>
           <p>
-            {isContentReview
+            {gpsReview
+              ? "정식 콘텐츠 GPS 검수 · 네 명 모두 현장 반경 안에서 도착을 확인한다."
+              : isContentReview
               ? "정식 콘텐츠 검수 · 모의 도착으로 4인 흐름을 확인하는 임시 화면이다."
               : "합성 코스로 4인 흐름을 확인하는 임시 화면이다."}{" "}
-            모의 도착은 실제 현장 GPS 검증에 해당하지 않는다.
+            {!gpsReview && "모의 도착은 실제 현장 GPS 검증에 해당하지 않는다."}
           </p>
           <a href="/">기존 게임 화면</a>
         </header>
@@ -234,13 +242,19 @@ export default function VerifyApp() {
               {s.game.status === "playing" && s.game.site_phase === "travel" &&
                 (
                   <section className="verify-card verify-stack">
-                    <h2>{s.stage.name} 도착 확인 · {s.current_site.radiusM}m</h2>
+                    <h2>{gpsCoordinatesPending
+                      ? `${s.stage.name} GPS 좌표 등록 대기`
+                      : `${s.stage.name} 도착 확인 · ${s.current_site.radiusM}m`}</h2>
                     <p>
-                      {canSimulate ? "각자 본인의 모의 도착 버튼을 누른다."
+                      {gpsCoordinatesPending
+                        ? "이 거점의 GPS 좌표가 아직 확정되지 않았다. 좌표가 확정된 새 코스와 새 방에서 다시 확인할 수 있다."
+                        : canSimulate ? "각자 본인의 모의 도착 버튼을 누른다."
                         : "GPS를 켜고 반경 안에서 5초간 기다리라. 네 명 모두 도착해야 미션이 열린다."}
                     </p>
-                    {!canSimulate && <p role="status">{location.status} · 전원 도착 {s.game.arrival_mask.filter(Boolean).length}/4</p>}
-                    <button
+                    {gpsCoordinatesPending
+                      ? <p role="status" data-testid="gps-review-pending">이 GPS 검수 코스에서는 모의 도착으로 건너뛸 수 없다.</p>
+                      : !canSimulate && <p role="status">{location.status} · 전원 도착 {s.game.arrival_mask.filter(Boolean).length}/4</p>}
+                    {!gpsCoordinatesPending && <button
                       type="button"
                       className="button primary"
                       disabled={busy || myIndex < 0 ||
@@ -253,7 +267,7 @@ export default function VerifyApp() {
                         }) : location.start()}
                     >
                       {canSimulate ? "본인 모의 도착 확인" : "GPS 위치 확인"}
-                    </button>
+                    </button>}
                   </section>
                 )}
               {s.game.status === "playing" && s.game.site_phase !== "travel" &&

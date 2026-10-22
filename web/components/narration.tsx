@@ -25,9 +25,12 @@ export function Narration({
   const close = useRef(onClose);
   close.current = onClose;
   const done = shown >= full.length;
-  const visibleText = full.slice(0, shown);
-  const emphasisStart = emphasis === "last-line" ? full.lastIndexOf("\n") + 1 : 0;
-  const emphasisEnd = emphasis === "first-line" && full.includes("\n") ? full.indexOf("\n") : full.length;
+  // Reserve the complete sentence layout so typing does not move words between lines.
+  const reveal = (start: number, end: number) => {
+    const text = full.slice(start, end);
+    const count = Math.max(0, shown - start);
+    return <>{text.slice(0, count)}<span style={{ visibility: "hidden" }}>{text.slice(count)}</span></>;
+  };
   useEffect(() => {
     if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches)
       setShown(full.length);
@@ -75,12 +78,17 @@ export function Narration({
       </p>
       <p className="narration-sr">{lines.join(" ")}</p>
       <div className="narration-text" aria-hidden="true">
-        {emphasis ? <>
-          {visibleText.slice(0, emphasisStart)}
-          <strong>{visibleText.slice(emphasisStart, emphasisEnd)}</strong>
-          {visibleText.slice(emphasisEnd)}
-        </> : visibleText}
-        <span className="narration-caret" />
+        {full.split("\n").map((line, index, paragraphs) => {
+          const start = paragraphs.slice(0, index).join("\n").length + (index > 0 ? 1 : 0);
+          const emphasized = emphasis === "first-line" ? index === 0
+            : emphasis === "last-line" && index === paragraphs.length - 1;
+          const text = reveal(start, start + line.length);
+          return <span className="narration-line" key={index}>
+            {emphasized ? <strong>{text}</strong> : text}
+            {index === paragraphs.length - 1 && <span className="narration-caret" style={{ visibility: done ? "visible" : "hidden" }} />}
+            {index < paragraphs.length - 1 ? "\n" : null}
+          </span>;
+        })}
       </div>
       <button
         className="narration-close"

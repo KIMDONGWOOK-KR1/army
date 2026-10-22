@@ -3,6 +3,7 @@ import { useRef, useState, type CSSProperties } from "react";
 import { ArrowRight, Check, CircleHelp, LockKeyhole, Radio, Send } from "lucide-react";
 import { ROLES, ROLE_NAMES, type SceneText } from "@/supabase/functions/_shared/types";
 import { playCopy, STORY_TOOLS } from "@/lib/story-play";
+import { personalMissionBody } from "@/lib/gate-narration";
 import { ROLE_COLORS, ROLE_ICONS } from "./role-style";
 import { StoryChallenge, type StoryProps } from "./story-challenge";
 import { MissionAsset } from "./mission-asset";
@@ -86,7 +87,7 @@ export function StoryMission(props: StoryProps) {
     </section>
     <StorySupport {...props} busy={busy || cleared} />
     <details className={s.disclosure}><summary><CircleHelp size={18} aria-hidden />작전 이야기·관찰 안내</summary>
-      {visibleScene(mission.intro) && <p>{mission.intro.text}</p>}
+      {visibleScene(mission.intro) && <p>{personalMissionBody(mission.intro.text)}</p>}
       <MissionAsset asset={mission.asset} stageId={stage.id} role={role} />
       {stage.narration.filter(visibleScene).map((line) => <p key={line.id}>{line.text}</p>)}
       {mission.scenes.filter(visibleScene).map((scene) => <p key={scene.id}>{scene.text}</p>)}

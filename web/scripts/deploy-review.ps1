@@ -1,11 +1,13 @@
 ﻿# User-run only. Registers an immutable review copy in the designated dev project.
 # Actual content files and secrets are never copied into the Vercel archive.
-param([switch]$TributeWall)
+param([switch]$TributeWall, [switch]$Gps)
 
 $ErrorActionPreference = 'Stop'
 $repoPath = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
 $devRef = 'vmadbgniurfzqygqidzw'
-$courseId = 'jnu-demo-dev-review-' + (Get-Date -Format 'yyyyMMddHHmmss')
+$arrivalMode = if ($Gps) { 'gps' } else { 'simulated' }
+$coursePrefix = if ($Gps) { 'jnu-demo-dev-review-gps-' } else { 'jnu-demo-dev-review-' }
+$courseId = $coursePrefix + (Get-Date -Format 'yyyyMMddHHmmss')
 $contentFile = Join-Path $repoPath 'private\official-authoring\course.content.private.local.json'
 $answersFile = Join-Path $repoPath 'private\official-authoring\course.answers.private.local.json'
 $projectFile = 'C:\Users\kjy00\Desktop\Real\army\.vercel\project.json'
@@ -30,9 +32,9 @@ try {
     try {
         $env:SUPABASE_SERVICE_ROLE_KEY = [System.Net.NetworkCredential]::new('', $serviceKeyInput).Password
         $env:ANSWER_SALT = [System.Net.NetworkCredential]::new('', $saltInput).Password
-        npm.cmd run seed:review -- --validate-only --dev-project-ref $devRef --course-id $courseId @wallArgs $contentFile $answersFile
+        npm.cmd run seed:review -- --validate-only --dev-project-ref $devRef --course-id $courseId --arrival-mode $arrivalMode @wallArgs $contentFile $answersFile
         if ($LASTEXITCODE -ne 0) { throw '검수 코스 검증 실패: 등록 중지' }
-        npm.cmd run seed:review -- --dev-project-ref $devRef --course-id $courseId @wallArgs $contentFile $answersFile
+        npm.cmd run seed:review -- --dev-project-ref $devRef --course-id $courseId --arrival-mode $arrivalMode @wallArgs $contentFile $answersFile
         if ($LASTEXITCODE -ne 0) { throw '검수 코스 등록 실패: 배포 중지' }
     } finally {
         Remove-Item Env:SUPABASE_SERVICE_ROLE_KEY -ErrorAction SilentlyContinue
@@ -61,7 +63,12 @@ try {
     npx.cmd supabase functions deploy game --project-ref $devRef
     if ($LASTEXITCODE -ne 0) { throw '최종 Edge 배포 실패: 재배포 후 새 방을 확인하세요' }
     Write-Host "완료: $courseId"
-    Write-Host 'https://hoguk-dev-web.vercel.app/ 에서 새 방을 만들고 네 명 각각 모의 도착하세요.'
+    if ($Gps) {
+        Write-Host 'https://hoguk-dev-web.vercel.app/ 에서 새 방을 만들고 네 명 각각 GPS 도착 조건을 충족하세요.'
+        Write-Host '추모의 벽 좌표가 미등록이면 해당 거점에서 진행 대기합니다. GPS 검수 코스는 모의 도착으로 우회할 수 없습니다.'
+    } else {
+        Write-Host 'https://hoguk-dev-web.vercel.app/ 에서 새 방을 만들고 네 명 각각 모의 도착하세요.'
+    }
 } finally {
     Set-Location $originalLocation
 }

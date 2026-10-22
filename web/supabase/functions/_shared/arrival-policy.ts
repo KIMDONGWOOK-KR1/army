@@ -1,12 +1,16 @@
 import type { Stage } from "./types.ts";
 
+export function isGpsReviewCourse(course: { id: string; demo: boolean }) {
+  return course.demo && course.id.startsWith("jnu-demo-dev-review-gps-");
+}
+
 // No server-only imports: the UI and engine must expose the same dev-only action.
 export function allowsSimulatedArrival(
   course: { id: string; demo: boolean },
   arrival: Pick<Stage["arrival"], "confirmed">,
 ) {
   return course.demo && /^jnu-demo-dev-[a-z0-9_-]+$/.test(course.id) &&
-    course.id.length <= 40 && !arrival.confirmed;
+    course.id.length <= 40 && !arrival.confirmed && !isGpsReviewCourse(course);
 }
 
 export function hasGpsArrival(arrival: Stage["arrival"]) {
