@@ -2273,6 +2273,8 @@ html[data-mockup] .game-viewport {
   justify-content: center;
   gap: 28px;
   padding: 40px 28px 32px;
+  min-height: 0;
+  overflow: hidden;
   background: radial-gradient(ellipse at 50% 45%, #2a2721, #12110e 80%);
   color: #efe6cf;
   animation: narration-in 0.5s ease-out;
@@ -2280,6 +2282,7 @@ html[data-mockup] .game-viewport {
 }
 .narration-label {
   align-self: flex-start;
+  flex-shrink: 0;
   font: 700 15px var(--sans);
   letter-spacing: 0.3em;
   color: #e9604a;
@@ -2296,7 +2299,9 @@ html[data-mockup] .game-viewport {
   white-space: nowrap;
 }
 .narration-text {
-  min-height: 9.5em;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   font:
     600 19px/2 "Noto Serif KR",
     "Batang",
@@ -2316,6 +2321,7 @@ html[data-mockup] .game-viewport {
 }
 .narration-close {
   align-self: flex-end;
+  flex-shrink: 0;
   min-height: 46px;
   padding: 8px 22px;
   background: transparent;

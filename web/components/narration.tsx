@@ -7,16 +7,27 @@ export function Narration({
   lines,
   onClose,
   auto = false,
+  label = "기록",
+  closeLabel = "계속",
+  kind = "common",
+  emphasis,
 }: {
   lines: string[];
   onClose: () => void;
   auto?: boolean;
+  label?: string;
+  closeLabel?: string;
+  kind?: "common" | "personal";
+  emphasis?: "first-line" | "last-line";
 }) {
   const full = lines.join("\n");
   const [shown, setShown] = useState(0);
   const close = useRef(onClose);
   close.current = onClose;
   const done = shown >= full.length;
+  const visibleText = full.slice(0, shown);
+  const emphasisStart = emphasis === "last-line" ? full.lastIndexOf("\n") + 1 : 0;
+  const emphasisEnd = emphasis === "first-line" && full.includes("\n") ? full.indexOf("\n") : full.length;
   useEffect(() => {
     if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches)
       setShown(full.length);
@@ -42,7 +53,10 @@ export function Narration({
   }, [auto, done]);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") close.current();
+      if (e.key === "Escape" && !e.repeat) {
+        e.preventDefault();
+        close.current();
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -50,17 +64,22 @@ export function Narration({
   return (
     <div
       className="narration"
+      data-narration-kind={kind}
       role="dialog"
       aria-modal="true"
-      aria-label="기록"
+      aria-label={label}
       onClick={() => setShown(full.length)}
     >
       <p className="narration-label" aria-hidden="true">
-        記錄
+        {label === "기록" ? "記錄" : label}
       </p>
       <p className="narration-sr">{lines.join(" ")}</p>
       <div className="narration-text" aria-hidden="true">
-        {full.slice(0, shown)}
+        {emphasis ? <>
+          {visibleText.slice(0, emphasisStart)}
+          <strong>{visibleText.slice(emphasisStart, emphasisEnd)}</strong>
+          {visibleText.slice(emphasisEnd)}
+        </> : visibleText}
         <span className="narration-caret" />
       </div>
       <button
@@ -71,7 +90,7 @@ export function Narration({
           onClose();
         }}
       >
-        {done ? "계속" : "건너뛰기"}
+        {done ? closeLabel : "건너뛰기"}
       </button>
     </div>
   );

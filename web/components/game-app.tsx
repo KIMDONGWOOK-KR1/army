@@ -64,6 +64,7 @@ import {
   narrationLines,
   narrationSeen,
 } from "@/lib/narration";
+import { gateNarrationFrames, nextNarrationFrame, type NarrationFrame } from "@/lib/gate-narration";
 import {
   ROLES,
   ROLE_NAMES,
@@ -514,21 +515,40 @@ export default function GameApp({
   ) : v2?.stage.narration.filter((line) =>
     line.trigger === narrationTrigger
   ).map((line) => line.text) ?? [];
-  const [narration, setNarration] = useState<string | null>(null);
+  const narrationFrames: NarrationFrame[] = v2 && !legacyGate &&
+    v2.stage.id === "gate" && ARRIVAL_SCENES.includes(scene)
+    ? gateNarrationFrames({
+      stageId: v2.stage.id,
+      role: v2.self.role,
+      commonLines: stageNarration,
+      mission: v2.self.mission,
+    })
+    : narrationKey && (!v2 || stageNarration.length > 0) ? [{
+      key: narrationKey,
+      lines: v2 ? stageNarration : narrationLines(
+        narrationKey.split(":")[0] as "intro" | "arrive" | "sacho", site,
+      ),
+      kind: "common",
+    }] : [];
+  const narrationSignature = JSON.stringify(narrationFrames);
+  const [openNarration, setOpenNarration] = useState<{ gameId: string; key: string } | null>(null);
+  const readNarrations = useRef(new Set<string>());
+  const enabledNarration = narrationEnabled();
+  const activeNarration = enabledNarration && openNarration && openNarration.gameId === gameId
+    ? narrationFrames.find((frame) => frame.key === openNarration.key)
+    : undefined;
+  const narration = activeNarration?.key ?? null;
+  const hasReadNarration = (key: string) => !!gameId && (
+    readNarrations.current.has(`${gameId}:${key}`) || narrationSeen(gameId, key)
+  );
   useEffect(() => {
-    if (!gameId) return setNarration(null);
-    setNarration((open) => {
-      if (open && open !== narrationKey) markNarrationSeen(gameId, open);
-      if (v2 && stageNarration.length === 0) return null;
-      if (open === narrationKey) return open;
-      return narrationKey &&
-        !stop &&
-        narrationEnabled() && (!v2 || stageNarration.length > 0) &&
-        !narrationSeen(gameId, narrationKey)
-        ? narrationKey
-        : null;
+    if (!gameId || stop || !enabledNarration) return setOpenNarration(null);
+    setOpenNarration((open) => {
+      if (open?.gameId === gameId && narrationFrames.some((frame) => frame.key === open.key)) return open;
+      const next = nextNarrationFrame(narrationFrames, hasReadNarration);
+      return next ? { gameId, key: next.key } : null;
     });
-  }, [gameId, narrationKey, stop, !!v2, stageNarration.join("\n")]);
+  }, [gameId, narrationSignature, stop, enabledNarration]);
   // 이동 중 5·18 조용한 구역 안인가(배경음을 추모 숨결로). 지도가 아직 위치를 알리기 전에는
   // 이 다리가 시작하는 자리(앞 거점)가 추모 거점이었는지로 어림한다(정문을 막 떠나는 길).
   const leavingReverent = !!s?.course.sites.find(
@@ -622,9 +642,12 @@ export default function GameApp({
     if (was > 0 && crew > was) play("join");
   }, [crew]);
   const closeNarration = () => {
-    if (gameId && narration) markNarrationSeen(gameId, narration);
-    setNarration(null);
-    requestAnimationFrame(focusHeading);
+    if (!gameId || !narration) return;
+    readNarrations.current.add(`${gameId}:${narration}`);
+    markNarrationSeen(gameId, narration);
+    const next = nextNarrationFrame(narrationFrames, hasReadNarration);
+    setOpenNarration(next ? { gameId, key: next.key } : null);
+    if (!next) requestAnimationFrame(focusHeading);
   };
   const closeStop = () => {
     if (gameId && stop) markStopSeen(gameId, stop);
@@ -1408,13 +1431,14 @@ export default function GameApp({
             onClose={closeStop}
           />
         )}
-        {narration && !stop && (
+        {activeNarration && !stop && (
           <Narration
-            key={narration}
-            lines={v2 ? stageNarration : narrationLines(
-              narration.split(":")[0] as "intro" | "arrive" | "sacho",
-              site,
-            )}
+            key={`${gameId}:${activeNarration.key}`}
+            lines={activeNarration.lines}
+            label={activeNarration.label}
+            closeLabel={activeNarration.closeLabel}
+            kind={activeNarration.kind}
+            emphasis={activeNarration.emphasis}
             onClose={closeNarration}
             auto={auto && !v2}
           />
