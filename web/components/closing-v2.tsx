@@ -21,6 +21,10 @@ export function SharedDraftPanel({ snapshot, busy, send }: Props) {
   const ready = game.report_mask.every(Boolean) && (memorial || game.retro_mask?.every(Boolean));
   const closed = game.site_phase === "cleared" || game.status === "done";
   if (!template || !self.role) return null;
+  const sentence = template.sentenceParts?.reduce((value, part, index) =>
+    value + (index ? words[index - 1] : "") + part, "");
+  const preview = template.sentenceParts?.reduce((value, part, index) =>
+    value + (index ? words[index - 1] || `[낱말 ${index}]` : "") + part, "");
   const edit = () => {
     setText(draft?.text ?? ""); setReason(draft?.reason ?? "");
     setWords(draft?.words ?? Array<string>(template.wordCount).fill(""));
@@ -45,7 +49,7 @@ export function SharedDraftPanel({ snapshot, busy, send }: Props) {
     {editing && !closed && <form className={styles.stack} onSubmit={async (event) => {
       event.preventDefault();
       const next = await send({ action: memorial ? "draft-memorial-record" : "draft-joint-record", stage_id: stage.id,
-        draft_version: version, words, text, reason });
+        draft_version: version, words, text: sentence ?? text, reason });
       if (next) setEditing(false);
     }}>
       <p>{template.prompt}</p>
@@ -54,7 +58,10 @@ export function SharedDraftPanel({ snapshot, busy, send }: Props) {
         <select aria-label={`낱말 ${i + 1}`} required value={w} onChange={(e) => setWords(words.map((v, n) => n === i ? e.target.value : v))}>
           <option value="">선택</option>{template.wordChoices.map((v) => <option key={v}>{v}</option>)}
         </select></label>)}
-      <label className={styles.field}><span>공동 문장</span><textarea aria-label="공동 문장" required maxLength={600} value={text} onChange={(e) => setText(e.target.value)} /></label>
+      {template.sentenceParts ? <div className={styles.field}>
+        <span>공동 문장 미리보기</span>
+        <blockquote aria-label="공동 문장 미리보기" aria-live="polite">{preview}</blockquote>
+      </div> : <label className={styles.field}><span>공동 문장</span><textarea aria-label="공동 문장" required maxLength={600} value={text} onChange={(e) => setText(e.target.value)} /></label>}
       <label className={styles.field}><span>공동 근거</span><textarea aria-label="공동 근거" required maxLength={600} value={reason} onChange={(e) => setReason(e.target.value)} /></label>
       <p>내용이 바뀌면 기존 확인은 초기화된다.</p>
       <button className="button primary" disabled={busy || version !== (draft?.draft_version ?? 0)}>공동 기록 저장</button>
@@ -113,7 +120,7 @@ export function ResultV2({ snapshot: s }: { snapshot: V2Response }) {
       <p>도착: {stage.arrival_method === "simulated" ? "모의 확인" : "GPS 확인"}{stage.visit_mode === "outdoor" ? " · 외부 대체 조사" : ""}</p>
       <ul>{stage.roles.map((r) => <li key={r.role}>{ROLE_NAMES[r.role]} · 조사 {r.completed}/{r.total} · 보고 {r.reported ? "완료" : "대기"}
         {` · 힌트 ${r.hint_level}단계 · 해설 ${r.explained}건 · 기록 ${r.records}건 · 교차 확인 ${r.cross_checks}건`}
-        <br />확인 방식: {r.methods.map((m) => ({ field: "현장", official_digital: "공식 디지털 자료", explained: "해설", simulated: "모의", proxy: "대리 확인" }[m])).join(", ") || "없음"}
+        {!!r.methods.length && <><br />확인 방식: {r.methods.map((m) => ({ field: "현장", official_digital: "공식 디지털 자료", explained: "해설", simulated: "모의", proxy: "대리 확인" }[m])).join(", ")}</>}
       </li>)}</ul>
       {stage.memorial_record && <><blockquote>{stage.memorial_record.text}</blockquote><p>근거: {stage.memorial_record.reason}</p></>}
     </section>)}

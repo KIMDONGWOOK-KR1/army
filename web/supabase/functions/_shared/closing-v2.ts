@@ -15,6 +15,14 @@ export function draftV2(cmd: Command, stage: Stage, previous?: SharedDraftV2): S
     if (!template || !Array.isArray(cmd.words) || cmd.words.length !== template.wordCount ||
       cmd.words.some((w) => !template.wordChoices.includes(w))) throw new Error();
     const text = normalizeTextV2(cmd.text, 600), reason = normalizeTextV2(cmd.reason, 600);
+    if (template.sentenceParts !== undefined) {
+      const parts = template.sentenceParts;
+      if (!Array.isArray(parts) || parts.length !== template.wordCount + 1 ||
+        Array.from(parts).some((part) => typeof part !== "string")) throw new Error();
+      const sentence = parts.reduce((value, part, index) =>
+        value + (index ? cmd.words![index - 1] : "") + part, "");
+      if (normalizeTextV2(sentence, 600) !== text) throw new Error();
+    }
     if (previous && previous.text === text && previous.reason === reason &&
       JSON.stringify(previous.words) === JSON.stringify(cmd.words)) return previous;
     return { version: (previous?.version ?? 0) + 1, words: [...cmd.words], text, reason, confirms: {} };

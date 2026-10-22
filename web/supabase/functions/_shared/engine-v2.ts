@@ -356,15 +356,12 @@ function recordInput(step: Step, value: unknown) {
   }
 }
 function sourceInput(step: Step, cmd: Command, course: CourseV2) {
-  if (!cmd.source) {
-    if (step.sourceRequired) {
-      return fail("SOURCE_REQUIRED", "확인한 자료와 확인 방식을 입력하라.");
-    }
-    return undefined;
-  }
+  // Source metadata is optional, including for immutable courses created before
+  // the input controls were removed. Validate older clients only when supplied.
+  if (cmd.source === undefined) return undefined;
   try {
     if (
-      typeof cmd.source !== "object" || Array.isArray(cmd.source) ||
+      !cmd.source || typeof cmd.source !== "object" || Array.isArray(cmd.source) ||
       Object.keys(cmd.source).some((k) => !["text", "source_id"].includes(k))
     ) throw new Error();
     const text = normalizeTextV2(cmd.source.text);
@@ -396,7 +393,7 @@ function finish(
       if (step.type === "order") {
         eventOrder.push({
           stepId: step.id,
-          method: p.method!,
+          method: p.method ?? null,
           verified: p.status === "done",
         });
       }
@@ -408,7 +405,7 @@ function finish(
         });
       }
       if (p.source) {
-        sources.push({ role, stepId: step.id, method: p.method!, ...p.source });
+        sources.push({ role, stepId: step.id, method: p.method ?? null, ...p.source });
       }
     }
   }
@@ -740,6 +737,7 @@ async function execute(
       }
       const method = cmd.method;
       if (
+        method !== undefined &&
         !(["field", "official_digital"].includes(method ?? "") ||
           (method === "simulated" && course.demo))
       ) fail("BAD_REQUEST", "허용된 확인 방식을 선택하라.");
@@ -765,13 +763,13 @@ async function execute(
       p.lastAt = now;
       if (accepted) {
         p.status = "done";
-        p.method = method as VerifyMethod;
+        if (method !== undefined) p.method = method as VerifyMethod;
         if (record) p.record = record;
         if (source) p.source = source;
       }
       unlock(stage, progress);
       result = { step_id: step.id, accepted, status: p.status };
-      metadata = { step_id: step.id, accepted, method: method! };
+      metadata = { step_id: step.id, accepted, ...(method !== undefined ? { method } : {}) };
       break;
     }
     case "request-hint": {

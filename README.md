@@ -8,7 +8,8 @@
 
 | 문서 | 확인할 내용 |
 |---|---|
-| [FE 인수인계 — 정문·용봉관 v2](docs/fe/README.md) | 현재 서버 구현·배포 구분, API 계약·정문 mock 12개, FE/BE 연결 순서 |
+| [최신 시나리오 — 현재 구현 반영본](docs/scenario/GPS_MINO_1st_scenario_current.md) | FE 문항·나레이션·장면 순서의 기준. 정답 포함 검토 문서이며 이전 별도 전달본보다 우선 |
+| [FE 인수인계 — 전체 코스 v2](docs/fe/README.md) | 현재 서버 구현·배포 구분, API 계약·정문 mock 12개, FE/BE 연결 순서 |
 | [용봉관 적용 안내](docs/be/YONGBONG_APPLY.md) | 두 거점 새 코스, 자료 전달·외부 대체 모드, 새 DB 마이그레이션과 재배포 |
 | [메인 UI 통합 안내](docs/fe/UI_INTEGRATION.md) | PR #8 디자인과 PR #9 정문 API 연결, 실행·시험 방법과 dev 적용 조건 |
 | [GPS 적용·개발용 모드 전환](docs/be/GPS_APPLY.md) | 같은 Vercel dev 주소에서 개발용 모의 도착과 GPS 10m 도착을 번갈아 시험하는 절차 |
@@ -80,7 +81,8 @@ Next.js 16 App Router, React 19, TypeScript, Tailwind CSS, Supabase Postgres·Re
 
 현재 문서는 `codex-handoff-v2/`에 모여 있습니다. 코드와 자료의 최종 디렉터리 배치는 개발 착수 때 확인합니다.
 
-- 실제 정답·salt·서비스 키·환경변수 비밀값은 커밋하지 않습니다.
+- 사용자 요청(2026-10-11)에 따라 [최신 시나리오](docs/scenario/GPS_MINO_1st_scenario_current.md)는 정답을 포함한 공동 검토 문서로 GitHub에 공유합니다. FE는 이 파일과 현재 API 계약을 함께 사용하며 시나리오 수정도 같은 경로에서 진행합니다. 이 예외는 해당 Markdown 한 파일에만 적용합니다.
+- 서버용 정답 JSON·비공개 작성 JSON·salt·서비스 키·환경변수 비밀값은 커밋하지 않습니다. 시나리오 전체를 웹 번들·public 정적 파일·API 응답에 넣지 않습니다.
 - `jnu.answers.example.json`은 시연용 형식 예시이며 실제 정답이 아닙니다.
 - 원시 GPS CSV는 위치 좌표가 포함된 로컬 시험 자료로 별도 관리합니다. 공개 테스트에는 필요한 경우 합성·비식별 자료를 사용합니다.
 - 논문 원고의 검토용 변경 요약과 그림·표의 실제 구현 증거는 해당 PR에 포함합니다.

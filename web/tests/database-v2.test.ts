@@ -77,6 +77,16 @@ async function commit(
   );
 }
 describe("v2 transaction and append-only events", () => {
+  it("commits a submission without verification metadata under the existing migration", async () => {
+    const { game, course, user, event } = await fixture();
+    game.version = 2;
+    const data = { step_id: "G-01.order", accepted: true };
+    const submission = { ...event, action: "submit-step", data };
+    const pub = project(game, course, user, 100000).game;
+    expect((await commit(game, 1, pub, [submission])).rows[0].ok).toBe(true);
+    expect((await commit(game, 1, pub, [submission])).rows[0].ok).toBe(false);
+    expect((await db.query("select data from game_events where game_id=$1", [game.id])).rows).toEqual([{ data }]);
+  });
   it.each(["draft-memorial-record", "confirm-stage", "draft-joint-record", "consent-joint-record", "submit-retro"])(
     "commits %s metadata once under CAS and rolls back prose or forged draft versions", async (action) => {
       const { game, course, user, event } = await fixture();

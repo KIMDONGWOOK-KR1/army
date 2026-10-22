@@ -1,0 +1,30 @@
+.figure {
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid #cecaba;
+  border-radius: 12px;
+  background: #f7f4e9;
+}
+
+.image {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 360px;
+  object-fit: contain;
+}
+
+.caption {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  color: #343b33;
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.caption strong {
+  font-size: 14px;
+}

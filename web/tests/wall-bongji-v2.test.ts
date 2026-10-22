@@ -51,7 +51,11 @@ describe("wall and Bongji completion", () => {
     await t.call("scout", { action: "submit-step", step_id: "W-01.people", answer: ["[합성] 다른 가", "[합성] 다른 나"],
       method: "field", source: { text: "[합성] 출처" } });
     for (const role of ["scout", "signal", "cipher", "commander"] as const) {
-      for (const level of [1, 2, 3]) await t.call("commander", { action: "request-hint", target_role: role, level });
+      for (const level of [1, 2, 3]) {
+        await t.call("commander", { action: "request-hint", target_role: role, level });
+        expect(t.game.score).toBe(score);
+        expect(t.events.at(-1)?.data.penalty).toBe(0);
+      }
       await t.call(role, { action: "submit-report" });
       expect(t.game.score).toBe(score);
     }
