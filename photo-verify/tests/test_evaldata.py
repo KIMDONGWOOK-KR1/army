@@ -42,3 +42,12 @@ def test_cross_site_negatives_from_other_sites(tmp_path):
     out = cross_site_negatives(samples, ["gate", "yongbong"])
     assert [s.session for s in out] == ["s1"]  # 회차(fold)가 유지된다
     assert [(s.site_id, s.label, s.path.name) for s in out] == [("yongbong", "cross_neg", "a.jpg")]
+
+
+def test_optional_framing_column(tmp_path):
+    p = tmp_path / "framed.csv"
+    p.write_text(HEADER.rstrip("\n") + ",framing\n" + "a.jpg,gate,pos,s1,front,near,day,clear,none,guided\n",
+                 encoding="utf-8")
+    assert load_manifest(p)[0].tags["framing"] == "guided"
+    [old] = load_manifest(write(tmp_path, ["a.jpg,gate,pos,s1,front,near,day,clear,none\n"]))
+    assert old.tags["framing"] == ""  # 열이 없는 예전 매니페스트도 읽는다

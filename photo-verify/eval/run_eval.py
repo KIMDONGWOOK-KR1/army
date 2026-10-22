@@ -12,7 +12,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from pv.evaldata import assign_folds, cross_site_negatives, load_manifest  # noqa: E402
+from pv.evaldata import ALL_TAG_COLUMNS, assign_folds, cross_site_negatives, load_manifest  # noqa: E402
 from pv.evaluate import (Row, early_accept_safe, evaluate, fit_all, per_site,  # noqa: E402
                          per_tag, summarize)
 from pv.gallery import (IMAGE_SUFFIXES, build_gallery, fingerprint_files, ref_files,  # noqa: E402
@@ -23,7 +23,7 @@ from pv.pipeline import Features, compute_features  # noqa: E402
 from pv.preprocess import LOCAL_LONG_SIDE, QualityConfig, decode_image  # noqa: E402
 from pv.scorer import ThresholdConfig, save_thresholds  # noqa: E402
 
-TAGS = ("angle", "distance", "time", "weather", "occlusion")
+TAGS = ALL_TAG_COLUMNS
 
 
 def features_to_json(f: Features) -> dict:

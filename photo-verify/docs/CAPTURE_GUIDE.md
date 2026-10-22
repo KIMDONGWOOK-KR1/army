@@ -21,18 +21,21 @@ site_id: gate(정문), yongbong(용봉관), wall(추모의 벽), bongji(봉지)
 | hard_neg | 15장 이상 | 인접 건물, 비슷한 표지석·조형물, 같은 양식의 다른 면 |
 | easy_neg | 15장 이상 | 하늘, 바닥, 나무, 무관한 건물 |
 
-- 참가자처럼 휴대폰 기본 카메라로 세로·가로를 섞어 찍는다. 확대(디지털 줌)는 쓰지 않는다.
+- 참가자처럼 휴대폰 기본 카메라로 세로·가로를 섞어 찍는다. 확대(디지털 줌)는 쓰지 않는다. 영상에서 프레임을 뽑아 쓰지 않는다(흔들림이 커서 대부분 흐림 검사에 걸린다). 셔터 전 1초 멈춘다.
+- 기준 사진에는 전체 모습 외에 핵심 문양 클로즈업 1장과 가이드 구도 1장을 넣는다.
+- pos 가운데 15~20장은 거점별 가이드 구도(앱 오버레이가 안내할 구도, 정문 예: 불꽃문양과 아래 명판이 함께 들어오는 정면 근접)에 맞춰 찍고 `framing=guided`로, 나머지는 `framing=free`로 적는다.
 - 사람 얼굴이 크게 나오지 않게 찍는다.
 - 다른 거점의 정답 사진은 평가 도구가 자동으로 cross_neg로 쓴다. 따로 찍지 않아도 된다.
 
 ## manifest.csv
-path,site_id,label,session,angle,distance,time,weather,occlusion
-images/gate/s1_001.jpg,gate,pos,s1,front,near,day,clear,none
-images/gate/s1_101.jpg,gate,hard_neg,s1,,,,,
+path,site_id,label,session,angle,distance,time,weather,occlusion,framing
+images/gate/s1_001.jpg,gate,pos,s1,front,near,day,clear,none,guided
+images/gate/s1_101.jpg,gate,hard_neg,s1,,,,,,
 
 - path: manifest.csv 기준 상대 경로
 - label: pos / hard_neg / easy_neg
 - angle: front / side45 / side, distance: near / far, time: day / evening, weather: clear / cloudy / rain, occlusion: none / partial
+- framing(선택 열): guided / free. 열이 없는 예전 매니페스트도 읽는다.
 - 태그는 pos에만 채워도 된다. 비워 둔 값은 보고서에 "(없음)"으로 나온다.
 
 ## 실행

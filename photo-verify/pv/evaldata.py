@@ -7,6 +7,9 @@ from pathlib import Path
 
 LABELS = {"pos", "hard_neg", "easy_neg"}
 TAG_COLUMNS = ("angle", "distance", "time", "weather", "occlusion")
+# 없어도 되는 태그. framing: guided(촬영 안내 구도) / free(자유 구도)
+OPTIONAL_TAG_COLUMNS = ("framing",)
+ALL_TAG_COLUMNS = TAG_COLUMNS + OPTIONAL_TAG_COLUMNS
 REQUIRED = ("path", "site_id", "label", "session") + TAG_COLUMNS
 
 
@@ -31,7 +34,7 @@ def load_manifest(path: Path) -> list[Sample]:
             if row["label"] not in LABELS:
                 raise ValueError(f"line {i}: unknown label {row['label']!r}")
             out.append(Sample(path.parent / row["path"], row["site_id"], row["label"], row["session"],
-                              {c: row[c] for c in TAG_COLUMNS}))
+                              {c: row.get(c) or "" for c in ALL_TAG_COLUMNS}))
     return out
 
 
