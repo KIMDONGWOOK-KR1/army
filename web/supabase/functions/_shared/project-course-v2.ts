@@ -58,7 +58,8 @@ function mission(m: RoleMission | null) {
       ...(s.requiresReports ? { requiresReports: [...s.requiresReports] } : {}),
       ...(s.recordFrom ? { recordFrom: { ...s.recordFrom } } : {}),
       ...(s.sourceIds ? { sourceIds: [...s.sourceIds] } : {}),
-      sourceRequired: s.sourceRequired ?? false,
+      // Keep the response key for older clients without requiring removed inputs.
+      sourceRequired: false,
       maxLen: s.maxLen ?? 300,
       ...(s.normalize
         ? {
@@ -93,6 +94,8 @@ export function projectPublicStageV2(course: CourseV2, stageId: string) {
         cipher: s.completion.labels.cipher,
       },
     }
+    : s.completion.type === "tribute"
+    ? { type: "tribute" as const, label: s.completion.label }
     : { type: "joint-record" as const };
   return {
     schema_version: 2 as const,
@@ -124,7 +127,8 @@ export function projectPublicStageV2(course: CourseV2, stageId: string) {
     narration: scenes(s.narration),
     completion,
     ...(s.recordTemplate ? { recordTemplate: { prompt: s.recordTemplate.prompt,
-      wordChoices: [...s.recordTemplate.wordChoices], wordCount: s.recordTemplate.wordCount } } : {}),
+      wordChoices: [...s.recordTemplate.wordChoices], wordCount: s.recordTemplate.wordCount,
+      ...(s.recordTemplate.sentenceParts ? { sentenceParts: [...s.recordTemplate.sentenceParts] } : {}) } } : {}),
     sources: course.sources.map((s) => ({
       id: s.id,
       title: s.title,

@@ -10,6 +10,13 @@ const legacySteps: Record<Role, { id: string; type: Step["type"] }> = {
   signal: { id: "G-03.legacy", type: "frequency" },
   cipher: { id: "G-04.legacy", type: "choice" },
 };
+// 용봉관 v1 시연 문항(legacy-full-course-v2.ts): 통신원 무전기, 암호해독관 현판 한자 칸
+const legacyYongbong: Record<Role, { id: string; type: Step["type"] }> = {
+  commander: { id: "Y-01.legacy", type: "choice" },
+  scout: { id: "Y-02.legacy", type: "observation" },
+  signal: { id: "Y-03.legacy", type: "frequency" },
+  cipher: { id: "Y-04.legacy", type: "choice" },
+};
 
 /** Presentation for the migrated dev preset; all content comes from self.mission. */
 export function isLegacyMissionStep(
@@ -17,8 +24,9 @@ export function isLegacyMissionStep(
   role: Role | null,
   step: Step,
 ) {
-  return stageId === "gate" && role !== null &&
-    legacySteps[role].id === step.id && legacySteps[role].type === step.type &&
+  const table = stageId === "gate" ? legacySteps : stageId === "yongbong" ? legacyYongbong : null;
+  return !!table && role !== null &&
+    table[role].id === step.id && table[role].type === step.type &&
     step.grading === "hash";
 }
 
@@ -50,8 +58,8 @@ export function LegacyMissionInput({
   if (step.type === "choice") {
     return (
       <>
-        {role === "cipher" && <MissionCalendar />}
-        <div className="choices" aria-label="답안 선택">
+        {role === "cipher" && step.id === legacySteps.cipher.id && <MissionCalendar />}
+        <div className={`choices ${step.id === legacyYongbong.cipher.id ? "hanja" : ""}`} aria-label="답안 선택">
           {(step.choices ?? []).map((choice, index) => (
             <button
               key={index}

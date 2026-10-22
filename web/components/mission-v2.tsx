@@ -1,5 +1,7 @@
 "use client";
 
+import { isStoryB, STORY_B } from "@/lib/narration";
+import { plain } from "@/lib/practice-text";
 import { type FormEvent, useState } from "react";
 import { BookOpen, Check, LockKeyhole, Radio } from "lucide-react";
 import {
@@ -18,8 +20,15 @@ import { emptyStepAnswer, VerifyInput } from "./verify-input";
 import { isLegacyMissionStep, LegacyMissionInput } from "./legacy-mission-input";
 import { useLockDraft } from "./use-lock-draft";
 import styles from "./mission-v2.module.css";
+import { StoryStepInput } from "./story-step-input";
+import { StoryMission } from "./story-mission";
 import { RetroPanel, SharedDraftPanel } from "./closing-v2";
+import { TributePanel } from "./tribute-v2";
 import { YongbongPanel } from "./yongbong-panel";
+import { MissionAsset } from "./mission-asset";
+
+// 점수 규칙이 정해지기 전까지 감점·점수 수치는 화면에 적지 않는다(계산은 그대로)
+const SHOW_SCORE = false;
 
 type Props = {
   snapshot: V2Response;
@@ -40,22 +49,15 @@ function StepCard(
   const legacyInput = snapshot.course.demo &&
     isLegacyMissionStep(snapshot.stage.id, snapshot.self.role, step);
   const [answer, setAnswer] = useState<StepAnswer>(() =>
-    legacyInput && step.type === "frequency" ? "50.0" : emptyStepAnswer(step));
-  const [method, setMethod] = useState<
-    "" | "field" | "official_digital" | "simulated"
-  >("");
-  const [sourceText, setSourceText] = useState("");
-  const [sourceId, setSourceId] = useState("");
+    (legacyInput || isStoryB(snapshot.course)) && step.type === "frequency" ? "50.0" : emptyStepAnswer(step));
   const [feedback, setFeedback] = useState("");
+  const sources = snapshot.stage.sources.filter((source) => step.sourceIds?.includes(source.id));
   const progress = snapshot.self.step_progress[step.id];
   const done = progress?.status === "done" || progress?.status === "explained";
   const disabled = busy || progress?.status !== "open";
-  const sources = snapshot.stage.sources.filter((source) =>
-    !step.sourceIds || step.sourceIds.includes(source.id)
-  );
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    if (!method || disabled) return;
+    if (disabled) return;
     if (legacyInput && step.type === "choice" &&
       (typeof answer !== "string" || !/^[1-9]\d*$/.test(answer))) {
       setFeedback("답안을 하나 선택하라.");
@@ -67,25 +69,15 @@ function StepCard(
       stage_id: snapshot.stage.id,
       step_id: step.id,
       answer,
-      method,
-      ...(sourceText.trim()
-        ? {
-          source: {
-            text: sourceText,
-            ...(sourceId ? { source_id: sourceId } : {}),
-          },
-        }
-        : {}),
     });
     if (!next || !isV2Response(next)) return;
     if (next.result?.accepted === false) {
-      setFeedback(
-        snapshot.stage.kind === "memorial" ? "자료를 다시 확인하라." : "단서를 다시 살펴라. 문제 오답은 자물쇠 시도 횟수를 줄이지 않는다.",
-      );
+      const retry = snapshot.self.mission?.scenes.find((scene) => scene.trigger === "retry");
+      setFeedback(retry?.text ?? (
+        snapshot.stage.kind === "memorial" ? "자료를 다시 확인하라." : "단서를 다시 살펴라. 문제 오답은 자물쇠 시도 횟수를 줄이지 않는다."
+      ));
     } else {
       setAnswer(emptyStepAnswer(step));
-      setSourceText("");
-      setSourceId("");
       setFeedback("조사를 기록했다.");
     }
   };
@@ -100,7 +92,7 @@ function StepCard(
         <span>{labels[progress?.status ?? "locked"]}</span>
         {snapshot.stage.kind !== "memorial" && <span>제출 {progress?.attempts ?? 0}회</span>}
       </div>
-      <h3>{step.prompt}</h3>
+      <h3>{plain(step.prompt)}</h3>
       {!!step.requiresReports?.length && (
         <p className="fine-print">
           선행 보고: {step.requiresReports.map((role) =>
@@ -110,61 +102,24 @@ function StepCard(
           ).join(" · ")}
         </p>
       )}
-      {!done && (
+      {isStoryB(snapshot.course) && !!step.sourceIds?.length && <details className={styles.note}><summary>조사 자료 펼치기</summary>
+        <p>시연용 조사입니다. 공식 설명과 직접 관찰한 내용을 대조해주세요.</p>
+        {sources.map((source) => <a key={source.id} href={source.url} target="_blank" rel="noreferrer">{source.title} ↗</a>)}
+      </details>}
+      {snapshot.self.step_hints?.[step.id]?.map((hint, i) => <p key={i} className={styles.note}>{i + 1}단계 힌트: {hint}</p>)}
+      {isStoryB(snapshot.course) && progress?.status === "locked" && <p className="fine-print">동료의 선행 조사와 내 앞 문항을 마치면 입력할 수 있습니다.</p>}
+      {!done && (!isStoryB(snapshot.course) || progress?.status !== "locked") && (
         <fieldset
           className={styles.fields}
           disabled={disabled}
         >
           <legend className={styles.legend}>문제 입력</legend>
-          {legacyInput && snapshot.self.role
-            ? <LegacyMissionInput step={step} role={snapshot.self.role}
-                value={typeof answer === "string" ? answer : ""}
-                onChange={setAnswer} disabled={disabled} />
+          {isStoryB(snapshot.course) ? <StoryStepInput step={step} value={answer} onChange={setAnswer} disabled={disabled} />
+            : legacyInput && snapshot.self.role ? <LegacyMissionInput step={step} role={snapshot.self.role}
+                value={typeof answer === "string" ? answer : ""} onChange={setAnswer} disabled={disabled} />
             : <VerifyInput step={step} value={answer} onChange={setAnswer} />}
-          <label className="verify-field">
-            <span>확인 방식</span>
-            <select
-              aria-label="확인 방식"
-              required
-              value={method}
-              onChange={(e) => setMethod(e.target.value as typeof method)}
-            >
-              <option value="">선택</option>
-              <option value="field">현장 확인</option>
-              <option value="official_digital">공식 디지털 자료 확인</option>
-              {snapshot.course.demo && (
-                <option value="simulated">합성 자료로 모의 확인</option>
-              )}
-            </select>
-          </label>
-          <label className="verify-field">
-            <span>
-              확인한 출처{step.sourceRequired ? " (필수)" : " (선택)"}
-            </span>
-            <input
-              required={step.sourceRequired || !!sourceId}
-              maxLength={300}
-              value={sourceText}
-              onChange={(e) => setSourceText(e.target.value)}
-            />
-          </label>
-          {!!sources.length && (
-            <label className="verify-field">
-              <span>연결할 자료 (선택)</span>
-              <select
-                aria-label="연결할 자료 (선택)"
-                value={sourceId}
-                onChange={(e) => setSourceId(e.target.value)}
-              >
-                <option value="">직접 확인한 출처</option>
-                {sources.map((s) => (
-                  <option key={s.id} value={s.id}>{s.title}</option>
-                ))}
-              </select>
-            </label>
-          )}
           <button className="button primary full" type="submit"
-            disabled={legacyInput && step.type === "choice" && !answer}>
+            disabled={(legacyInput && step.type === "choice" && !answer) || (isStoryB(snapshot.course) && step.type === "order" && Array.isArray(answer) && answer.filter(Boolean).length !== (step.choices?.length ?? 0))}>
             문제 제출 <Check size={17} />
           </button>
         </fieldset>
@@ -174,7 +129,7 @@ function StepCard(
           <h4>내 기록</h4>
           {Object.entries(progress.record).map(([key, value]) => (
             <p key={key}>
-              {step.fields?.find((f) => f.id === key)?.label ?? "기록"}: {value}
+              {step.fields?.find((f) => f.id === key)?.label ?? "기록"}: {plain(value)}
             </p>
           ))}
         </div>
@@ -182,13 +137,13 @@ function StepCard(
       {snapshot.self.explanations[step.id] && (
         <div className={styles.note}>
           <h4>문제 해설</h4>
-          <p>{snapshot.self.explanations[step.id]}</p>
+          <p>{plain(snapshot.self.explanations[step.id])}</p>
         </div>
       )}
       {snapshot.self.rewards[step.id] && (
         <div className={styles.note}>
           <h4>복원한 기록</h4>
-          <p>{snapshot.self.rewards[step.id]}</p>
+          <p>{plain(snapshot.self.rewards[step.id])}</p>
         </div>
       )}
       {feedback && <p role="status" className="fine-print">{feedback}</p>}
@@ -202,6 +157,8 @@ export function MissionV2({ snapshot, busy, send, onShowDigit }: Props & { onSho
   const { mission, role } = self;
   if (!mission || !role) return <p role="status">본인 조사를 불러오는 중…</p>;
   if (stage.completion.type === "joint-record") return <RetroPanel snapshot={snapshot} busy={busy} send={send} />;
+  if (stage.completion.type === "tribute") return <TributePanel snapshot={snapshot} busy={busy} send={send} />;
+  if (isStoryB(snapshot.course)) return <StoryMission snapshot={snapshot} busy={busy} send={send} onShowDigit={onShowDigit} />;
   const cleared = game.stage_phase === "done" || game.site_phase === "cleared";
   const complete = (step: Step) =>
     ["done", "explained"].includes(self.step_progress[step.id]?.status);
@@ -221,6 +178,7 @@ export function MissionV2({ snapshot, busy, send, onShowDigit }: Props & { onSho
   );
   return (
     <div className={styles.root}>
+      {isStoryB(snapshot.course) && mission.asset && <details className={styles.note}><summary>관찰 자료 안내</summary><p>{mission.asset.alt}</p><p>{STORY_B.camera}</p></details>}
       <YongbongPanel snapshot={snapshot} busy={busy} send={send} />
       {stage.completion.type === "confirm" && <SharedDraftPanel snapshot={snapshot} busy={busy} send={send} />}
       <div className={styles.card}>
@@ -230,15 +188,16 @@ export function MissionV2({ snapshot, busy, send, onShowDigit }: Props & { onSho
             {mission.steps.filter(complete).length} / {mission.steps.length}
           </span>
         </div>
-        {mission.intro.trigger === "enter" && <p>{mission.intro.text}</p>}
-        {scenes.map((scene) => <p key={scene.id}>{scene.text}</p>)}
+        {!isStoryB(snapshot.course) && mission.intro.trigger === "enter" && <p>{plain(mission.intro.text)}</p>}
+        {scenes.map((scene) => <p key={scene.id}>{plain(scene.text)}</p>)}
       </div>
+      <MissionAsset asset={mission.asset} stageId={stage.id} role={role} />
       {role === "commander" && self.transfer_clue && (
         <section className={styles.clue} data-testid="mission-v2-transfer-clue">
           <h3>
-            <Radio size={18} /> {self.transfer_clue.label}
+            <Radio size={18} /> {plain(self.transfer_clue.label)}
           </h3>
-          <p>{self.transfer_clue.value}</p>
+          <p>{plain(self.transfer_clue.value)}</p>
           <p className="fine-print">
             대상 보직에게 말로 전달하라. 지휘관의 화면에만 보이는 단서다.
           </p>
@@ -247,17 +206,11 @@ export function MissionV2({ snapshot, busy, send, onShowDigit }: Props & { onSho
       {!!self.hints.length && (
         <section className={styles.note}>
           <h3>내 역할 힌트</h3>
-          {self.hints.map((hint, i) => <p key={i}>{i + 1}단계: {hint}</p>)}
+          {self.hints.map((hint, i) => <p key={i}>{i + 1}단계: {plain(hint)}</p>)}
         </section>
       )}
       {mission.steps.map((step) => (
-        <StepCard
-          key={`${game.id}:${stage.id}:${role}:${step.id}`}
-          step={step}
-          snapshot={snapshot}
-          busy={busy || cleared}
-          send={send}
-        />
+        <StepCard key={`${game.id}:${stage.id}:${role}:${step.id}`} step={step} snapshot={snapshot} busy={busy || cleared} send={send} />
       ))}
       <section className={styles.card}>
         <h3>조사 결과 보고</h3>
@@ -317,7 +270,8 @@ export function MissionV2({ snapshot, busy, send, onShowDigit }: Props & { onSho
             return (
               <div className={styles.hint} key={target}>
                 <p>
-                  {ROLE_NAMES[target]} · {level}/3{stage.kind !== "memorial" && next <= 3
+                  {/* 최신 MINO 코스의 확정 감점은 응답에서 읽는다. */}
+                  {ROLE_NAMES[target]} · {level}/3{(SHOW_SCORE || isStoryB(snapshot.course)) && stage.kind !== "memorial" && next <= 3
                     ? ` · 다음 감점 ${
                       stage.scoring.enabled ? penalty ?? "미확정" : 0
                     }`
@@ -350,6 +304,7 @@ export function MissionV2({ snapshot, busy, send, onShowDigit }: Props & { onSho
           <h3>
             <BookOpen size={18} /> 해설 읽음 확인
           </h3>
+          {isStoryB(snapshot.course) && !!self.hints.length && <p>{STORY_B.explanation}</p>}
           <p>공개된 본인 문제의 해설을 모두 읽고 확인하라.</p>
           <button
             type="button"
@@ -397,12 +352,13 @@ export function LockPanelV2({ snapshot, busy, now, send, draft }: Props & {
       setFeedback(
         next.result?.ok
           ? "기록을 복원했다."
-          : "맞은 칸은 잠겼다. 나머지 숫자를 다시 확인하라. −10점",
+          : "맞은 칸은 잠겼다. 나머지 숫자를 다시 확인하라.",
       );
     }
   };
   return (
     <div className={styles.root}>
+      {isStoryB(snapshot.course) && reports && <p className={styles.note}>{stage.narration.find((line) => line.trigger === "reports-ready")?.text}</p>}
       <form
         className="lock-panel"
         autoComplete="off"
@@ -459,7 +415,7 @@ export function LockPanelV2({ snapshot, busy, now, send, draft }: Props & {
           자물쇠 확인 <LockKeyhole size={17} />
         </button>
         {!reports && <p className="fine-print">네 보직의 보고를 기다리는 중</p>}
-        <p className="fine-print">오답 −10점 · 3회 소진 후 60초마다 1회 추가</p>
+        <p className="fine-print">3회 소진 후 60초마다 1회 추가</p>
       </form>
       <section className={styles.card}>
         <h3>해설 확인 후 복원</h3>

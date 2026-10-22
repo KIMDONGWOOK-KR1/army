@@ -615,7 +615,7 @@ export function crosswalkBars(
   const out: { x: number; z: number; ux: number; uz: number; n: number }[] =
     [];
   for (const c of pois ?? []) {
-    if (c.k !== "crossing") continue;
+    if (c.k !== "crossing" || c.markings === "no" || c.markings === "unknown") continue;
     let best: Seg | null = null,
       bestD = Infinity;
     grid.near(c.x, c.z, 6, (s, d) => {

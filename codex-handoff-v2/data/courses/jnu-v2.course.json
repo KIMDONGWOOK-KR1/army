@@ -210,11 +210,11 @@
         "confirmed": false,
         "hintPenalty": {
           "1": 0,
-          "2": null,
-          "3": null
+          "2": 10,
+          "3": 10
         },
         "noHintBonus": null,
-        "note": "TODO(확인필요): 기본값 적용 — 확정 필요(D5). 수치 미정, 임의 감점·보너스 없음."
+        "note": "2026-10-10 사용자 결정: 힌트 2·3단계 각각 10점 감점. TODO(확인필요): 무힌트 보너스 미확정."
       },
       "narration": [
         {
@@ -452,9 +452,9 @@
           ],
           "digit": true,
           "asset": {
-            "url": null,
-            "alt": "현장 사용 허가를 확인한 부분 사진 — 준비 중",
-            "confirmed": false
+            "url": "https://hoguk-dev-web.vercel.app/images/course-material-placeholder.svg",
+            "alt": "임시 이미지 · 실제 현장 자료 아님. 자료 수령 후 교체 예정.",
+            "confirmed": true
           }
         },
         "signal": {

@@ -73,7 +73,7 @@
   min-width: 0;
 }
 .root :global(.verify-field) {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
 }
 .root input:not([type=checkbox]):not([data-frequency-input]),
@@ -85,7 +85,7 @@
   padding: 10px 12px;
   border: 1px solid #b4baaa;
   border-radius: 8px;
-  background: #fffdf6;
+  background-color: #fffdf6;
   color: #252e24;
   font: inherit;
   font-size: 16px;
@@ -123,7 +123,7 @@
   padding: 0;
   display: grid;
   gap: 8px;
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1.6;
 }
 .journal {
@@ -134,5 +134,21 @@
 }
 .journal h4, .journal h5 {
   margin: 12px 0 8px;
-  font-size: 15px;
+  font-size: 16px;
 }
+
+.storyChoices { display: grid; gap: 10px; min-width: 0; }
+.storyChoices label { display: flex; gap: 12px; align-items: flex-start; padding: 12px; min-height: 44px; border: 1px solid #b4baaa; border-radius: 8px; font-size: 16px; line-height: 1.65; word-break: keep-all; overflow-wrap: anywhere; }
+.root .storyChoices input[type=radio] { flex: 0 0 20px; width: 20px; min-height: 20px; height: 20px; margin: 3px 0 0; padding: 0; accent-color: #49664c; }
+
+.optionList { display: grid; gap: 12px; margin: 0; padding-left: 24px; font-size: 16px; line-height: 1.65; word-break: keep-all; overflow-wrap: anywhere; }
+.root p, .root h3, .root label { word-break: keep-all; }
+
+.root summary { min-height: 44px; display: list-item; cursor: pointer; font: 16px/1.7 var(--serif); padding: 8px 0; }
+.root details.note { display: block; }
+.root details.note > p, .root details.note > a { margin-top: 12px; }
+.root details.note > a { display: block; min-height: 44px; padding: 8px 0; text-decoration: underline; }
+.root summary:focus-visible { outline: 3px solid #82621d; outline-offset: 3px; }
+.root [data-testid="story-mission-deck"] .card { border: 0; padding-top: 0; }
+.root [data-testid="story-mission-deck"] .card h3 { font-size: 18px; line-height: 1.8; }
+.root [data-testid="story-mission-deck"] .card :global(.section-label) { flex-wrap: wrap; }

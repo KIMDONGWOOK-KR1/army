@@ -1,7 +1,17 @@
+import { composeRecordSentence } from "./record-sentence.ts";
 import { normalizeTextV2 } from "./answer-v2.ts";
 import { DomainError } from "./game-core.ts";
 import { ROLES } from "./types.ts";
 import type { Command, CourseV2, Game, GameV2State, Role, SharedDraftV2, Stage } from "./types.ts";
+
+/** 거점 완료 방식 이름. 헌화 거점은 조사·복원이 아니라 추모로 마친다. */
+export function completionLabelV2(stage: Stage, method?: "field" | "explained") {
+  if (stage.completion.type === "tribute") return "헌화 완료";
+  if (method === "explained") return "해설 확인 후 복원";
+  if (stage.kind === "memorial") return "공동 확인 완료";
+  if (stage.kind === "epilogue") return "공동 기록 완료";
+  return "조사 후 복원";
+}
 
 export function requireDraftVersion(cmd: Command, version: number) {
   if (!Number.isSafeInteger(cmd.draft_version) || cmd.draft_version !== version) {
@@ -15,6 +25,13 @@ export function draftV2(cmd: Command, stage: Stage, previous?: SharedDraftV2): S
     if (!template || !Array.isArray(cmd.words) || cmd.words.length !== template.wordCount ||
       cmd.words.some((w) => !template.wordChoices.includes(w))) throw new Error();
     const text = normalizeTextV2(cmd.text, 600), reason = normalizeTextV2(cmd.reason, 600);
+    if (template.sentenceParts !== undefined) {
+      const parts = template.sentenceParts;
+      if (!Array.isArray(parts) || parts.length !== template.wordCount + 1 ||
+        Array.from(parts).some((part) => typeof part !== "string")) throw new Error();
+      const sentence = composeRecordSentence(parts, cmd.words);
+      if (normalizeTextV2(sentence, 600) !== text) throw new Error();
+    }
     if (previous && previous.text === text && previous.reason === reason &&
       JSON.stringify(previous.words) === JSON.stringify(cmd.words)) return previous;
     return { version: (previous?.version ?? 0) + 1, words: [...cmd.words], text, reason, confirms: {} };
@@ -50,8 +67,7 @@ export function resultV2(game: Game, course: CourseV2) {
     stages: stages.map((s) => {
       const progress = state.progress[s.id];
       return { stage_id: s.id, name: s.name, summary: s.sacho?.body ?? "", quiet: s.quiet,
-        completion: state.completed[s.id]?.method === "explained" ? "해설 확인 후 복원" :
-          s.kind === "memorial" ? "공동 확인 완료" : "조사 후 복원",
+        completion: s.kind === "epilogue" ? "조사 후 복원" : completionLabelV2(s, state.completed[s.id]?.method),
         visit_mode: state.altMode?.[s.id] ?? "onsite",
         arrival_method: game.arrivals.some((a) => a.siteId === s.id && a.simulated) ? "simulated" : "gps",
         roles: ROLES.map((role) => {

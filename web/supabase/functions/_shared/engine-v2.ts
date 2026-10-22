@@ -9,7 +9,7 @@ import {
 import { ROLES } from "./types.ts";
 import { projectJournalV2 } from "./project-journal-v2.ts";
 import { researchV2, sharedRecordsV2, visitV2 } from "./yongbong-v2.ts";
-import { closingProjectionV2, draftV2, requireDraftVersion, resultV2 } from "./closing-v2.ts";
+import { closingProjectionV2, completionLabelV2, draftV2, requireDraftVersion, resultV2 } from "./closing-v2.ts";
 import type {
   Command,
   Course,
@@ -169,6 +169,7 @@ export function projectGameV2(
   const hints = visible && rp
     ? secret!.roles[member.role!]!.hints.slice(0, rp.hintLevel)
     : [];
+  const stepHints: Record<string, string[]> = {};
   const explanations: Record<string, string> = {},
     rewards: Record<string, string> = {};
   const stepProgress: Record<string, Omit<StepProgress, "source" | "lastAt">> =
@@ -190,6 +191,7 @@ export function projectGameV2(
           }
           : {}),
       };
+      if (secret!.steps[step.id].hints && rp.hintLevel > 0) stepHints[step.id] = secret!.steps[step.id].hints!.slice(0, rp.hintLevel);
       if (done(p)) {
         explanations[step.id] = secret!.steps[step.id].explanation;
         if (p.status === "done" && secret!.steps[step.id].reward) {
@@ -233,6 +235,7 @@ export function projectGameV2(
       online: now - m.lastSeen < 45000,
     })),
     demo: course.demo,
+    solo_demo: course.demo && game.demoOwner === userId,
   };
   return {
     server_now: now,
@@ -255,7 +258,8 @@ export function projectGameV2(
       completion: completed ? {
         at: completed.at,
         method: completed.method,
-        label: stage.kind === "memorial" ? "공동 확인 완료" : stage.kind === "epilogue" ? "공동 기록 완료" : completed.method === "explained" ? "해설 확인 후 복원" : "조사 후 복원",
+        label: stage.kind === "memorial" || stage.kind === "epilogue"
+          ? completionLabelV2(stage) : completionLabelV2(stage, completed.method),
         ...(visitV2(stage, state) ? { visit: visitV2(stage, state) } : {}),
       } : null,
       ...(stage.altModes?.length ? { visit: visitV2(stage, state) } : {}),
@@ -303,6 +307,7 @@ export function projectGameV2(
       hint_level: visible ? rp!.hintLevel : 0,
       hints,
       explanations,
+      ...(Object.keys(stepHints).length ? { step_hints: stepHints } : {}),
       rewards,
       journal: projectJournalV2(course, state, member.role),
       ...(member.role ? closingProjectionV2(state, stage, member.role, visible || game.status === "done") : {}),
@@ -356,15 +361,12 @@ function recordInput(step: Step, value: unknown) {
   }
 }
 function sourceInput(step: Step, cmd: Command, course: CourseV2) {
-  if (!cmd.source) {
-    if (step.sourceRequired) {
-      return fail("SOURCE_REQUIRED", "확인한 자료와 확인 방식을 입력하라.");
-    }
-    return undefined;
-  }
+  // Source metadata is optional, including for immutable courses created before
+  // the input controls were removed. Validate older clients only when supplied.
+  if (cmd.source === undefined) return undefined;
   try {
     if (
-      typeof cmd.source !== "object" || Array.isArray(cmd.source) ||
+      !cmd.source || typeof cmd.source !== "object" || Array.isArray(cmd.source) ||
       Object.keys(cmd.source).some((k) => !["text", "source_id"].includes(k))
     ) throw new Error();
     const text = normalizeTextV2(cmd.source.text);
@@ -396,7 +398,7 @@ function finish(
       if (step.type === "order") {
         eventOrder.push({
           stepId: step.id,
-          method: p.method!,
+          method: p.method ?? null,
           verified: p.status === "done",
         });
       }
@@ -408,7 +410,7 @@ function finish(
         });
       }
       if (p.source) {
-        sources.push({ role, stepId: step.id, method: p.method!, ...p.source });
+        sources.push({ role, stepId: step.id, method: p.method ?? null, ...p.source });
       }
     }
   }
@@ -443,7 +445,7 @@ function finish(
   return {
     opened: true,
     method,
-    label: method === "explained" ? "해설 확인 후 복원" : "조사 후 복원",
+    label: stage.completion.type === "tribute" ? completionLabelV2(stage) : method === "explained" ? "해설 확인 후 복원" : "조사 후 복원",
     sacho_id: stage.sacho?.id ?? null,
     ...(visitV2(stage, state) ? { visit: visitV2(stage, state) } : {}),
   };
@@ -562,6 +564,9 @@ async function execute(
   }
   if (stage.completion.type === "joint-record" && ["submit-step", "submit-report", "request-hint"].includes(cmd.action)) {
     fail("WRONG_PHASE", "회고 작성과 공동 동의로 진행하라.");
+  }
+  if (stage.completion.type === "tribute" && ["submit-report", "request-hint"].includes(cmd.action)) {
+    fail("WRONG_PHASE", "헌화 단계에서는 국화를 올리는 것으로 진행하라.");
   }
   switch (cmd.action) {
     case "draft-memorial-record":
@@ -740,6 +745,7 @@ async function execute(
       }
       const method = cmd.method;
       if (
+        method !== undefined &&
         !(["field", "official_digital"].includes(method ?? "") ||
           (method === "simulated" && course.demo))
       ) fail("BAD_REQUEST", "허용된 확인 방식을 선택하라.");
@@ -750,8 +756,9 @@ async function execute(
       let accepted = false, record: Record<string, string> | undefined;
       if (step.grading.includes("hash")) {
         try {
-          accepted = await answerHashV2(salt, course.id, step, cmd.answer!) ===
-            privateStage.steps[step.id].answerHash;
+          const submitted = await answerHashV2(salt, course.id, step, cmd.answer!);
+          const expected = privateStage.steps[step.id];
+          accepted = submitted === expected.answerHash || (expected.answerHashes?.includes(submitted) ?? false);
         } catch {
           fail("BAD_ANSWER", "답안 형식과 입력 범위를 확인하라.");
         }
@@ -765,13 +772,20 @@ async function execute(
       p.lastAt = now;
       if (accepted) {
         p.status = "done";
-        p.method = method as VerifyMethod;
+        if (method !== undefined) p.method = method as VerifyMethod;
         if (record) p.record = record;
         if (source) p.source = source;
       }
       unlock(stage, progress);
       result = { step_id: step.id, accepted, status: p.status };
-      metadata = { step_id: step.id, accepted, method: method! };
+      metadata = { step_id: step.id, accepted, ...(method !== undefined ? { method } : {}) };
+      // 헌화: 국화를 올리면 본인 보고까지 끝나고, 네 사람이 모두 올리면 거점을 마친다
+      if (accepted && stage.completion.type === "tribute") {
+        progress[role].reported = true;
+        if (ROLES.every((r) => progress[r].reported)) {
+          result = { ...result, ...finish(game, course, now, "field") };
+        }
+      }
       break;
     }
     case "request-hint": {

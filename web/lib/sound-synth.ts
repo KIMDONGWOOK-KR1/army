@@ -1452,14 +1452,15 @@ export type BgmEvent =
     }
   | { kind: "arp"; t: number; note: number; gain: number; pan: number };
 
-export const BGM_STYLES = ["a", "b", "c"] as const;
+export const BGM_STYLES = ["a", "b", "c", "d"] as const;
 export type BgmStyle = (typeof BGM_STYLES)[number];
-// 기본 갈래는 산책(a). 주소에 ?bgm=b처럼 붙여 다른 갈래를 들어 볼 수 있다(lib/sound.ts).
-export const DEFAULT_BGM_STYLE: BgmStyle = "a";
+// 기본 갈래는 명랑(d, hh 2026-10-10. 그 전에는 산책 a). 주소에 ?bgm=a처럼 붙여 다른 갈래를 들어 볼 수 있다(lib/sound.ts).
+export const DEFAULT_BGM_STYLE: BgmStyle = "d";
 export const BGM_STYLE_NAMES: Record<BgmStyle, string> = {
   a: "산책",
   b: "모험",
   c: "장단",
+  d: "명랑",
 };
 export function parseBgmStyle(v: unknown): BgmStyle | null {
   if (typeof v !== "string") return null;
@@ -1942,7 +1943,101 @@ const JANGDAN: StyleDef = {
     ),
 };
 
-const DEFS: Record<BgmStyle, StyleDef> = { a: SANCHAEK, b: MODEOM, c: JANGDAN };
+// ── D 명랑: 통통 튀는 셔플 8분음표, 둥근 베이스가 옥타브로 뛰고, 칼림바가 뒷박을 톡톡 끊고,
+// 여린 킥(1·3박)과 손뼉(2·4박)·셰이커가 살짝 신나게 받친다. 가락은 가야금을 짧게 튕긴다.
+// 밝은 오락 게임 배경음 같은 느낌(hh 2026-10-10)을 노렸지만 가락은 모두 새로 짓는다.
+const D_PROGS = [
+  [[0], [6], [3], [4, 5]],
+  [[0], [3], [0], [5]],
+  [[3], [5], [0], [6]],
+  [[0], [2], [3], [4, 5]],
+  [[6], [3], [0], [5]],
+  [[3], [7], [6], [4, 5]],
+];
+const D_BASS = [
+  "R. .O F. .O", // 0 통통 옥타브
+  "R. O. F. O.", // 1 깡충 걷기
+  "R. .R O. FA", // 2 뛰어 넘기
+  "R. .. F. ..", // 3 숨 고르기
+].map(bassPat);
+// 칼림바 반주: 뒷박 끊기(우쿨렐레처럼), 뒷박 + 마지막 당김, 두 박 끊기
+const D_CHOPS = [
+  [1, 3, 5, 7],
+  [1, 3, 5, 6, 7],
+  [2, 6],
+];
+function drumsD(c: Composer, x: BarCtx) {
+  const hit = drumHit(c, x);
+  const soft = x.home ? 0.7 : 1;
+  if (x.drums > 0) {
+    hit(0, "kick", 0.034 * soft);
+    hit(4, "kick", (x.drums === 2 ? 0.03 : 0.024) * soft);
+    for (let s = 0; s < 8; s++)
+      if (x.drums === 2 || s % 2) hit(s, "shaker", (s % 2 ? 0.046 : 0.026) * soft, 0.25);
+  }
+  if (x.drums === 2) {
+    hit(2, "clap", 0.07 * soft, -0.08);
+    hit(6, "clap", 0.07 * soft, -0.08);
+    // 가끔 마디 끝을 림으로 톡 차 올린다
+    if (c.rand() < 0.35) hit(7, "rim", 0.045, 0.2);
+  }
+  // 북이 돌아오기 전 마디: 손뼉 셋으로 잇는다
+  if (x.fill) [5, 6, 7].forEach((s, i) => hit(s, "clap", 0.04 + i * 0.014, -0.08));
+}
+function compD(c: Composer, x: BarCtx) {
+  for (const slot of D_CHOPS[c.comp]) {
+    const ch = x.chordAt(slot);
+    x.out.push({
+      kind: "mallet",
+      t: x.at(slot) + (c.rand() - 0.5) * 0.006,
+      notes: ch.stab,
+      gain: 0.017 * x.level * (slot % 2 ? 1 : 0.85),
+      pan: slot % 4 === 1 ? -0.25 : 0.25,
+      tone: "kalimba",
+    });
+  }
+}
+const MYEONGRANG: StyleDef = {
+  per: 2,
+  tempo: { field: 126, home: 120 },
+  swing: { field: 0.64, home: 0.62 },
+  chords: MAJOR,
+  progs: { field: D_PROGS, home: D_PROGS },
+  scale: { field: notesIn(BRIGHT, 63, 84), home: notesIn(BRIGHT, 67, 87) },
+  parts: [
+    // 신나게: 다 같이
+    { bars: [8], drums: 2, bass: [0, 1], comp: [0, 1], lead: ["solo", "duet"], open: true, home: true },
+    // 주고받기: 가야금이 부르고 칼림바가 받는다
+    { bars: [8, 16], drums: 2, bass: [1, 2], comp: [0], lead: ["duet"], home: true },
+    // 살짝 쉼: 셰이커 뒷박과 두 박 끊기만
+    { bars: [4, 8], drums: 1, bass: [3, 0], comp: [2], lead: ["sparse", "solo"], home: true },
+    // 깡충: 높은 가락
+    { bars: [8, 16], drums: 2, bass: [2, 0], comp: [1, 0], lead: ["solo", "duet"], lift: 2 },
+    // 숨 고르기: 북 없이
+    { bars: [4], drums: 0, bass: [3], comp: [2, -1], lead: ["sparse"] },
+  ],
+  bass: { pats: D_BASS, tone: "round", gain: 0.052, hold: [0.7, 0.45] },
+  calls: ["x. xx x. ..", "xx x. .x x.", ".x xx x. ..", "x. .x xx x.", "xx .x x. ..", "x. xx .x x."].map(onsets),
+  answers: ["x. x. xx ..", ".x x. x. ..", "xx x. .. x.", "x. .x x. ..", ".. xx x. x.", "x. xx .. .."].map(onsets),
+  lead: {
+    center: { field: 74, home: 79 },
+    gain: 0.104,
+    decay: 1.05,
+    duet: { field: "kalimba", home: "kalimba" },
+    duetGain: 0.04,
+    bend: 0,
+  },
+  pad: { gain: 0.011, cutoff: { field: 1500, home: 1900 }, wide: false },
+  homeLevel: 0.75,
+  bell: { field: 0, home: 0.1 },
+  drums: drumsD,
+  comp: compD,
+  hits: ["kick", "clap", "shaker", "rim"],
+  compSamples: (_mood, chords) =>
+    chords.flatMap((ch) => ch.stab.map((note): SampleRef => ({ kind: "mallet", note, tone: "kalimba" }))),
+};
+
+const DEFS: Record<BgmStyle, StyleDef> = { a: SANCHAEK, b: MODEOM, c: JANGDAN, d: MYEONGRANG };
 
 export const MEMORIAL_BREATH = 6;
 export const MEMORIAL_NOTES = [39, 46, 51, 58];
