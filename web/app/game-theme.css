@@ -129,3 +129,9 @@
 .map-peek-bar b { font:400 18px/1.35 var(--game); }
 .map-peek-bar span { font:400 14px/1.5 var(--sans); color:#536048; word-break:keep-all; }
 .map-peek-bar div { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+
+/* 나레이션(타자 화면) 줄바꿈: 폭이 줄어도 한 단어만 따로 떨어지지 않게 문단마다 줄 길이를 고르게 나눈다.
+   글자는 폰 18px → 넓은 화면 26px까지 키우고, 한 줄은 약 25자 안으로 둔다(타자 중에도 줄 위치는 처음부터 고정). */
+.narration-text { font-size: clamp(18px, 3.6vw + 6px, 26px); line-height: 1.85; max-width: min(100%, 25em); }
+.narration-text p { text-wrap: balance; }
+@media (max-height: 600px) { .narration-text { font-size: 17px; line-height: 1.75; } }
