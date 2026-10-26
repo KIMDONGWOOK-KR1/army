@@ -3,7 +3,7 @@ const config: NextConfig = {
   poweredByHeader: false,
   devIndicators: false,
   // 같은 와이파이의 폰에서 개발 서버를 열어 시험할 수 있게 사설 LAN 주소를 허용한다.
-  allowedDevOrigins: ["localhost", "127.0.0.1", "192.168.*.*", "10.*.*.*"],
+  allowedDevOrigins: ["localhost", "127.0.0.1", "192.168.*.*", "10.*.*.*", "172.*.*.*"],
   async headers() {
     return [
       {
