@@ -34,6 +34,8 @@ import { ROLES } from "@/supabase/functions/_shared/types";
 // 화면 띠: 같은 장면(.game-scene) 안의 [data-hero-top] 아래 끝과 [data-hero-bottom] 위 끝 사이에
 // 장병을 둔다(제목과 아래 버튼판에 가리지 않게).
 
+// 첫 화면에서 한 사람씩 소품을 꺼내 보이는 간격·길이(초)
+const HOME_EMOTE = { every: 4.2, hold: 2.2, first: 1.2 };
 const MAP = jnu as unknown as MapData,
   ANCHORS = MAP.anchors;
 const xz = (p: [number, number]) => ({ x: p[0], z: p[1] });
@@ -146,6 +148,8 @@ export function HomeHero({ fallback }: { fallback: ReactNode }) {
         mount.add(hero.group);
         return { hero };
       });
+      let emoteClock = HOME_EMOTE.every - HOME_EMOTE.first,
+        emoteTurn = 0;
       // 장병 무리 가운데(바라볼 곳)와 정면에서 카메라 쪽(바깥) 방향
       const focus = new THREE.Vector3(
         spots.reduce((a, s) => a + s.x, 0) / spots.length,
@@ -228,7 +232,15 @@ export function HomeHero({ fallback }: { fallback: ReactNode }) {
           d = camera.position.distanceTo(aim);
         fog.near = d + HOME.fog.near;
         fog.far = Math.max(fog.near + 60, HOME.fog.far);
-        if (!reduced) for (const m of crew) m.hero.animate(dt, false, 0);
+        if (!reduced) {
+          // 동물의 숲 주민처럼 한 사람씩 차례로 자기 소품을 꺼내 보이고 다시 넣는다
+          emoteClock += dt;
+          if (emoteClock > HOME_EMOTE.every) {
+            emoteClock = 0;
+            crew[emoteTurn++ % crew.length].hero.emote(HOME_EMOTE.hold);
+          }
+          for (const m of crew) m.hero.animate(dt, false, 0);
+        }
         camera.updateMatrixWorld();
         world.update(focus.x, focus.z, camera);
         anchorCam.updateMatrixWorld();

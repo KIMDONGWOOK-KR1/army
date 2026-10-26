@@ -80,3 +80,7 @@
 /* 이름 있는 안내자(기록관): 붉은 기록 도장을 얼굴처럼 붙인다 */
 .speaker.guide { display:inline-flex; align-items:center; gap:6px; padding-left:4px; }
 .speaker.guide i { width:24px; height:24px; display:grid; place-items:center; border-radius:50%; background:#b62c17; color:#fffdf5; font:700 13px/1 var(--calm); font-style:normal; box-shadow:0 2px 0 #7d1e10; }
+
+/* 문제 풀이 화면 머리의 내 장병 초상(한 번 그린 그림) */
+.mission-emblem .role-portrait { display:block; width:84px; height:84px; margin:-14px -6px -10px 0; filter:drop-shadow(0 3px 0 #2c484114); }
+@media(max-width:760px) { .mission-emblem .role-portrait { width:72px; height:72px; margin:-12px -4px -8px 0; } }

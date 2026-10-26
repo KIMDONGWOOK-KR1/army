@@ -114,7 +114,7 @@ export function ResultV2({ snapshot: s }: { snapshot: V2Response }) {
     <h1 data-scene-heading tabIndex={-1}>함께 완성한 기록</h1>
     {/* 팀 플레이가 끝나면 함께한 동료의 모습과 성취를 보여 주듯, 네 사람을 한 장에 세운다(보직·호출명만) */}
     <section className={styles.crew} aria-label="함께 걸은 네 사람">
-      <CharacterLineup row className={styles.crewLineup} />
+      <CharacterLineup row action className={styles.crewLineup} />
       <ul>{ROLES.map((role) => {
         const member = s.game.members.find((m) => m.role === role);
         const Icon = ROLE_ICONS[role];

@@ -10,11 +10,12 @@ import type { Role } from "@/supabase/functions/_shared/types";
 
 // 네 보직 장병의 점토 소품과 사람마다 다른 모습(soldier-variants.ts)을 C02 장병에 입힌다.
 // 소품은 받는 파일 없이 기본 도형을 꼭짓점 색으로 한 덩어리씩 구워 뼈에 단다(소품 하나 = 그리기 한 번).
-// hh 2026-10-26 참고 그림처럼 보직마다 손에 든 소품과 자세로 한눈에 구분한다.
-//   지휘관: 오른손으로 높이 든 파란 깃발, 왼팔 완장, 어깨 견장
-//   정찰원: 두 손으로 눈에 댄 초록 쌍안경, 황토색 멜빵·배낭
-//   통신원: 왼손으로 귀에 댄 주황 무전기, 등 무전기와 주황 멜빵
-//   암호해독관: 두 손으로 든 큰 보라 열쇠, 보라 멜빵
+// hh 2026-10-26: 참고 그림처럼 보직마다 소품으로 구분하되, 평소에는 넣어 두고(걷기·서기)
+// 활동할 때만(보직 공개 순간, 도착 범위 안 현장 조사, 첫 화면 차례 인사, 문제 풀이 그림) 손에 들고 자세를 잡는다.
+//   지휘관: 등에 꽂은 깃발 → 오른손으로 높이 든 깃발. 늘: 왼팔 완장, 어깨 견장
+//   정찰원: 가슴에 건 쌍안경 → 두 손으로 눈에 댄 쌍안경. 늘: 황토색 멜빵·배낭
+//   통신원: 멜빵에 꽂은 무전기 → 왼손으로 귀에 댄 무전기. 늘: 등 무전기와 주황 멜빵
+//   암호해독관: 목걸이 열쇠 → 두 손으로 든 큰 열쇠. 늘: 보라 멜빵
 // 같은 군복, 무기·계급장·실제 부대 표지 없음.
 //
 // 좌표는 쉬는 자세의 몸 좌표: 모형 키 1, 발바닥 y=0, 앞 +z, 장병의 왼쪽 +x.
@@ -303,6 +304,91 @@ const SPECS: Record<Role, PropSpec[]> = {
   ],
 };
 
+// 평소(걷기·서기) 소품을 넣어 둔 모습. 활동할 때만 위 SPECS의 손에 든 소품(grips 있는 것)으로 바꿔 든다.
+const CARRY: Record<Role, PropSpec[]> = {
+  commander: [
+    // 등에 비스듬히 꽂은 깃대와 삼각 깃발: 앞에서는 모자 위 오른쪽(장병의 오른쪽)으로 보인다
+    {
+      socket: "hips",
+      pivot: [-0.27, 1.12, -0.45],
+      parts: () => {
+        const base: V3 = [-0.12, 0.25, -0.15],
+          tip: V3 = [-0.36, 1.24, -0.42];
+        const A = new THREE.Vector3(...base),
+          d = new THREE.Vector3(...tip).sub(A),
+          len = d.length();
+        const low = A.clone().addScaledVector(d, 0.77);
+        const h = 0.19 * len;
+        const shape = new THREE.Shape();
+        shape.moveTo(0, 0);
+        shape.lineTo(0, h);
+        shape.lineTo(-0.32, h * 0.55);
+        shape.closePath();
+        const flag = new THREE.ExtrudeGeometry(shape, { depth: 0.022, bevelEnabled: true, bevelThickness: 0.006, bevelSize: 0.006, bevelSegments: 1 });
+        const flagAt = new THREE.Matrix4()
+          .compose(low, new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.clone().normalize()), new THREE.Vector3(1, 1, 1))
+          .multiply(mat([-0.006, 0, -0.011]));
+        return [
+          stick(base, tip, 0.012, C.pole),
+          // 깃대를 꽂은 작은 꽂이 주머니(등에 붙는다)
+          box([0.075, 0.1, 0.07], [-0.125, 0.29, -0.135], C.webbing, 0.02),
+          { g: new THREE.SphereGeometry(0.026, 10, 8), color: C.brass, m: mat(tip) },
+          { g: flag, color: C.flagBlue, m: flagAt },
+        ];
+      },
+    },
+  ],
+  scout: [
+    // 목줄로 가슴에 건 초록 쌍안경
+    {
+      socket: "hips",
+      pivot: [0, 0.315, 0.17],
+      parts: () => {
+        const parts: Part[] = [];
+        for (const sx of [-1, 1]) {
+          const x = sx * 0.05;
+          parts.push(
+            { g: new THREE.CylinderGeometry(0.038, 0.041, 0.095, 14), color: ROLE_COLORS.scout, m: mat([x, 0.305, 0.172]) },
+            { g: new THREE.CylinderGeometry(0.028, 0.03, 0.03, 12), color: "#1b5e44", m: mat([x, 0.366, 0.166]) },
+            { g: new THREE.TorusGeometry(0.036, 0.011, 8, 16), color: "#1b5e44", m: mat([x, 0.258, 0.172], [Math.PI / 2, 0, 0]) },
+            stick([x * 1.1, 0.38, 0.16], [x * 1.4, 0.43, 0.08], 0.007, "#1b5e44"),
+          );
+        }
+        parts.push(box([0.06, 0.03, 0.035], [0, 0.33, 0.175], "#1b5e44", 0.01));
+        return parts;
+      },
+    },
+  ],
+  signal: [
+    // 왼쪽 멜빵에 꽂아 둔 주황 무전기
+    {
+      socket: "hips",
+      pivot: [0.1, 0.33, 0.15],
+      parts: () => [
+        box([0.062, 0.1, 0.04], [0.1, 0.33, 0.15], C.orange, 0.015, [-0.35, 0, 0]),
+        box([0.042, 0.034, 0.01], [0.1, 0.318, 0.171], C.orangeDark, 0.005, [-0.35, 0, 0]),
+        stick([0.115, 0.375, 0.135], [0.125, 0.47, 0.1], 0.007, C.charcoal),
+        { g: new THREE.SphereGeometry(0.014, 8, 6), color: C.charcoal, m: mat([0.125, 0.47, 0.1]) },
+      ],
+    },
+  ],
+  cipher: [
+    // 목걸이 줄에 건 보라 열쇠
+    {
+      socket: "hips",
+      pivot: [0, 0.3, 0.17],
+      parts: () => [
+        stick([-0.012, 0.37, 0.168], [-0.05, 0.425, 0.085], 0.006, C.purpleDark),
+        stick([0.012, 0.37, 0.168], [0.05, 0.425, 0.085], 0.006, C.purpleDark),
+        { g: new THREE.TorusGeometry(0.03, 0.011, 8, 16), color: C.purple, m: mat([0, 0.342, 0.172]) },
+        box([0.02, 0.11, 0.016], [0, 0.262, 0.172], C.purple, 0.006),
+        box([0.036, 0.016, 0.016], [0.02, 0.222, 0.172], C.purple, 0.005),
+        box([0.028, 0.016, 0.016], [0.016, 0.245, 0.172], C.purple, 0.005),
+      ],
+    },
+  ],
+};
+
 // 둥근 안경(머리 뼈): 얼굴 앞 눈 높이에 두 테와 코다리, 귀까지 가는 다리
 const GLASSES: PropSpec = {
   socket: "head",
@@ -389,6 +475,8 @@ const popScale = (t: number) => {
 // 팔 뻗기(두 마디): 어깨에서 손목까지 길이를 지키며 손목을 목표로, 팔꿈치는 pole 쪽으로 굽힌다.
 // 모두 월드 좌표에서 계산하고, 뼈의 지역 회전으로 되돌려 넣는다.
 const ARM_SCALE = 1.32;
+// 소품을 넣고 꺼내는 시간(초)
+const SWAP = 0.45;
 const ARM_BONES: Record<Hand, [string, string, string]> = {
   left: ["LeftArm", "LeftForeArm", "LeftHand"],
   right: ["RightArm", "RightForeArm", "RightHand"],
@@ -457,7 +545,8 @@ export function crewSoldier(
     height,
     role,
     variant,
-  }: { height: number; role: Role | null; variant: SoldierVariant },
+    action = false,
+  }: { height: number; role: Role | null; variant: SoldierVariant; action?: boolean },
 ) {
   const hero = heroSoldier(
     gltf,
@@ -473,14 +562,30 @@ export function crewSoldier(
   );
   if (variant.glasses) hero.sockets.head.add(propMesh(GLASSES));
   hero.sockets.hips.add(propMesh(BELT));
-  let worn: THREE.Mesh[] = [],
+  type Kind = "worn" | "carry" | "action";
+  let worn: { m: THREE.Mesh; kind: Kind }[] = [],
     shown: Role | null = null,
     pop = 1,
-    // 추모 장면과 조용한 구역에서는 손에 든 소품(깃발·쌍안경·무전기·열쇠)을 내려놓고 팔을 편히 둔다
+    // act: 0이면 소품을 넣어 둔 평소 모습, 1이면 손에 들고 자세를 잡은 모습(SWAP초 동안 바꿔 든다)
+    act = action ? 1 : 0,
+    acting = action,
+    emoteLeft = 0,
+    // 추모 장면과 조용한 구역에서는 활동 자세를 잡지 않는다
     calm = false;
+  // 소품 크기: 튀어나오기(보직 공개) × 넣고 꺼내기
+  const sizeProps = () => {
+    const reveal = Math.max(0.001, popScale(pop));
+    const carryK = THREE.MathUtils.clamp(1 - act * 2, 0, 1),
+      actionK = act <= 0.5 ? 0 : popScale((act - 0.5) * 2);
+    for (const { m, kind } of worn) {
+      const k = reveal * (kind === "carry" ? carryK : kind === "action" ? actionK : 1);
+      m.visible = k > 0.002;
+      m.scale.setScalar(Math.max(0.001, k));
+    }
+  };
   const setRole = (next: Role | null, animate = false) => {
     if (next === shown) return;
-    for (const m of worn) {
+    for (const { m } of worn) {
       m.removeFromParent();
       (m.material as THREE.Material).dispose();
     }
@@ -488,15 +593,16 @@ export function crewSoldier(
     shown = next;
     hero.setColor(next ? ROLE_COLORS[next] : NEUTRAL_COLOR);
     if (!next) return;
-    worn = [...SPECS[next], BADGES[next]].map((spec) => {
+    const add = (spec: PropSpec, kind: Kind) => {
       const m = propMesh(spec);
-      m.userData.held = !!spec.grips;
-      m.visible = !(calm && m.userData.held);
       hero.sockets[spec.socket].add(m);
-      return m;
-    });
+      worn.push({ m, kind });
+    };
+    for (const spec of SPECS[next]) add(spec, spec.grips ? "action" : "worn");
+    for (const spec of CARRY[next]) add(spec, "carry");
+    add(BADGES[next], "worn");
     pop = animate ? 0 : 1;
-    if (animate) for (const m of worn) m.scale.setScalar(0.001);
+    sizeProps();
   };
   setRole(role);
   const arms = {
@@ -515,14 +621,15 @@ export function crewSoldier(
       grips = shown ? SPECS[shown].flatMap((spec) => (spec.grips ?? []).map((g) => ({ ...g, socket: hero.sockets[spec.socket] }))) : [];
       holding = new Set(grips.map((g) => g.hand));
     }
-    if (!grips.length || calm) {
+    const k = act * act * (3 - 2 * act);
+    if (!grips.length || k <= 0) {
       for (const hand of ["left", "right"] as const) arms[hand][0]?.scale.copy(armScale[hand]);
       return;
     }
     hero.group.updateMatrixWorld(true);
     hero.body.getWorldQuaternion(bodyQ);
     hero.body.getWorldScale(bodyS);
-    const weight = Math.min(1, pop * 1.4);
+    const weight = Math.min(1, pop * 1.4) * k;
     // 이 모형은 팔이 짧아 소품까지 닿지 않는다: 소품을 쥔 팔만 위팔 뼈를 고르게 키워 손이 닿게 한다.
     // 동작 믹서는 값이 바뀔 때만 다시 써서 크기를 되돌려 주지 않으므로, 처음 크기에서 매번 새로 정한다.
     for (const hand of ["left", "right"] as const) {
@@ -555,18 +662,27 @@ export function crewSoldier(
     },
     setRole,
     setCalm(next: boolean) {
-      if (next === calm) return;
       calm = next;
-      for (const m of worn) if (m.userData.held) m.visible = !calm;
+    },
+    // 활동 자세를 이어서 잡는다(현장 조사처럼 상태가 끝날 때까지)
+    setAction(next: boolean) {
+      acting = next;
+    },
+    // 잠깐 활동 자세를 잡았다가 다시 넣는다. now면 꺼내는 동작 없이 바로 든 모습으로 시작한다(보직 공개 순간).
+    emote(seconds: number, now = false) {
+      emoteLeft = Math.max(emoteLeft, seconds);
+      if (now) act = 1;
+      sizeProps();
     },
     // 움직이지 않을 때만 사람마다 다른 빠르기로 숨 쉰다
     animate(dt: number, moving: boolean, speed: number) {
       hero.animate(moving ? dt : dt * variant.pace, moving, speed);
-      if (pop < 1) {
-        pop = Math.min(1, pop + dt / 0.45);
-        const s = Math.max(0.001, popScale(pop));
-        for (const m of worn) m.scale.setScalar(s);
-      }
+      emoteLeft = Math.max(0, emoteLeft - dt);
+      const want = !calm && (acting || emoteLeft > 0) ? 1 : 0;
+      const before = act;
+      act = want > act ? Math.min(1, act + dt / SWAP) : Math.max(0, act - dt / SWAP);
+      if (pop < 1) pop = Math.min(1, pop + dt / 0.45);
+      if (pop < 1 || act !== before) sizeProps();
       hold();
     },
   };

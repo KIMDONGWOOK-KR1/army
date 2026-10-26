@@ -6,3 +6,6 @@
 .review-roles { display:grid;grid-template-columns:repeat(4,1fr); gap:20px; padding:20px 0 32px; } .review-roles h2 { font:400 20px/1.5 var(--game); }.review-roles p { font-size:13px; color:#59655c; }
 .review-type { display:grid;grid-template-columns:1fr 1fr;gap:24px;border-top:1px solid #b5b7a6;padding:28px 0; }.review-type h2 { font:400 28px/1.5 var(--game);margin:12px 0; }.review-type p { font-size:15px; }.review-type .review-serif { font:600 21px/1.9 var(--calm);margin-top:12px; }
 @media(max-width:600px) { .design-review { padding:24px 20px; }.character-lineup {height:520px;}.review-roles{grid-template-columns:1fr 1fr;}.review-type{grid-template-columns:1fr;} }
+
+.review-pose { display:flex; gap:8px; margin-top:20px; }
+.review-pose .button[aria-pressed="true"] { background:#347c66; color:#fffdf5; border-color:#347c66; }

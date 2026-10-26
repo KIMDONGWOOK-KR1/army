@@ -413,6 +413,8 @@ export function GatherStage({
           if (u.s.role !== want) {
             const pop = shown && !reduced;
             u.s.setRole(want, pop);
+            // 보직을 공개하는 순간에만 소품을 들고 잠깐 자세를 잡았다가 넣는다
+            if (pop && want) u.s.emote(2.8, true);
             if (pop) busyUntil = performance.now() + 600;
           }
         });

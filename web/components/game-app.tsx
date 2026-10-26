@@ -37,6 +37,7 @@ import { Mission, LockPanel } from "./mission";
 import { MissionV2, LockPanelV2 } from "./mission-v2";
 import { JournalV2 } from "./journal-v2";
 import { CoopCompass } from "./coop-compass";
+import { RolePortrait } from "./role-portrait";
 import { Crew, NextStageAction } from "./yongbong-panel";
 import { closingLines, NextStopCard, sachoEyebrow } from "./next-stop";
 import { isPracticeStage, plain } from "@/lib/practice-text";
@@ -1260,11 +1261,18 @@ export default function GameApp({
                   </h1>
                 </div>
                 <span className="mission-emblem">
-                  {role &&
-                    (() => {
-                      const Icon = icons[role];
-                      return <Icon size={38} />;
-                    })()}
+                  {/* 문제를 푸는 동안에만 내 장병이 소품을 들고 조사하는 모습(추모·회고 단계는 평소 모습) */}
+                  {role && (
+                    <RolePortrait
+                      role={role}
+                      look={s!.self.id}
+                      action={v2?.stage.kind !== "memorial" && v2?.stage.completion.type !== "joint-record"}
+                      fallback={(() => {
+                        const Icon = icons[role];
+                        return <Icon size={38} />;
+                      })()}
+                    />
+                  )}
                 </span>
               </div>
               <div className="mission-stage game-window">
