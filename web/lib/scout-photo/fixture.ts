@@ -1,20 +1,39 @@
-import type { PhotoMission } from "./contract";
+import type { ScoutPhotoMission } from "./contract";
 
-// [합성] 화면 확인용 자료. 실제 조형물·문항·정답이 아니며 운영 코스 시드로 쓰지 않는다.
-// 선택지에 정답 표시를 붙이지 않는다(채점은 어댑터가 정한다).
-export const scoutPhotoMission: PhotoMission = {
-  clue: {
-    symbol: "☆",
-    label: "[합성] 정찰원의 상징 스티커",
-    text: "[합성] 별 하나를 품은 돌이 정문 가까이에서 오가는 사람을 지켜본다. 그 돌을 찾아 사진으로 남겨라.",
+/** Synthetic UI copy only. No answer, reference photograph, or real-course data. */
+export const scoutPhotoMission: ScoutPhotoMission = {
+  id: "G-02.preview",
+  stageId: "gate",
+  role: "scout",
+  title: "상징이 가리키는 대상을 찾아라",
+  instruction: "개인 단서와 통신원이 전한 말을 함께 살펴라. 현장에서 대상을 찾아 촬영하라.",
+  asset: {
+    url: null,
+    alt: "상징 이미지 준비 중",
+    confirmed: false,
   },
   photoStep: {
-    id: "G-02-photo",
-    guide: "조형물이 화면 가운데 오도록 찍어요. 다른 사람의 얼굴·명찰·차량번호는 담지 않아요.",
+    id: "G-02.photo",
+    prompt: "나는 날개가 없어도 바람의 방향을 이야기한다. 이 상징이 가리키는 대상을 찾아라.",
+    maxFailures: 3,
+    failurePenalty: {
+      value: null,
+      confirmed: false,
+      note: "TODO(확인필요): D5 사진 검증 실패 감점 확정. 이 mock은 점수를 적용하지 않음",
+    },
   },
   choiceSteps: [
-    { id: "G-02-q1", prompt: "[합성] 사진으로 남긴 조형물 가까이에 있는 것은?", choices: ["[합성] 안내판", "[합성] 분수", "[합성] 시계탑"] },
-    { id: "G-02-q2", prompt: "[합성] 조형물이 바라보는 방향은?", choices: ["[합성] 정문 쪽", "[합성] 도서관 쪽"] },
+    {
+      id: "G-02.quiz-1",
+      type: "choice",
+      title: "대상을 살펴보자",
+      prompt: "대상의 이름을 나타내는 항목을 골라라. 실제 문항은 추후 코스 데이터로 교체한다.",
+      choices: [
+        { value: "1", label: "바람을 담은 모양" },
+        { value: "2", label: "빛을 모은 모양" },
+        { value: "3", label: "길을 잇는 모양" },
+      ],
+      confirmed: false,
+    },
   ],
-  maxPhotoFailures: 3,
 };

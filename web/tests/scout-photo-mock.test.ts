@@ -1,58 +1,115 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { scoutPhotoMission } from "../lib/scout-photo/fixture";
 import { createMockPhotoGateClient } from "../lib/scout-photo/mock";
-import { scoutPhotoMission as mission } from "../lib/scout-photo/fixture";
-import { fitSize } from "../lib/scout-photo/capture";
 
-const photo = new Blob(["[합성]"], { type: "image/jpeg" });
-const stepId = mission.photoStep.id;
-let n = 0;
-const id = () => `req-${n++}`;
+const photoInput = (requestId: string) => ({
+  requestId,
+  stepId: scoutPhotoMission.photoStep.id,
+  photo: new Blob(["synthetic-fixture"], { type: "image/jpeg" }),
+});
+const choiceInput = (requestId: string) => ({
+  requestId,
+  stepId: scoutPhotoMission.choiceSteps[0].id,
+  answer: "1",
+});
 
-describe("scout photo gate mock", () => {
-  it("moves from a verified photo to every data-driven question", async () => {
-    const c = createMockPhotoGateClient({ mission });
-    expect((await c.submitPhoto({ requestId: id(), stepId, photo })).state.photo.status).toBe("verified");
-    for (const q of mission.choiceSteps) await c.submitChoice({ requestId: id(), stepId: q.id, answer: "1" });
-    expect(c.getState().completed).toBe(true);
+afterEach(() => vi.unstubAllEnvs());
+
+describe("scout photo UI mock", () => {
+  it("auto-passes only the photo after three failures without claiming verification", async () => {
+    const client = createMockPhotoGateClient({ delayMs: 0 });
+    expect((await client.submitPhoto(photoInput("a"))).result.kind).toBe("photo_retry");
+    await client.submitPhoto(photoInput("b"));
+    const third = await client.submitPhoto(photoInput("c"));
+    expect(third.result.kind).toBe("photo_failed_pass");
+    expect(third.state.photo).toEqual({
+      status: "failed_pass", failureCount: 3, verified: false, completionReason: "photo_failed_3",
+    });
+    expect(third.state.completed).toBe(false);
+    expect(Object.values(third.state.choiceProgress)).toEqual([false]);
+    expect((await client.submitChoice(choiceInput("quiz"))).state.completed).toBe(true);
   });
-  it("passes only the photo step after three failures and keeps it unverified", async () => {
-    const c = createMockPhotoGateClient({ mission }); c.setPhotoOutcome("no_match");
-    const r1 = await c.submitPhoto({ requestId: id(), stepId, photo });
-    expect(r1.result).toEqual({ kind: "photo_retry", failureCount: 1 });
-    await c.reportUnavailable({ requestId: id(), stepId, reason: "camera_unavailable" });
-    const r3 = await c.submitPhoto({ requestId: id(), stepId, photo });
-    expect(r3.result.kind).toBe("photo_failed_pass");
-    expect(r3.state.photo.status).toBe("failed_pass");
-    expect(r3.state.completed).toBe(false);
-    for (const q of mission.choiceSteps) await c.submitChoice({ requestId: id(), stepId: q.id, answer: "2" });
-    expect(c.getState().photo.status).toBe("failed_pass");
+
+  it("counts explicit camera/prohibition failures with photo failures in the same limit", async () => {
+    const client = createMockPhotoGateClient({ delayMs: 0 });
+    await client.reportUnavailable({ requestId: "a", stepId: "G-02.photo", reason: "camera_unavailable" });
+    await client.submitPhoto(photoInput("b"));
+    const result = await client.reportUnavailable({
+      requestId: "c", stepId: "G-02.photo", reason: "photography_prohibited",
+    });
+    expect(result.state.photo.status).toBe("failed_pass");
+    expect(result.state.photo.failureCount).toBe(3);
+    expect(result.state.photo.verified).toBe(false);
   });
-  it("does not count a service error and keeps the same request retryable", async () => {
-    const c = createMockPhotoGateClient({ mission }); c.setPhotoOutcome("service_error");
-    const r = await c.submitPhoto({ requestId: "same", stepId, photo });
-    expect(r.result.kind).toBe("service_error");
-    expect(r.state.photo.failureCount).toBe(0);
-    c.setPhotoOutcome("match");
-    expect((await c.submitPhoto({ requestId: "same", stepId, photo })).result.kind).toBe("photo_verified");
+
+  it("retries a service error with the same ID without recording a failure", async () => {
+    const client = createMockPhotoGateClient({ delayMs: 0 });
+    client.setPhotoOutcome("service_error");
+    const failed = await client.submitPhoto(photoInput("same-id"));
+    expect(failed.result).toMatchObject({ kind: "error", error: { code: "SERVICE_UNAVAILABLE", retryable: true } });
+    expect(failed.state.photo.failureCount).toBe(0);
+    client.setPhotoOutcome("match");
+    expect((await client.submitPhoto(photoInput("same-id"))).state.photo.status).toBe("verified");
   });
-  it("replays a repeated request id and keeps a rejected question open", async () => {
-    const c = createMockPhotoGateClient({ mission }); c.setPhotoOutcome("no_match");
-    await c.submitPhoto({ requestId: "dup", stepId, photo });
-    await c.submitPhoto({ requestId: "dup", stepId, photo });
-    expect(c.getState().photo.failureCount).toBe(1);
-    c.setPhotoOutcome("match"); await c.submitPhoto({ requestId: id(), stepId, photo });
-    c.setChoiceOutcome("rejected");
-    const q = mission.choiceSteps[0];
-    expect((await c.submitChoice({ requestId: id(), stepId: q.id, answer: "1" })).state.choiceProgress[q.id]).toBe(false);
+
+  it("applies concurrent and later retries once, and rejects changed action metadata", async () => {
+    const client = createMockPhotoGateClient({ delayMs: 0 });
+    const replies = await Promise.all([
+      client.submitPhoto(photoInput("same-id")), client.submitPhoto(photoInput("same-id")),
+    ]);
+    expect(replies.every((reply) => reply.state.photo.failureCount === 1)).toBe(true);
+    client.setPhotoOutcome("match");
+    expect((await client.submitPhoto(photoInput("same-id"))).result.kind).toBe("photo_retry");
+    const conflict = await client.reportUnavailable({
+      requestId: "same-id", stepId: "G-02.photo", reason: "camera_unavailable",
+    });
+    expect(conflict.result).toMatchObject({ kind: "error", error: { code: "REQUEST_CONFLICT" } });
+    expect((await client.getState()).state.photo.failureCount).toBe(1);
   });
-  it("refuses questions before the photo step and exposes no scoring data", async () => {
-    const c = createMockPhotoGateClient({ mission });
-    await expect(c.submitChoice({ requestId: id(), stepId: mission.choiceSteps[0].id, answer: "1" })).rejects.toThrow();
-    const text = JSON.stringify({ mission, state: c.getState() });
-    expect(text).not.toMatch(/answer|similarity|threshold|embedding/i);
+
+  it("requires photo completion and accepts a configurable sequence of ordinary choices", async () => {
+    const mission = structuredClone(scoutPhotoMission);
+    mission.choiceSteps.push({ ...structuredClone(mission.choiceSteps[0]), id: "G-02.quiz-2" });
+    const client = createMockPhotoGateClient({ mission, delayMs: 0 });
+    expect((await client.submitChoice(choiceInput("early"))).result)
+      .toMatchObject({ kind: "error", error: { code: "STEP_LOCKED" } });
+    client.setPhotoOutcome("match");
+    await client.submitPhoto(photoInput("photo"));
+    expect((await client.submitChoice({ ...choiceInput("second-first"), stepId: "G-02.quiz-2" })).result)
+      .toMatchObject({ kind: "error", error: { code: "STEP_LOCKED" } });
+    client.setChoiceOutcome("rejected");
+    expect((await client.submitChoice(choiceInput("wrong"))).state.completed).toBe(false);
+    client.setChoiceOutcome("accepted");
+    expect((await client.submitChoice(choiceInput("first"))).state.completed).toBe(false);
+    expect((await client.submitChoice({ ...choiceInput("second"), stepId: "G-02.quiz-2" })).state.completed).toBe(true);
   });
-  it("shrinks frames to the preview size limit", () => {
-    expect(fitSize(4000, 3000)).toEqual({ width: 1600, height: 1200 });
-    expect(fitSize(800, 600)).toEqual({ width: 800, height: 600 });
+
+  it("aborts without state mutation or consuming the request ID", async () => {
+    const client = createMockPhotoGateClient({ delayMs: 10 });
+    const controller = new AbortController();
+    const pending = client.submitPhoto(photoInput("retry"), controller.signal);
+    controller.abort();
+    await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    expect((await client.getState()).state.photo.failureCount).toBe(0);
+    client.setPhotoOutcome("match");
+    expect((await client.submitPhoto(photoInput("retry"))).result.kind).toBe("photo_verified");
+  });
+
+  it("returns detached state and no image/vector/score or actual answer data", async () => {
+    const client = createMockPhotoGateClient({ delayMs: 0 });
+    const reply = await client.submitPhoto(photoInput("private"));
+    reply.state.photo.failureCount = 999;
+    expect((await client.getState()).state.photo.failureCount).toBe(1);
+    expect(JSON.stringify(reply)).not.toMatch(/synthetic-fixture|image\/jpeg|embedding|similarity|blob:/);
+    expect(scoutPhotoMission.asset).toMatchObject({ url: null, confirmed: false });
+    expect(scoutPhotoMission.photoStep.failurePenalty).toMatchObject({ value: null, confirmed: false });
+    expect(scoutPhotoMission.photoStep).not.toHaveProperty("threshold");
+    expect(scoutPhotoMission.choiceSteps[0]).not.toHaveProperty("answer");
+    expect((await client.getState()).source).toBe("mock");
+  });
+
+  it("cannot instantiate in production", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    expect(() => createMockPhotoGateClient()).toThrow("개발 환경");
   });
 });

@@ -1,47 +1,111 @@
-// 정찰원 사진 미션(G-02) 화면과 어댑터 사이의 계약 초안.
-// 팀원 인계 문서(SCOUT_PHOTO_GATE_HANDOFF, 2026-10-23)를 따른다. 배포된 API 계약에 있는 액션이 아니다.
-// 유사도·임계값·임베딩·기준 사진은 화면에 내려오지 않는다.
+/** UI prototype contract; this is not a deployed game action or Snapshot schema. */
+export type PhotoOutcome = "match" | "no_match" | "service_error";
+export type ChoiceOutcome = "accepted" | "rejected";
+export type PhotoUnavailableReason =
+  | "camera_unavailable"
+  | "photography_prohibited";
 
-export type PhotoStatus = "pending" | "verified" | "failed_pass";
-export type UnavailableReason = "camera_unavailable" | "photography_prohibited";
+export type UnconfirmedPhotoSetting = {
+  value: null;
+  confirmed: false;
+  note: string;
+};
 
-export type ChoiceQuestion = { id: string; prompt: string; choices: string[] };
-
-export type PhotoMission = {
-  // 정찰원 본인에게만 보이는 상징 단서(합성 placeholder)
-  clue: { symbol: string; label: string; text: string };
-  photoStep: { id: string; guide: string };
-  choiceSteps: ChoiceQuestion[];
-  // 실패 몇 번째에 사진 단계만 자동 통과하는지. 미리보기 기본값이며 운영 확정이 아니다.
-  maxPhotoFailures: number;
+export type ScoutPhotoMission = {
+  id: string;
+  stageId: string;
+  role: "scout";
+  title: string;
+  instruction: string;
+  asset: { url: string | null; alt: string; confirmed: boolean };
+  photoStep: {
+    id: string;
+    prompt: string;
+    maxFailures: 3;
+    failurePenalty: UnconfirmedPhotoSetting;
+  };
+  choiceSteps: Array<{
+    id: string;
+    type: "choice";
+    title: string;
+    prompt: string;
+    choices: Array<{ value: string; label: string }>;
+    confirmed: boolean;
+  }>;
 };
 
 export type PhotoGateState = {
-  photo: { status: PhotoStatus; failureCount: number; reason?: "photo" | UnavailableReason };
+  photo: {
+    status: "pending" | "verified" | "failed_pass";
+    failureCount: number;
+    verified: boolean;
+    completionReason: null | "photo_verified" | "photo_failed_3";
+  };
   choiceProgress: Record<string, boolean>;
   completed: boolean;
 };
 
-export type PhotoGateResult =
-  | { kind: "photo_verified" }
-  | { kind: "photo_retry"; failureCount: number }
-  | { kind: "photo_failed_pass"; failureCount: number }
-  | { kind: "service_error" }
-  | { kind: "choice_accepted"; stepId: string }
-  | { kind: "choice_rejected"; stepId: string };
+export type PhotoGateErrorCode =
+  | "INVALID_REQUEST"
+  | "REQUEST_CONFLICT"
+  | "PHOTO_REQUIRED"
+  | "STEP_NOT_FOUND"
+  | "STEP_LOCKED"
+  | "STEP_COMPLETED"
+  | "SERVICE_UNAVAILABLE";
 
+export type PhotoGateResult =
+  | { kind: "state" }
+  | { kind: "photo_verified" }
+  | {
+      kind: "photo_retry" | "photo_failed_pass";
+      reason: "no_match" | PhotoUnavailableReason;
+    }
+  | { kind: "choice_accepted" | "choice_rejected"; stepId: string }
+  | {
+      kind: "error";
+      error: { code: PhotoGateErrorCode; message: string; retryable: boolean };
+    };
+
+/** server is reserved for a future authenticated adapter, not implemented here. */
 export type PhotoGateReply = {
-  // "server"는 향후 연결을 위한 예약 값이다. 지금은 항상 "mock"이다.
   source: "mock" | "server";
-  requestId: string;
+  requestId: string | null;
   state: PhotoGateState;
   result: PhotoGateResult;
 };
 
+export type PhotoSubmission = {
+  requestId: string;
+  stepId: string;
+  photo: Blob;
+};
+export type PhotoUnavailableSubmission = {
+  requestId: string;
+  stepId: string;
+  reason: PhotoUnavailableReason;
+};
+export type PhotoChoiceSubmission = {
+  requestId: string;
+  stepId: string;
+  answer: string;
+};
+
+/** No URL, authentication, HTTP action names, or actual server validation is implied. */
 export interface PhotoGateClient {
-  getState(): PhotoGateState;
-  submitPhoto(input: { requestId: string; stepId: string; photo: Blob }): Promise<PhotoGateReply>;
-  reportUnavailable(input: { requestId: string; stepId: string; reason: UnavailableReason }): Promise<PhotoGateReply>;
-  // answer는 "1"부터 시작하는 선택 번호 문자열
-  submitChoice(input: { requestId: string; stepId: string; answer: string }): Promise<PhotoGateReply>;
+  getState(): Promise<PhotoGateReply>;
+  submitPhoto(input: PhotoSubmission, signal?: AbortSignal): Promise<PhotoGateReply>;
+  reportUnavailable(
+    input: PhotoUnavailableSubmission,
+    signal?: AbortSignal,
+  ): Promise<PhotoGateReply>;
+  submitChoice(
+    input: PhotoChoiceSubmission,
+    signal?: AbortSignal,
+  ): Promise<PhotoGateReply>;
+}
+
+export interface PhotoGateMockClient extends PhotoGateClient {
+  setPhotoOutcome(outcome: PhotoOutcome): void;
+  setChoiceOutcome(outcome: ChoiceOutcome): void;
 }
