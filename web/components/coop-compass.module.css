@@ -1,87 +1,66 @@
-.compass { flex:0 0 auto; min-width:0; margin:10px 12px 0; padding:0 13px 10px; color:#263a37; background:#fffdf5; border:1px solid #b5b7a6; border-radius:24px; font-family:var(--sans); }
-.top { display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:12px; }
-.top>span { display:flex; align-items:center; gap:5px; min-width:0; }
-.top button { display:flex; align-items:center; justify-content:center; gap:5px; min-height:44px; flex-shrink:0; background:none; border:0; color:#2c4841; font:inherit; font-weight:700; cursor:pointer; }
-.top button:focus-visible,.team summary:focus-visible { outline:3px solid #305c88; outline-offset:2px; border-radius:6px; }
-.action { display:grid; gap:4px; font:400 17px/1.55 var(--game); margin:0 0 8px; word-break:keep-all; overflow-wrap:anywhere; }
-.action b { font:600 11px/1.6 var(--sans); color:#536048; }
-.team { border-top:1px solid #d8d9cb; }
-.team summary { display:flex; align-items:center; gap:6px; min-height:44px; font-size:12px; list-style:none; cursor:pointer; }
-.team summary::-webkit-details-marker { display:none; }
-.team summary strong { margin-left:auto; padding:3px 8px; border-radius:999px; background:#def0e7; color:#265f50; font-weight:600; text-align:right; }
-.team[open] summary>svg:last-child { transform:rotate(180deg); }
-.team ul { display:grid; grid-template-columns:1fr 1fr; gap:12px 8px; list-style:none; margin:4px 0 12px; padding:0; }
-.team li { display:flex; gap:8px; align-items:center; min-width:0; }
-.team li div { display:grid; gap:3px; min-width:0; }
-.team li b { font-size:12px; }
-.team li div>span,.team li small { font-size:11px; line-height:1.5; overflow-wrap:anywhere; }
-.team li small { color:#8b4525; }
-.avatar { width:35px; height:35px; border:1px solid var(--member-color); border-radius:50%; display:grid; place-items:center; color:var(--member-color); background:#f3eedf; flex:0 0 auto; position:relative; }
-.avatar>svg:last-child:not(:first-child) { position:absolute; bottom:-2px; right:-2px; background:#2c4841; color:#fffdf5; border-radius:50%; padding:2px; width:16px; height:16px; }
-.privacy { font-size:12px; line-height:1.6; color:#59655c; margin:4px 0 0; }
-.compact { margin:0; width:100%; max-width:440px; max-height:42dvh; overflow-y:auto; box-shadow:0 4px 14px #263a3714; }
-.passport { padding:20px; border:1px solid #b5b7a6; border-radius:18px; background:#f3eedf; color:#263a37; margin-bottom:20px; }
-.eyebrow { font:700 12px var(--sans); letter-spacing:.08em; }
-.passport h2 { font-size:23px; line-height:1.5; margin:10px 0; }
-.passport>p { font-size:13px; line-height:1.7; }
-.passport ol { list-style:none; padding:0; margin:20px 0; display:grid; gap:10px; }
-.passport li { display:flex; align-items:center; gap:12px; background:#fffdf5; border:1px dashed #a6ac9a; padding:10px; border-radius:12px; }
-.passport li[data-state="current"] { border:2px solid #2c4841; }
-.passport li[data-state="complete"] { background:#e6eddc; border-style:solid; }
-.stamp { width:38px; height:38px; flex:0 0 auto; display:grid; place-items:center; border:1px solid #8b987c; border-radius:50%; font:700 13px var(--sans); }
-.passport li>div { display:grid; gap:4px; }
-.passport li b { font-size:14px; }
-.passport li div>span { font-size:12px; color:#59655c; }
-@media(max-width:360px) { .team ul { grid-template-columns:1fr; } .compass { padding-inline:10px; } }
-@media(max-height:640px) { .compact { max-height:30dvh; } }
-
-/* 공동 목표는 읽기 쉬운 한 장, 진행 수는 민트 배지로 분리한다. */
-.compass { border-color:#c4d6c5; border-top:3px solid #83bda6; box-shadow:0 3px 0 #2c484112; }
-.top button { color:#256956; }
-.avatar { background:#fffaf0; border-width:2px; }
-.passport { background:#f8f1da; border-color:#d6c6a1; border-radius:24px; }
-.passport h2 { font-family:var(--game); font-weight:400; }
-.passport li[data-state="complete"] .stamp { background:#347c66; color:#fffdf5; border-color:#347c66; }
-.passport li[data-state="current"] { border-color:#347c66; }
-.compass[data-quiet="true"] { border-top-color:#b5b7a6; }
-.compass[data-quiet="true"] .action { font:600 15px/1.7 var(--calm); }
-.compass[data-quiet="true"] .team summary strong { background:#ececdf; color:#46534a; }
-
-/* 다음으로 넘어가는 조건: 할 일 아래에 한 줄로 둔다 */
-.until { display:flex; gap:6px; align-items:flex-start; margin:-2px 0 8px; padding:7px 10px; border-radius:14px; background:#f4f1e3; color:#3d4c43; font:400 12.5px/1.55 var(--sans); word-break:keep-all; }
-.until svg { flex:0 0 auto; margin-top:3px; color:#347c66; }
-.until b { font-weight:700; margin-right:4px; color:#265f50; }
-.compass[data-quiet="true"] .until { background:#efede4; }
-.compass[data-quiet="true"] .until svg,.compass[data-quiet="true"] .until b { color:#46534a; }
-
-/* 접힌 상태의 네 사람 표시: 보직 색 고리, 끝낸 사람은 색이 채워지고 체크가 붙는다 */
+/* 팀 퀘스트 카드: 평소에는 한 줄로 접어 두고(목표·네 칸·진행 수), 누르면 할 일·다음 조건·네 사람이 펼쳐진다. */
+.compass { flex:0 0 auto; min-width:0; margin:10px 12px 0; padding:0 6px 0 12px; color:#263a37; background:#fffdf5; border:1px solid #c4d6c5; border-top:3px solid #83bda6; border-radius:22px; box-shadow:0 3px 0 #2c484112; font-family:var(--sans); }
+.bar { display:flex; align-items:center; gap:2px; min-height:52px; }
+.toggle { flex:1 1 auto; min-width:0; display:flex; align-items:center; gap:8px; min-height:48px; padding:0; background:none; border:0; color:inherit; font:inherit; text-align:left; cursor:pointer; }
+.toggle>svg:first-child { flex:0 0 auto; color:#347c66; }
+.headline { flex:1 1 auto; min-width:0; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font:400 15px/1.35 var(--game); }
+.headline[data-waiting="true"] { color:#6b4f12; }
+.count { flex:0 0 auto; padding:3px 9px; border-radius:999px; background:#def0e7; color:#265f50; font:700 13px/1.4 var(--sans); font-variant-numeric:tabular-nums; }
+.chevron { flex:0 0 auto; color:#536048; transition:transform .2s ease; }
+.compass[data-open="true"] .chevron { transform:rotate(180deg); }
+.records { flex:0 0 auto; width:44px; height:44px; display:grid; place-items:center; border-radius:50%; background:none; border:0; color:#256956; cursor:pointer; }
+.toggle:focus-visible, .records:focus-visible { outline:3px solid #305c88; outline-offset:2px; border-radius:12px; }
+/* 네 칸: 보직 색 고리, 끝낸 사람은 색이 채워지고 체크, 나는 노란 테두리 */
 .roster { display:flex; flex:0 0 auto; }
-.roster i { position:relative; width:24px; height:24px; margin-right:-4px; display:grid; place-items:center; border-radius:50%; border:2px solid var(--member-color); background:#fffdf5; color:var(--member-color); }
+.roster i { position:relative; width:21px; height:21px; margin-right:-5px; display:grid; place-items:center; border-radius:50%; border:2px solid var(--member-color); background:#fffdf5; color:var(--member-color); }
 .roster i:last-child { margin-right:2px; }
 .roster i[data-done="true"] { background:var(--member-color); color:#fffdf5; }
 .roster i[data-me="true"] { box-shadow:0 0 0 2px #fffdf5, 0 0 0 4px #f2c94c; z-index:1; }
-.roster i>svg:nth-child(2) { position:absolute; right:-4px; bottom:-4px; width:13px; height:13px; padding:1px; border-radius:50%; background:#2c4841; color:#fffdf5; }
+.roster i>svg:nth-child(2) { position:absolute; right:-4px; bottom:-4px; width:12px; height:12px; padding:1px; border-radius:50%; background:#2c4841; color:#fffdf5; }
+/* 펼친 내용 */
+.panel { display:grid; gap:10px; padding:4px 6px 14px 0; border-top:1px solid #d8d9cb; }
+.goal { margin:8px 0 0; font:700 13px/1.5 var(--sans); color:#347c66; }
+.goal { display:flex; flex-wrap:wrap; align-items:baseline; gap:2px 8px; }
+.goal span { font:400 16px/1.4 var(--game); color:#263a37; }
+.goal em { margin-left:auto; font:700 13px/1.5 var(--sans); font-style:normal; color:#265f50; }
+.action { display:grid; gap:2px; margin:0; font:400 16px/1.6 var(--sans); word-break:keep-all; overflow-wrap:anywhere; }
+.action b { font:700 13px/1.5 var(--sans); color:#536048; }
+.until { display:flex; gap:6px; align-items:flex-start; margin:0; padding:7px 10px; border-radius:14px; background:#f4f1e3; color:#3d4c43; font:400 14px/1.55 var(--sans); word-break:keep-all; }
+.until svg { flex:0 0 auto; margin-top:3px; color:#347c66; }
+.until b { font-weight:700; margin-right:4px; color:#265f50; }
+.members { display:grid; grid-template-columns:1fr 1fr; gap:12px 8px; list-style:none; margin:0; padding:0; }
+.members li { display:flex; gap:8px; align-items:center; min-width:0; }
+.members li div { display:grid; gap:2px; min-width:0; }
+.members li b { font-size:14px; }
+.members li div>span, .members li small { font-size:13px; line-height:1.5; overflow-wrap:anywhere; }
+.members li small { color:#8b4525; }
+.avatar { width:34px; height:34px; border:2px solid var(--member-color); border-radius:50%; display:grid; place-items:center; color:var(--member-color); background:#fffaf0; flex:0 0 auto; position:relative; }
+.avatar>svg:last-child:not(:first-child) { position:absolute; bottom:-2px; right:-2px; background:#2c4841; color:#fffdf5; border-radius:50%; padding:2px; width:16px; height:16px; }
+.privacy { margin:0; font-size:13px; line-height:1.6; color:#59655c; }
+.compact { margin:0; width:100%; max-width:440px; max-height:42dvh; overflow-y:auto; }
+@media (max-height:640px) { .compact { max-height:30dvh; } }
+/* 추모: 낮은 채도와 명조 */
+.compass[data-quiet="true"] { border-top-color:#b5b7a6; }
+.compass[data-quiet="true"] .headline, .compass[data-quiet="true"] .goal span { font-family:var(--calm); font-weight:600; font-size:15px; }
+.compass[data-quiet="true"] .action { font-family:var(--calm); }
+.compass[data-quiet="true"] .count { background:#ececdf; color:#46534a; }
 .compass[data-quiet="true"] .roster i[data-done="true"] { background:#7c8a7f; border-color:#7c8a7f; }
-/* 아주 좁은 폰에서는 글자 대신 네 사람 표시가 자리를 맡는다(낭독기에는 이름이 남는다) */
-@media(max-width:360px) { .team summary>span:nth-of-type(2) { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; } }
+.compass[data-quiet="true"] .until { background:#efede4; }
+.compass[data-quiet="true"] .until svg, .compass[data-quiet="true"] .until b { color:#46534a; }
+@media (max-width:360px) { .members { grid-template-columns:1fr; } .roster i { width:19px; height:19px; } .headline { font-size:14px; } }
+@media (prefers-reduced-motion:reduce) { .chevron { transition:none; } }
 
-/* 팀 퀘스트 카드와 글자 5단계(2026-10-26): 목표 16 주아 · 할 일 16 고딕 · 칩·라벨 14 · 보조 13 */
-.top { font-size:13px; min-height:48px; }
-.goal { display:flex; align-items:center; gap:8px; min-width:0; color:#265f50; }
-.goal svg { flex:0 0 auto; }
-.goal>span { display:grid; gap:1px; min-width:0; font:400 16px/1.35 var(--game); color:#263a37; word-break:keep-all; }
-.goal small { font:700 13px/1.4 var(--sans); color:#347c66; letter-spacing:.02em; }
-.top button { font-size:14px; }
-.team { border-top:0; border-bottom:1px solid #d8d9cb; margin-bottom:10px; }
-.team summary { font-size:13px; min-height:48px; }
-.team summary strong { font-size:14px; padding:4px 10px; }
-.roster i { width:30px; height:30px; margin-right:-5px; }
-.roster i>svg:nth-child(2) { width:15px; height:15px; right:-5px; bottom:-5px; }
-.action { font:400 16px/1.6 var(--sans); color:#263a37; }
-.action b { font:700 13px/1.5 var(--sans); }
-.until { font-size:14px; }
-.privacy { font-size:13px; }
-.team li b { font-size:14px; }
-.team li div>span, .team li small { font-size:13px; }
-.compass[data-quiet="true"] .action { font:400 16px/1.7 var(--calm); }
-.compass[data-quiet="true"] .goal>span { font-family:var(--calm); font-weight:600; }
+/* 기록첩 */
+.passport { padding:20px; border:1px solid #d6c6a1; border-radius:24px; background:#f8f1da; color:#263a37; margin-bottom:20px; }
+.eyebrow { font:700 13px var(--sans); letter-spacing:.08em; }
+.passport h2 { font:400 23px/1.5 var(--game); margin:10px 0; }
+.passport>p { font-size:13px; line-height:1.7; }
+.passport ol { list-style:none; padding:0; margin:20px 0; display:grid; gap:10px; }
+.passport li { display:flex; align-items:center; gap:12px; background:#fffdf5; border:1px dashed #a6ac9a; padding:10px; border-radius:12px; }
+.passport li[data-state="current"] { border:2px solid #347c66; }
+.passport li[data-state="complete"] { background:#e6eddc; border-style:solid; }
+.stamp { width:38px; height:38px; flex:0 0 auto; display:grid; place-items:center; border:1px solid #8b987c; border-radius:50%; font:700 13px var(--sans); }
+.passport li[data-state="complete"] .stamp { background:#347c66; color:#fffdf5; border-color:#347c66; }
+.passport li>div { display:grid; gap:4px; }
+.passport li b { font-size:14px; }
+.passport li div>span { font-size:13px; color:#59655c; }

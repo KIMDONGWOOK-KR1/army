@@ -22,11 +22,17 @@ test("four roles see their next action, team progress and only earned journal st
     await call(commander,"begin-operation");
     await scout.goto("/");
     const panel=scout.getByTestId("coop-compass");
+    // 팀 퀘스트 카드는 한 줄로 접혀 있다가 누르면 할 일·다음 조건·네 사람이 펼쳐진다
+    const teamCard=panel.getByRole("button",{name:/^팀 퀘스트/});
+    await expect(teamCard).toHaveAttribute("aria-expanded","false");
+    await expect(teamCard).toContainText("0/4");
+    await expect(panel).not.toContainText("내 도착을 확인");
+    await teamCard.click();
     await expect(panel).toContainText("내 도착을 확인");
     await scout.getByRole("button",{name:"본인 모의 도착 확인",exact:true}).click();
     await expect(panel).toContainText("도착 확인 1/4");
     await expect(panel).toContainText("내 도착은 확인됐어요");
-    await scout.getByText("네 사람의 발걸음",{exact:true}).click();
+    await expect(teamCard).toContainText("동료 3명 기다려요");
     await expect(panel.getByRole("list",{name:"역할별 진행 상태"})).toContainText("정찰원 · 나");
     for(const [width,height] of [[320,568],[390,844],[1440,900]]) {
       await scout.setViewportSize({width,height});
@@ -50,7 +56,8 @@ test("four roles see their next action, team progress and only earned journal st
       await call(forRole(role),"submit-report"); await call(forRole(role),"confirm-explanation");
     }
     await expect(panel).toContainText("조사 보고 4/4");
-    await scout.getByText("네 사람의 발걸음",{exact:true}).click();
+    // 펼침 상태는 기기에 기억되어 장면이 바뀌어도 펼쳐져 있다
+    await expect(teamCard).toHaveAttribute("aria-expanded","true");
     const reward = scout.locator(".reward-stage"), digit = scout.locator(".private-digit");
     const rewardBox = await reward.boundingBox(), digitBox = await digit.boundingBox();
     expect(rewardBox).not.toBeNull(); expect(digitBox).not.toBeNull();
