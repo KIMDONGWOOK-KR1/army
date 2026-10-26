@@ -71,3 +71,8 @@
   .scene-title { overflow-y:auto; }
   .title-copy { padding-top:10px; }
 }
+/* 혼자 데모의 보직 전환: 다른 패널과 같은 크림·민트 둥근 칩으로 맞춘다. */
+.demo-role-bar { background:#f8f1da; border-top:1px solid #d6c6a1; gap:6px; }
+.demo-role-bar button { border-radius:999px; font-family:var(--game); font-size:14px; color:#405e4b; border:1px solid transparent; }
+.demo-role-bar button[aria-pressed="true"] { background:#347c66; border-color:#347c66; color:#fffdf5; font-weight:400; box-shadow:0 2px 0 #23533f; }
+.demo-role-bar button:focus-visible { outline:3px solid #305c88; outline-offset:2px; }

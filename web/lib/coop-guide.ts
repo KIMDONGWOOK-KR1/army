@@ -16,28 +16,32 @@ export function coopGuide(s: V2Response) {
     : consent ? draft!.confirm_mask : closing ? game.retro_mask ?? [] : game.report_mask;
   const label = complete ? "함께 완료" : traveling ? "도착 확인" : tribute ? "헌화" : consent ? "공동 기록 동의" : closing ? "회고 저장" : "조사 보고";
   const next = s.course.sites.find(site => site.seq > stage.seq);
+  // 기다리는 이유: 아직 끝내지 않은 동료의 보직 이름만 쓴다(단서·본문은 읽지 않는다)
+  const others = ROLES.filter((role, i) => role !== self.role && !mask[i]).map(role => ROLE_NAMES[role]).join("·");
+  const waitFor = (noun: string) => others ? `${others}의 ${noun}${josa(noun, "을", "를")} 기다려요.` : "";
   let action: string;
   if (game.status === "done") action = "함께 남긴 문장을 읽고 오늘의 탐방을 돌아봐요.";
   else if (complete) action = next ? self.role === "commander"
     ? `기록을 읽은 뒤 ${next.name} 출발을 알려요.`
     : `기록을 읽으며 지휘관의 ${next.name} 출발을 기다려요.` : "함께 완성한 기록을 읽어요.";
   else if (traveling) action = mask[mine]
-    ? "내 도착은 확인됐어요. 네 사람이 모이면 다음 장면이 열려요."
+    ? `내 도착은 확인됐어요. ${waitFor("도착") || "곧 다음 장면이 열려요."}`
     : "목적지로 걸어가 내 도착을 확인해요. 동료와 주변도 살펴요.";
   else if (tribute) action = mask[mine]
-    ? "국화를 올렸어요. 동료들이 마음을 전하는 동안 조용히 머물러요."
+    ? `국화를 올렸어요. ${others ? `${others}이 마음을 전하는 동안` : "잠시"} 조용히 머물러요.`
     : "장소의 이야기를 읽고, 내 국화 한 송이를 올려요.";
   else if (closing) action = !self.retro ? "오늘 기억에 남은 순간을 내 회고에 남겨요. 본문은 나만 볼 수 있어요."
-    : !game.retro_mask?.every(Boolean) ? "내 회고를 저장했어요. 동료의 회고가 모이면 공동 문장을 남겨요."
+    : !game.retro_mask?.every(Boolean) ? `내 회고를 저장했어요. ${waitFor("회고")}`
     : !draft ? self.role === "commander" ? "네 사람의 회고가 모였어요. 공동 문장과 근거를 작성해요." : "지휘관이 공동 문장을 작성하면 함께 읽고 동의해요."
-    : draft.confirm_mask[mine] ? "현재 기록에 동의했어요. 모두의 동의를 기다려요. 내용이 바뀌면 다시 확인해요."
+    : draft.confirm_mask[mine] ? `현재 기록에 동의했어요. ${waitFor("동의")} 내용이 바뀌면 다시 확인해요.`
     : "최신 공동 문장과 근거를 읽고, 내 기기에서 동의해요.";
   else if (confirming && game.report_mask.every(Boolean)) action = !draft
     ? self.role === "commander" ? "조사 보고가 모였어요. 공동 문장과 근거를 작성해요." : "지휘관이 공동 문장을 작성하면 함께 읽고 확인해요."
-    : draft.confirm_mask[mine] ? "현재 기록을 확인했어요. 모두의 확인을 기다려요." : "공동 문장과 근거를 읽고 내 기기에서 확인해요.";
+    : draft.confirm_mask[mine] ? `현재 기록을 확인했어요. ${waitFor("확인")}` : "공동 문장과 근거를 읽고 내 기기에서 확인해요.";
   else if (self.reported) action = self.role === "commander"
-    ? game.report_mask.every(Boolean) ? "보고가 모두 모였어요. 팀 자물쇠에서 함께 기록을 열어요." : "내 보고를 마쳤어요. 동료의 숫자와 설명을 말로 모아요."
-    : self.digit !== null ? "내 숫자를 말로 전하고, 지휘관이 기록을 여는 동안 동료의 설명을 들어요." : "내 해설을 확인하고, 동료와 조사한 내용을 나누어요.";
+    ? game.report_mask.every(Boolean) ? "보고가 모두 모였어요. 동료에게 들은 숫자로 팀 자물쇠를 열어요." : `내 보고를 마쳤어요. 동료의 숫자를 말로 모으며 ${waitFor("보고")}`
+    : self.digit !== null ? game.report_mask.every(Boolean) ? "내 숫자를 지휘관에게 말로 전해요. 이제 지휘관이 자물쇠를 열 차례예요." : `내 숫자를 지휘관에게 말로 전해요. ${waitFor("보고")}`
+    : "내 해설을 확인하고, 동료와 조사한 내용을 나누어요.";
   else {
     const pending = Object.entries(self.step_progress).filter(([, step]) => !["done", "explained"].includes(step.status));
     if (!pending.length && self.mission) action = "내 조사가 끝났어요. 아래에서 조사 보고를 마쳐요.";
@@ -50,8 +54,17 @@ export function coopGuide(s: V2Response) {
       action = `${who}의 조사가 이어지면 내 다음 단서가 열려요. 서로 찾은 내용을 말로 나누어요.`;
     } else action = "열린 단서를 조사하고 내 보고를 완성해요. 숫자는 동료에게 말로 전해요.";
   }
+  const dest = next?.name ?? "결과";
+  const until = game.status === "done" ? "" : complete ? next ? `지휘관이 출발을 알리면 ${dest}${toward(dest)} 이동해요` : "모두의 기록이 결과에 남아요"
+    : traveling ? "네 사람 모두 도착하면 조사가 열려요"
+    : tribute ? "네 사람 모두 국화를 올리면 다음으로 이어져요"
+    : consent ? "네 사람 모두 같은 버전에 동의하면 탐방이 끝나요"
+    : closing ? "네 회고가 모이면 지휘관이 공동 문장을 써요"
+    : confirming ? "네 사람 모두 확인하면 다음으로 이어져요"
+    : game.report_mask.every(Boolean) ? "지휘관이 네 숫자로 자물쇠를 열면 이곳의 기록이 복원돼요"
+    : "네 보고가 모이고 지휘관이 자물쇠를 열면 기록이 복원돼요";
   return {
-    action, label, count: mask.filter(Boolean).length, quiet: stage.kind === "memorial",
+    action, until, label, count: mask.filter(Boolean).length, quiet: stage.kind === "memorial",
     members: ROLES.map((role, i) => {
       const member = game.members.find(m => m.role === role);
       return { role, nickname: member?.nickname ?? "합류 대기", me: role === self.role,
@@ -59,6 +72,16 @@ export function coopGuide(s: V2Response) {
         status: complete ? "함께 완료" : mask[i] ? `${label} 완료` : traveling ? "이동 중" : tribute ? "마음 전하는 중" : consent ? "문장 읽는 중" : closing ? "회고 중" : "조사 중" };
     }),
   };
+}
+
+// 받침 유무로 조사를 고른다. 'ㄹ' 받침은 '로'를 쓴다.
+function josa(word: string, withFinal: string, without: string) {
+  const code = word.charCodeAt(word.length - 1) - 0xac00;
+  return code >= 0 && code <= 11171 && code % 28 ? withFinal : without;
+}
+function toward(word: string) {
+  const code = word.charCodeAt(word.length - 1) - 0xac00;
+  return code >= 0 && code <= 11171 && code % 28 && code % 28 !== 8 ? "으로" : "로";
 }
 
 export function expeditionStops(s: V2Response) {

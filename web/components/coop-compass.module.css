@@ -46,3 +46,10 @@
 .compass[data-quiet="true"] { border-top-color:#b5b7a6; }
 .compass[data-quiet="true"] .action { font:600 15px/1.7 var(--calm); }
 .compass[data-quiet="true"] .team summary strong { background:#ececdf; color:#46534a; }
+
+/* 다음으로 넘어가는 조건: 할 일 아래에 한 줄로 둔다 */
+.until { display:flex; gap:6px; align-items:flex-start; margin:-2px 0 8px; padding:7px 10px; border-radius:14px; background:#f4f1e3; color:#3d4c43; font:400 12.5px/1.55 var(--sans); word-break:keep-all; }
+.until svg { flex:0 0 auto; margin-top:3px; color:#347c66; }
+.until b { font-weight:700; margin-right:4px; color:#265f50; }
+.compass[data-quiet="true"] .until { background:#efede4; }
+.compass[data-quiet="true"] .until svg,.compass[data-quiet="true"] .until b { color:#46534a; }
