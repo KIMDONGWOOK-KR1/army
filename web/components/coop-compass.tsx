@@ -11,19 +11,19 @@ export function CoopCompass({ snapshot, onRecords, compact = false }: {
   snapshot: V2Response; onRecords: () => void; compact?: boolean;
 }) {
   const guide = coopGuide(snapshot);
-  const index = snapshot.course.sites.findIndex(site => site.id === snapshot.stage.id);
   const Icon = guide.quiet ? Flower2 : Footprints;
-  return <section className={`${styles.compass} ${compact ? styles.compact : ""}`} data-testid="coop-compass" data-quiet={guide.quiet} tabIndex={compact ? 0 : undefined} aria-label="우리 탐방과 내 다음 행동">
-    <div className={styles.top}><span><Icon size={16} aria-hidden="true" /> {compact ? "우리 팀 탐방" : `${index + 1}/${snapshot.course.sites.length} · ${snapshot.stage.name}`}</span>
-      <button type="button" onClick={onRecords}><BookOpen size={16} aria-hidden="true" />기록첩</button></div>
-    <p className={styles.action}><b>{snapshot.self.role ? ROLE_NAMES[snapshot.self.role] : "우리 팀"} · 지금 할 일</b>{guide.action}</p>
-    {guide.until && <p className={styles.until} data-testid="coop-until"><Flag size={14} aria-hidden="true" /><span><b>다음으로</b> {guide.until}</span></p>}
+  // 팀 퀘스트 카드(파티 플레이·친구 퀘스트처럼): 함께 채우는 목표 하나 → 네 칸 진행 → 내가 할 일 → 다음 조건
+  return <section className={`${styles.compass} ${compact ? styles.compact : ""}`} data-testid="coop-compass" data-quiet={guide.quiet} tabIndex={compact ? 0 : undefined} aria-label="팀 퀘스트와 내 다음 행동">
+    <div className={styles.top}>
+      <span className={styles.goal}><Icon size={18} aria-hidden="true" /><span><small>팀 퀘스트</small>{guide.goal}</span></span>
+      <button type="button" onClick={onRecords}><BookOpen size={16} aria-hidden="true" />기록첩</button>
+    </div>
     <details className={styles.team}>
-      {/* 팀 플레이 화면처럼 네 보직의 진행을 접힌 상태에서도 한눈에 보인다(완료 여부만, 단서는 없다) */}
+      {/* 네 보직의 진행을 접힌 상태에서도 한눈에 보인다(완료 여부만, 단서는 없다) */}
       <summary><span className={styles.roster} aria-hidden="true">{guide.members.map(member => {
         const RoleIcon = ROLE_ICONS[member.role];
         return <i key={member.role} data-done={member.done} data-me={member.me} style={{"--member-color": ROLE_COLORS[member.role]} as CSSProperties}>
-          <RoleIcon size={13} strokeWidth={2.4} />{member.done && <Check size={9} strokeWidth={3.2} />}</i>;
+          <RoleIcon size={15} strokeWidth={2.4} />{member.done && <Check size={10} strokeWidth={3.2} />}</i>;
       })}</span><span>네 사람의 발걸음</span><strong>{guide.label} {guide.count}/4</strong><ChevronDown size={16} aria-hidden="true" /></summary>
       <ul aria-label="역할별 진행 상태">{guide.members.map(member => {
         const RoleIcon = ROLE_ICONS[member.role];
@@ -35,6 +35,8 @@ export function CoopCompass({ snapshot, onRecords, compact = false }: {
       })}</ul>
       <p className={styles.privacy}>{guide.quiet ? "각자의 속도로 마음을 전해요." : "완료 상태만 함께 보여요. 개인 단서와 회고 본문은 나만 볼 수 있어요."}</p>
     </details>
+    <p className={styles.action}><b>{snapshot.self.role ? ROLE_NAMES[snapshot.self.role] : "우리 팀"} · 지금 할 일</b>{guide.action}</p>
+    {guide.until && <p className={styles.until} data-testid="coop-until"><Flag size={14} aria-hidden="true" /><span><b>다음으로</b> {guide.until}</span></p>}
   </section>;
 }
 

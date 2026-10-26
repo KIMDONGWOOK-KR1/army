@@ -212,6 +212,10 @@ export function MissionV2({ snapshot, busy, send, onShowDigit }: Props & { onSho
   const complete = (step: Step) =>
     ["done", "explained"].includes(self.step_progress[step.id]?.status);
   const allDone = mission.steps.length > 0 && mission.steps.every(complete);
+  const doneCount = mission.steps.filter(complete).length;
+  // 짧은 안내(조사 이름)는 카드 머리에, 긴 안내는 본문 문단으로 둔다
+  const introText = mission.intro.trigger === "enter" ? plain(mission.intro.text).trim() : "";
+  const shortIntro = introText && introText.length <= 16 ? introText : "";
   const requiredReports = [
     ...new Set(mission.steps.flatMap((step) => step.requiresReports ?? [])),
   ];
@@ -229,14 +233,23 @@ export function MissionV2({ snapshot, busy, send, onShowDigit }: Props & { onSho
     <div className={styles.root}>
       <YongbongPanel snapshot={snapshot} busy={busy} send={send} />
       {stage.completion.type === "confirm" && <SharedDraftPanel snapshot={snapshot} busy={busy} send={send} />}
-      <div className={styles.card}>
-        <div className="section-label">
-          <span>{ROLE_NAMES[role]}의 조사</span>
-          <span>
-            {mission.steps.filter(complete).length} / {mission.steps.length}
+      {/* 내 조사 퀘스트 카드(포켓몬 GO 리서치·브롤스타즈 퀘스트처럼): 이름 · 진행 · 얻는 것을 한 카드에.
+          얻는 것은 종류만 적는다(숫자·정답은 보고 전에 보이지 않는다). */}
+      <div className={`${styles.card} ${styles.quest}`} data-testid="mission-v2-quest">
+        <div className={styles.questTop}>
+          <span className={styles.questKind}>
+            {ROLE_NAMES[role]}의 조사{shortIntro && <b>{shortIntro}</b>}
+          </span>
+          <span className={styles.questCount} aria-label={`조사 ${mission.steps.length}개 중 ${doneCount}개 완료`}>
+            {doneCount} / {mission.steps.length}
           </span>
         </div>
-        {mission.intro.trigger === "enter" && <p>{plain(mission.intro.text)}</p>}
+        <span className={styles.questBar} aria-hidden="true"><i style={{ width: `${mission.steps.length ? (doneCount / mission.steps.length) * 100 : 0}%` }} /></span>
+        <ul className={styles.questRewards} aria-label="이 조사로 얻는 것">
+          <li><b>얻는 것</b>{mission.digit ? "기억의 숫자 1개" : "팀에 전할 조사 결과"}</li>
+          {stage.completion.type === "lock" && <li><b>함께</b>네 보고가 모여 자물쇠가 열리면 이곳의 기록이 복원돼요</li>}
+        </ul>
+        {mission.intro.trigger === "enter" && !shortIntro && <p>{plain(mission.intro.text)}</p>}
         {scenes.map((scene) => <p key={scene.id}>{plain(scene.text)}</p>)}
       </div>
       {role === "commander" && self.transfer_clue && (

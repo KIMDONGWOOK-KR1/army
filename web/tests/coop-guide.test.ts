@@ -15,6 +15,7 @@ describe("cooperative wayfinding uses server progress", () => {
     expect(coopGuide(view()).action).toContain("내 도착은 확인됐어요");
     expect(coopGuide(view()).action).toContain("지휘관·통신원·암호해독관의 도착을 기다려요");
     expect(coopGuide(view()).until).toContain("모두 도착하면");
+    expect(coopGuide(view()).goal).toContain("모이기");
     expect(expeditionStops(view()).filter(s=>s.status==="complete")).toHaveLength(0);
   });
   it("offers an active waiting instruction and does not copy private payloads", async () => {
@@ -25,6 +26,7 @@ describe("cooperative wayfinding uses server progress", () => {
     // 기다리는 이유는 아직 보고하지 않은 보직 이름으로, 다음 조건은 한 줄로 알려 준다
     expect(guide.action).toContain("지휘관·통신원·암호해독관의 보고를 기다려요");
     expect(guide.until).toContain("자물쇠를 열면");
+    expect(guide.goal).toBe("네 보고로 자물쇠 열기");
     expect(guide.count).toBe(1);
     expect(guide.members.find(m=>m.role==="scout")?.done).toBe(true);
     expect(JSON.stringify(guide)).not.toContain(view.self.mission!.intro.text);

@@ -54,6 +54,14 @@ export function coopGuide(s: V2Response) {
       action = `${who}의 조사가 이어지면 내 다음 단서가 열려요. 서로 찾은 내용을 말로 나누어요.`;
     } else action = "열린 단서를 조사하고 내 보고를 완성해요. 숫자는 동료에게 말로 전해요.";
   }
+  // 팀 퀘스트 이름: 지금 네 사람이 함께 채우는 목표 하나
+  const goal = complete ? `${stage.name} 기록 완성`
+    : traveling ? `${stage.name}에 모이기`
+    : tribute ? "국화 한 송이씩 올리기"
+    : consent ? "공동 기록에 함께 동의하기"
+    : closing ? "네 사람의 회고 모으기"
+    : confirming ? "공동 기록 함께 확인하기"
+    : "네 보고로 자물쇠 열기";
   const dest = next?.name ?? "결과";
   const until = game.status === "done" ? "" : complete ? next ? `지휘관이 출발을 알리면 ${dest}${toward(dest)} 이동해요` : "모두의 기록이 결과에 남아요"
     : traveling ? "네 사람 모두 도착하면 조사가 열려요"
@@ -64,7 +72,7 @@ export function coopGuide(s: V2Response) {
     : game.report_mask.every(Boolean) ? "지휘관이 네 숫자로 자물쇠를 열면 이곳의 기록이 복원돼요"
     : "네 보고가 모이고 지휘관이 자물쇠를 열면 기록이 복원돼요";
   return {
-    action, until, label, count: mask.filter(Boolean).length, quiet: stage.kind === "memorial",
+    goal, action, until, label, count: mask.filter(Boolean).length, quiet: stage.kind === "memorial",
     members: ROLES.map((role, i) => {
       const member = game.members.find(m => m.role === role);
       return { role, nickname: member?.nickname ?? "합류 대기", me: role === self.role,

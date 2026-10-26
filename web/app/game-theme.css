@@ -84,3 +84,22 @@
 /* 문제 풀이 화면 머리의 내 장병 초상(한 번 그린 그림) */
 .mission-emblem .role-portrait { display:block; width:84px; height:84px; margin:-14px -6px -10px 0; filter:drop-shadow(0 3px 0 #2c484114); }
 @media(max-width:760px) { .mission-emblem .role-portrait { width:72px; height:72px; margin:-12px -4px -8px 0; } }
+
+/* 글자 5단계(hh 2026-10-26, 레퍼런스 비교 후): 장면 제목 26 · 할 일 한 줄 20 · 본문 16 · 라벨·칩·진행 14 · 보조 13.
+   지도 출처·시연 표시만 11px로 둔다. 추모·기록 장면의 명조는 이 단계와 따로 유지한다. */
+:root { --fs-display: 26px; --fs-quest: 20px; --fs-body: 16px; --fs-label: 14px; --fs-meta: 13px; --fs-fine: 11px; }
+.section-label { font-size: var(--fs-label); }
+.fine-print, .game-canvas .fine-print { font-size: var(--fs-meta); }
+.eyebrow, .mission-header .eyebrow { font-size: var(--fs-meta); }
+.mission-header .role-badge { font-size: var(--fs-display); }
+.hud-site-seq { font-size: var(--fs-meta); }
+.hud-distance small, .hud-top .hud-distance small { font-size: var(--fs-meta); }
+.hud-gps, .hud-top .hud-gps { font-size: var(--fs-meta); }
+.hud-player-plate b { font-size: var(--fs-label); }
+.hud-player-role { font-size: var(--fs-meta); }
+.field-credit { font-size: var(--fs-fine); }
+.simulation-badge { font-size: var(--fs-fine); }
+.hud-route { font-size: var(--fs-meta); }
+.role-badge { font-size: var(--fs-label); }
+.speaker { font-size: var(--fs-label); }
+.hud-distance b, .hud-top .hud-distance b { font-size: var(--fs-body); }
