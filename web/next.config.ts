@@ -20,6 +20,14 @@ const config: NextConfig = {
           { key: "Content-Security-Policy", value: "frame-ancestors 'self'" },
         ],
       },
+      // The isolated photo prototype needs a camera; real game routes stay off.
+      ...(process.env.NODE_ENV === "development" ? [{
+        source: "/dev/scout-photo",
+        headers: [{
+          key: "Permissions-Policy",
+          value: "camera=(self), microphone=(), geolocation=()",
+        }],
+      }] : []),
     ];
   },
 };
