@@ -408,6 +408,8 @@ export function GatherStage({
           }
           // 보직 소품: 서버가 정한 보직을 공개 단계에 맞춰 보인다(처음 그릴 때는 튀지 않고 바로)
           const want = shownRole(m, step);
+          // 묵념 장면에서는 손에 든 소품을 내려놓는다
+          u.s.setCalm(!!live.current.bow);
           if (u.s.role !== want) {
             const pop = shown && !reduced;
             u.s.setRole(want, pop);

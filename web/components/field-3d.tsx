@@ -120,6 +120,7 @@ function skyDome() {
 type Avatar = {
   group: THREE.Group;
   animate(dt: number, moving: boolean, speed: number, t: number): void;
+  setCalm?(calm: boolean): void;
 };
 // role이 있으면 보직 소품과 사람마다 다른 모습(look: 멤버 id에서 정한다)을 입힌다.
 function avatar(
@@ -143,6 +144,7 @@ function avatar(
         // 길·물길 바닥(높이 0.35m까지) 위에 발을 딛게 한다
         hero.group.position.y = 0.36;
       },
+      setCalm: "setCalm" in hero ? hero.setCalm : undefined,
     };
   }
   const p = soldier(roleColor);
@@ -708,6 +710,8 @@ export function Field3D({
         inside = remain <= radius,
         calm = !!tg.reverent || calmAt(site.x, site.z);
       insideNow = inside;
+      // 추모 거점으로 가는 길과 조용한 구역 안에서는 내 장병도 소품을 내려놓는다
+      player.setCalm?.(calm || calmAt(pos.x, pos.z));
       // 조용한 구역: 들어설 때는 구역 경계에서, 나갈 때는 QUIET_EXIT_M 더 벗어나야(GPS 흔들림에 배경음이
       // 들락날락하지 않게)
       const pad = quietNow ? QUIET_EXIT_M : 0;

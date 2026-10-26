@@ -49,5 +49,5 @@ export function CharacterLineup({ row = false, className = "character-lineup" }:
     });
     return()=>{active=false;cleanup();};
   },[row]);
-  return <div className={className} ref={host} data-ready={state==="ready"} role="img" aria-label="차분한 지휘관, 눈이 둥근 정찰원, 미소가 밝은 통신원, 안경을 쓴 암호해독관">{state!=="ready"&&<p>{state}</p>}</div>;
+  return <div className={className} ref={host} data-ready={state==="ready"} role="img" aria-label="파란 깃발을 높이 든 지휘관, 쌍안경을 눈에 댄 정찰원, 무전기를 귀에 댄 통신원, 큰 열쇠를 든 암호해독관">{state!=="ready"&&<p>{state}</p>}</div>;
 }
