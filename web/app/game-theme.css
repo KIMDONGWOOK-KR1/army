@@ -76,3 +76,7 @@
 .demo-role-bar button { border-radius:999px; font-family:var(--game); font-size:14px; color:#405e4b; border:1px solid transparent; }
 .demo-role-bar button[aria-pressed="true"] { background:#347c66; border-color:#347c66; color:#fffdf5; font-weight:400; box-shadow:0 2px 0 #23533f; }
 .demo-role-bar button:focus-visible { outline:3px solid #305c88; outline-offset:2px; }
+
+/* 이름 있는 안내자(기록관): 붉은 기록 도장을 얼굴처럼 붙인다 */
+.speaker.guide { display:inline-flex; align-items:center; gap:6px; padding-left:4px; }
+.speaker.guide i { width:24px; height:24px; display:grid; place-items:center; border-radius:50%; background:#b62c17; color:#fffdf5; font:700 13px/1 var(--calm); font-style:normal; box-shadow:0 2px 0 #7d1e10; }

@@ -7,7 +7,8 @@ import { HOME_VARIANTS } from "./soldier-variants";
 import { ROLES } from "@/supabase/functions/_shared/types";
 import { disposeTree } from "./field-3d";
 
-export function CharacterLineup() {
+// row: 좁은 화면에서도 네 사람을 한 줄로 세운다(결과 화면의 단체 사진)
+export function CharacterLineup({ row = false, className = "character-lineup" }: { row?: boolean; className?: string } = {}) {
   const host = useRef<HTMLDivElement>(null);
   const [state, setState] = useState("캐릭터 준비 중");
   useEffect(() => {
@@ -34,7 +35,7 @@ export function CharacterLineup() {
         const el=host.current;
         el.appendChild(renderer.domElement);
         const draw=()=>{
-          const w=el.clientWidth,h=el.clientHeight, narrow=w<600;
+          const w=el.clientWidth,h=el.clientHeight, narrow=!row&&w<600;
           renderer.setSize(w,h);
           const viewH=Math.max(narrow?2.8:1.35, (narrow?1.95:3.9)*h/w);
           camera.left=-viewH*w/h/2;camera.right=viewH*w/h/2;camera.top=viewH/2;camera.bottom=-viewH/2;
@@ -47,6 +48,6 @@ export function CharacterLineup() {
       } catch { setState("이 브라우저에서 입체 미리보기를 사용할 수 없어요"); }
     });
     return()=>{active=false;cleanup();};
-  },[]);
-  return <div className="character-lineup" ref={host} data-ready={state==="ready"} role="img" aria-label="차분한 지휘관, 눈이 둥근 정찰원, 미소가 밝은 통신원, 안경을 쓴 암호해독관">{state!=="ready"&&<p>{state}</p>}</div>;
+  },[row]);
+  return <div className={className} ref={host} data-ready={state==="ready"} role="img" aria-label="차분한 지휘관, 눈이 둥근 정찰원, 미소가 밝은 통신원, 안경을 쓴 암호해독관">{state!=="ready"&&<p>{state}</p>}</div>;
 }

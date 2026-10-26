@@ -6,6 +6,9 @@ import type { GameResponse, V2Response } from "@/lib/game-snapshot";
 import { ROLE_NAMES, ROLES, type Command } from "@/supabase/functions/_shared/types";
 import styles from "./closing-v2.module.css";
 import { NextStageAction } from "./yongbong-panel";
+import { CharacterLineup } from "./character-lineup";
+import { ROLE_COLORS, ROLE_ICONS } from "./role-style";
+import type { CSSProperties } from "react";
 
 type Props = { snapshot: V2Response; busy: boolean; send: (command: Command) => Promise<GameResponse | null> };
 
@@ -109,6 +112,17 @@ export function ResultV2({ snapshot: s }: { snapshot: V2Response }) {
   if (!result) return null;
   return <section className={styles.result} data-testid="result-v2">
     <h1 data-scene-heading tabIndex={-1}>함께 완성한 기록</h1>
+    {/* 팀 플레이가 끝나면 함께한 동료의 모습과 성취를 보여 주듯, 네 사람을 한 장에 세운다(보직·호출명만) */}
+    <section className={styles.crew} aria-label="함께 걸은 네 사람">
+      <CharacterLineup row className={styles.crewLineup} />
+      <ul>{ROLES.map((role) => {
+        const member = s.game.members.find((m) => m.role === role);
+        const Icon = ROLE_ICONS[role];
+        return <li key={role} style={{ "--member-color": ROLE_COLORS[role] } as CSSProperties}>
+          <span aria-hidden="true"><Icon size={16} /></span><b>{member?.nickname ?? "—"}</b><small>{ROLE_NAMES[role]}{role === s.self.role ? " · 나" : ""}</small>
+        </li>;
+      })}</ul>
+    </section>
     <ExpeditionPassport snapshot={s} />
     <p>조사 {result.investigation.completed}/{result.investigation.total} · 사초 {result.sacho.completed}/{result.sacho.total}</p>
     {result.stages.map((stage) => <section key={stage.stage_id} className={styles.card}>

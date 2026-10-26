@@ -53,3 +53,14 @@
 .until b { font-weight:700; margin-right:4px; color:#265f50; }
 .compass[data-quiet="true"] .until { background:#efede4; }
 .compass[data-quiet="true"] .until svg,.compass[data-quiet="true"] .until b { color:#46534a; }
+
+/* 접힌 상태의 네 사람 표시: 보직 색 고리, 끝낸 사람은 색이 채워지고 체크가 붙는다 */
+.roster { display:flex; flex:0 0 auto; }
+.roster i { position:relative; width:24px; height:24px; margin-right:-4px; display:grid; place-items:center; border-radius:50%; border:2px solid var(--member-color); background:#fffdf5; color:var(--member-color); }
+.roster i:last-child { margin-right:2px; }
+.roster i[data-done="true"] { background:var(--member-color); color:#fffdf5; }
+.roster i[data-me="true"] { box-shadow:0 0 0 2px #fffdf5, 0 0 0 4px #f2c94c; z-index:1; }
+.roster i>svg:nth-child(2) { position:absolute; right:-4px; bottom:-4px; width:13px; height:13px; padding:1px; border-radius:50%; background:#2c4841; color:#fffdf5; }
+.compass[data-quiet="true"] .roster i[data-done="true"] { background:#7c8a7f; border-color:#7c8a7f; }
+/* 아주 좁은 폰에서는 글자 대신 네 사람 표시가 자리를 맡는다(낭독기에는 이름이 남는다) */
+@media(max-width:360px) { .team summary>span:nth-of-type(2) { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; } }

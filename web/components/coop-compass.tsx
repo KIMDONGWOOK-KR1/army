@@ -1,5 +1,5 @@
 "use client";
-import { BookOpen, Check, ChevronDown, Footprints, Flower2, Flag, Users } from "lucide-react";
+import { BookOpen, Check, ChevronDown, Footprints, Flower2, Flag } from "lucide-react";
 import type { CSSProperties } from "react";
 import type { V2Response } from "@/lib/game-snapshot";
 import { coopGuide, expeditionStops } from "@/lib/coop-guide";
@@ -19,7 +19,12 @@ export function CoopCompass({ snapshot, onRecords, compact = false }: {
     <p className={styles.action}><b>{snapshot.self.role ? ROLE_NAMES[snapshot.self.role] : "우리 팀"} · 지금 할 일</b>{guide.action}</p>
     {guide.until && <p className={styles.until} data-testid="coop-until"><Flag size={14} aria-hidden="true" /><span><b>다음으로</b> {guide.until}</span></p>}
     <details className={styles.team}>
-      <summary><Users size={16} aria-hidden="true" /><span>네 사람의 발걸음</span><strong>{guide.label} {guide.count}/4</strong><ChevronDown size={16} aria-hidden="true" /></summary>
+      {/* 팀 플레이 화면처럼 네 보직의 진행을 접힌 상태에서도 한눈에 보인다(완료 여부만, 단서는 없다) */}
+      <summary><span className={styles.roster} aria-hidden="true">{guide.members.map(member => {
+        const RoleIcon = ROLE_ICONS[member.role];
+        return <i key={member.role} data-done={member.done} data-me={member.me} style={{"--member-color": ROLE_COLORS[member.role]} as CSSProperties}>
+          <RoleIcon size={13} strokeWidth={2.4} />{member.done && <Check size={9} strokeWidth={3.2} />}</i>;
+      })}</span><span>네 사람의 발걸음</span><strong>{guide.label} {guide.count}/4</strong><ChevronDown size={16} aria-hidden="true" /></summary>
       <ul aria-label="역할별 진행 상태">{guide.members.map(member => {
         const RoleIcon = ROLE_ICONS[member.role];
         return <li key={member.role} style={{"--member-color": ROLE_COLORS[member.role]} as CSSProperties}>

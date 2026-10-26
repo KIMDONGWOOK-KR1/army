@@ -910,8 +910,8 @@ export default function GameApp({
                   </span>
                   <h1 data-scene-heading tabIndex={-1}>
                     {entry === "join"
-                      ? "동료들의 기록에 합류하라."
-                      : "당신의 호출명을 남겨라."}
+                      ? "동료들의 기록에 함께해요."
+                      : "탐방에서 부를 호출명을 알려 주세요."}
                   </h1>
                   <label className="field-label">
                     호출명
@@ -988,13 +988,14 @@ export default function GameApp({
                 data-gather-bottom
               >
                 <div className="console-copy">
-                  <span className="speaker">기록관</span>
+                  {/* 동물의 숲 주민처럼 이름 있는 안내자가 말을 건다: 기록 도장(記)이 기록관의 얼굴이다 */}
+                  <span className="speaker guide"><i aria-hidden="true">記</i>기록관</span>
                   <p>
                     {rehearsing
                       ? "시연 미리 보기: 실제 작전에서는 네 사람이 각자 폰으로 합류한다."
                       : s!.self.is_host
-                        ? "옆 사람에게 QR을 보여 주거나 코드를 전하라. 네 사람이 모이면 보직을 공개한다."
-                        : "정문 앞에 동료가 모인다. 네 사람이 모이면 방장이 보직을 공개한다."}
+                        ? "옆 사람에게 QR을 보여 주거나 코드를 알려 주세요. 네 사람이 모이면 함께 보직을 열어 봐요."
+                        : "정문 앞에 동료들이 모이고 있어요. 네 사람이 모이면 방장이 보직을 공개해요."}
                   </p>
                 </div>
                 <div className="console-actions">
@@ -1029,7 +1030,7 @@ export default function GameApp({
                         </button>
                       ) : (
                         <span className="waiting-note">
-                          방장의 신호를 기다리라.
+                          방장이 보직을 공개하면 시작해요.
                         </span>
                       )}
                     </>
