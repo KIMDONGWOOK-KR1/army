@@ -56,7 +56,7 @@ export function coopGuide(s: V2Response) {
   }
   // 팀 퀘스트 이름: 지금 네 사람이 함께 채우는 목표 하나
   // 접힌 한 줄에 들어가도록 짧게 쓴다(장소 이름은 화면 위에 이미 있다)
-  const goal = complete ? "이곳의 기록 완성"
+  const goal = complete ? "기록 완성"
     : traveling ? "다 함께 모이기"
     : tribute ? "국화 올리기"
     : consent ? "공동 기록 동의"

@@ -37,6 +37,7 @@ import { Mission, LockPanel } from "./mission";
 import { MissionV2, LockPanelV2 } from "./mission-v2";
 import { JournalV2 } from "./journal-v2";
 import { CoopCompass } from "./coop-compass";
+import { DepartCard } from "./depart-card";
 import { RolePortrait } from "./role-portrait";
 import { Crew, NextStageAction } from "./yongbong-panel";
 import { closingLines, NextStopCard, sachoEyebrow } from "./next-stop";
@@ -500,9 +501,20 @@ export default function GameApp({
   // 나레이션보다 먼저 나오고, 떠 있는 동안 나레이션과 자동 시연은 기다린다.
   // 같은 렌더에서 정해야 미션 화면이나 나레이션이 한 번 비쳤다 사라지지 않는다.
   const [lastScene, setLastScene] = useState(scene),
-    [stop, setStop] = useState<string | null>(null);
+    [stop, setStop] = useState<string | null>(null),
+    // 출발 연결 장면: 기록 화면(사초·결과)에서 다음 거점 이동으로 넘어가는 순간 한 번
+    [lastSiteName, setLastSiteName] = useState(site?.name ?? ""),
+    [depart, setDepart] = useState<{ from: string; siteId: string } | null>(null),
+    // 문제를 푸는 중에도 내 위치를 볼 수 있는 지도
+    [mapPeek, setMapPeek] = useState(false);
   if (lastScene !== scene) {
     setLastScene(scene);
+    if (
+      v2 && site && scene === "travel" &&
+      (lastScene === "sacho" || lastScene === "done") &&
+      lastSiteName && lastSiteName !== site.name
+    )
+      setDepart({ from: lastSiteName, siteId: site.id });
     if (
       lastScene === "travel" &&
       ARRIVAL_SCENES.includes(scene) &&
@@ -514,6 +526,9 @@ export default function GameApp({
       setStop(site.id);
   }
   if (stop && (!gameId || site?.id !== stop)) setStop(null);
+  if (lastScene === scene && (site?.name ?? "") !== lastSiteName) setLastSiteName(site?.name ?? "");
+  if (depart && (scene !== "travel" || site?.id !== depart.siteId)) setDepart(null);
+  if (mapPeek && (!site || scene === "travel" || !s)) setMapPeek(false);
   useEffect(() => {
     if (gameId && stop) markStopSeen(gameId, stop);
   }, [gameId, stop]);
@@ -816,7 +831,7 @@ export default function GameApp({
           id="main-content"
         >
           {v2 && ["mission", "report", "lock", "waiting", "sacho"].includes(scene) && (
-            <CoopCompass snapshot={v2} onRecords={() => setModal("records")} />
+            <CoopCompass snapshot={v2} onRecords={() => setModal("records")} onMap={() => { setMapPeek(true); if (!location.fix) location.start(); }} />
           )}
           {scene === "title" ? (
             <>
@@ -1244,10 +1259,21 @@ export default function GameApp({
                 }
                 onMenu={() => setModal("menu")}
               />
-              {calmNotice && (
+              {calmNotice && !depart && (
                 <p className="calm-notice" role="status">
                   추모 공간이에요. 걸음을 늦추고 조용히 다가가요.
                 </p>
+              )}
+              {depart && (
+                <DepartCard
+                  from={depart.from}
+                  to={site!}
+                  byMe={role === "commander"}
+                  stamps={acquired}
+                  total={s!.course.sites.length}
+                  onClose={() => setDepart(null)}
+                  onRecords={() => { setDepart(null); setModal("records"); }}
+                />
               )}
             </div>
           ) : scene === "mission" ? (
@@ -1589,6 +1615,40 @@ export default function GameApp({
           </span>
         )}
       </div>
+      {mapPeek && s && site && (
+        <div className="map-peek" role="dialog" aria-modal="true" aria-label={`내 위치 지도 · ${site.name}`} data-testid="map-peek">
+          <Field3D
+            siteSeq={site.seq}
+            siteName={site.name}
+            fix={location.fix}
+            target={site}
+            distance={location.distance}
+            roleColor={ROLE_COLORS[role ?? "commander"]}
+            role={role ?? null}
+            look={s.self.id}
+            fallback={<SceneArt site={site.seq - 1} />}
+            simulateMovement={false}
+          />
+          <div className="map-peek-bar">
+            <p>
+              <b>{site.name}</b>
+              <span>
+                {location.distance !== null
+                  ? `내 위치에서 약 ${Math.round(location.distance)}m`
+                  : location.fix ? "지도에 내 자리를 표시했어요" : location.status}
+              </span>
+            </p>
+            <div>
+              <button type="button" className="button secondary" onClick={location.start}>
+                내 위치 찾기 <LocateFixed size={17} aria-hidden="true" />
+              </button>
+              <button type="button" className="button primary" autoFocus onClick={() => setMapPeek(false)}>
+                돌아가기 <ArrowRight size={17} aria-hidden="true" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {modal && (
         <GameDialog
           title={

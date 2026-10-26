@@ -28,6 +28,8 @@ const NEXT: Record<string, { walk: string; note: string }> = {
   bongji: { walk: "걸어서 약 180m", note: "네 사람이 오늘을 돌아보는 곳이에요." },
 };
 
+export const nextStopInfo = (id: string) => NEXT[id];
+
 /** 부를 때 쓰는 짧은 이름: '용봉열사 추모의 벽' → '추모의 벽' */
 export const shortName = (name: string) => plain(name).replace(/^용봉열사\s+/, "");
 

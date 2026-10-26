@@ -1,5 +1,5 @@
 "use client";
-import { BookOpen, Check, ChevronDown, Footprints, Flower2, Flag } from "lucide-react";
+import { BookOpen, Check, ChevronDown, Footprints, Flower2, Flag, Map as MapIcon } from "lucide-react";
 import { useEffect, useId, useState, type CSSProperties } from "react";
 import type { V2Response } from "@/lib/game-snapshot";
 import { coopGuide, expeditionStops } from "@/lib/coop-guide";
@@ -11,8 +11,8 @@ import styles from "./coop-compass.module.css";
 const OPEN_KEY = "hoguk:team-card";
 const readOpen = () => { try { return localStorage.getItem(OPEN_KEY) === "open"; } catch { return false; } };
 
-export function CoopCompass({ snapshot, onRecords, compact = false }: {
-  snapshot: V2Response; onRecords: () => void; compact?: boolean;
+export function CoopCompass({ snapshot, onRecords, onMap, compact = false }: {
+  snapshot: V2Response; onRecords: () => void; onMap?: () => void; compact?: boolean;
 }) {
   const guide = coopGuide(snapshot);
   const Icon = guide.quiet ? Flower2 : Footprints;
@@ -28,7 +28,6 @@ export function CoopCompass({ snapshot, onRecords, compact = false }: {
     <div className={styles.bar}>
       <button type="button" className={styles.toggle} aria-expanded={open} aria-controls={panelId}
         aria-label={`팀 퀘스트: ${guide.headline}, ${guide.label} ${guide.count}/4, ${open ? "접기" : "펼치기"}`} onClick={toggle}>
-        <Icon size={16} aria-hidden="true" />
         <span className={styles.headline} data-waiting={guide.waiting}>{guide.headline}</span>
         {/* 네 보직의 진행: 완료 여부만 보인다(단서는 없다) */}
         <span className={styles.roster} aria-hidden="true">{guide.members.map(member => {
@@ -36,13 +35,16 @@ export function CoopCompass({ snapshot, onRecords, compact = false }: {
           return <i key={member.role} data-done={member.done} data-me={member.me} style={{"--member-color": ROLE_COLORS[member.role]} as CSSProperties}>
             <RoleIcon size={12} strokeWidth={2.4} />{member.done && <Check size={9} strokeWidth={3.2} />}</i>;
         })}</span>
-        <strong className={styles.count}>{guide.count}/4</strong>
+        {/* 몇 명이 마쳤는지는 네 칸이 보여 주므로 숫자는 낭독기용으로만 둔다 */}
+        <strong className={styles.srOnly}>{guide.count}/4</strong>
         <ChevronDown className={styles.chevron} size={16} aria-hidden="true" />
       </button>
+      {/* 문제를 푸는 중에도 내 위치를 볼 수 있게(이동 화면에서는 지도가 이미 보여 빼 둔다) */}
+      {onMap && <button type="button" className={styles.records} aria-label="지도에서 내 위치 보기" onClick={onMap}><MapIcon size={19} aria-hidden="true" /></button>}
       <button type="button" className={styles.records} aria-label="기록첩" onClick={onRecords}><BookOpen size={19} aria-hidden="true" /></button>
     </div>
     {open && <div className={styles.panel} id={panelId}>
-      <p className={styles.goal}>팀 퀘스트<span>{guide.goal}</span><em>{guide.label} {guide.count}/4</em></p>
+      <p className={styles.goal}><Icon size={15} aria-hidden="true" />팀 퀘스트<span>{guide.goal}</span><em>{guide.label} {guide.count}/4</em></p>
       <p className={styles.action}><b>{snapshot.self.role ? ROLE_NAMES[snapshot.self.role] : "우리 팀"} · 지금 할 일</b>{guide.action}</p>
       {guide.until && <p className={styles.until} data-testid="coop-until"><Flag size={14} aria-hidden="true" /><span><b>다음으로</b> {guide.until}</span></p>}
       <ul className={styles.members} aria-label="역할별 진행 상태">{guide.members.map(member => {

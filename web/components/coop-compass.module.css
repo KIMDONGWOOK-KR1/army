@@ -12,7 +12,7 @@
 .toggle:focus-visible, .records:focus-visible { outline:3px solid #305c88; outline-offset:2px; border-radius:12px; }
 /* 네 칸: 보직 색 고리, 끝낸 사람은 색이 채워지고 체크, 나는 노란 테두리 */
 .roster { display:flex; flex:0 0 auto; }
-.roster i { position:relative; width:21px; height:21px; margin-right:-5px; display:grid; place-items:center; border-radius:50%; border:2px solid var(--member-color); background:#fffdf5; color:var(--member-color); }
+.roster i { position:relative; width:20px; height:20px; margin-right:-6px; display:grid; place-items:center; border-radius:50%; border:2px solid var(--member-color); background:#fffdf5; color:var(--member-color); }
 .roster i:last-child { margin-right:2px; }
 .roster i[data-done="true"] { background:var(--member-color); color:#fffdf5; }
 .roster i[data-me="true"] { box-shadow:0 0 0 2px #fffdf5, 0 0 0 4px #f2c94c; z-index:1; }
@@ -64,3 +64,7 @@
 .passport li>div { display:grid; gap:4px; }
 .passport li b { font-size:14px; }
 .passport li div>span { font-size:13px; color:#59655c; }
+
+.srOnly { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+.toggle { position:relative; padding-left:4px; }
+.goal svg { flex:0 0 auto; color:#347c66; align-self:center; }
