@@ -16,6 +16,24 @@ async function gpsTeam() {
 }
 
 describe("GPS mandatory v2 arrival", () => {
+  it("keeps a GPS review stage blocked until its coordinates are available", async () => {
+    const t = await team({ arrive: false });
+    t.course.id = "jnu-demo-dev-review-gps-test";
+    t.game.courseId = t.course.id;
+    const arrival = t.course.stages.find(stage => stage.id === "gate")!.arrival;
+    Object.assign(arrival, { mode: "gps", confirmed: false, lat: null, lng: null });
+    expect(allowsSimulatedArrival(t.course, arrival)).toBe(false);
+    const before = structuredClone(t.game);
+    for (const method of ["simulated", "manual", "qr"] as const)
+      await expect(t.call("scout", { action: "report-arrival", method })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(t.call("scout", { action: "report-arrival", method: "gps" })).rejects.toMatchObject({ code: "CONTENT_UNCONFIRMED" });
+    expect(t.game).toEqual(before);
+    expect(projectGameV2(t.game, t.course, t.user("scout"), t.now()).self.mission).toBeNull();
+    Object.assign(arrival, jnuGpsArrival("gate"));
+    for (const role of ROLES) await t.call(role, { action: "report-arrival", method: "gps" });
+    expect(t.game.phase).toBe("mission");
+    expect(t.game.arrivals).toHaveLength(4);
+  });
   it("keeps all missions private until all four arrive; receipts and roles survive reload", async () => {
     const t = await gpsTeam();
     const roles = t.game.members.map(m => m.role);

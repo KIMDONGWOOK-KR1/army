@@ -10,6 +10,7 @@
 |---|---|
 | [최신 시나리오 — 현재 구현 반영본](docs/scenario/GPS_MINO_1st_scenario_current.md) | FE 문항·나레이션·장면 순서의 기준. 정답 포함 검토 문서이며 이전 별도 전달본보다 우선 |
 | [FE 인수인계 — 전체 코스 v2](docs/fe/README.md) | 현재 서버 구현·배포 구분, API 계약·정문 mock 12개, FE/BE 연결 순서 |
+| [정문·헌화 선택 통합 안내](docs/fe/GATE_TRIBUTE_INTEGRATION.md) | 서버 문항에 맞춘 정문 입력 UI, 새 국화 헌화 코스 전환과 기존 공동 확인형 호환 |
 | [용봉관 적용 안내](docs/be/YONGBONG_APPLY.md) | 두 거점 새 코스, 자료 전달·외부 대체 모드, 새 DB 마이그레이션과 재배포 |
 | [메인 UI 통합 안내](docs/fe/UI_INTEGRATION.md) | PR #8 디자인과 PR #9 정문 API 연결, 실행·시험 방법과 dev 적용 조건 |
 | [GPS 적용·개발용 모드 전환](docs/be/GPS_APPLY.md) | 같은 Vercel dev 주소에서 개발용 모의 도착과 GPS 10m 도착을 번갈아 시험하는 절차 |
@@ -38,6 +39,8 @@ AR·주적·사격 연출은 제외합니다. 2~3인 겸임, 집결 보너스, �
 같은 [Vercel dev 웹](https://hoguk-dev-web.vercel.app/)에서 **개발용 코스(장소 무관 모의 도착)**와 **GPS 코스(각 거점 10m 안 5초, 전원 도착)**를 시험할 수 있습니다. 담당 개발자가 Supabase의 `ACTIVE_COURSE_ID`를 전환하고 새 방을 만드는 방식입니다. 두 모드를 지원하는 웹 배포 후 코스 전환만으로는 Vercel 재배포가 필요하지 않으며 기존 방은 원래 코스를 유지합니다. 기존 정문 전용 코스는 [GPS 적용 안내](docs/be/GPS_APPLY.md)를 따릅니다. 기존 두 거점 코스는 유지하며 새 `gate-yongbong` / `gate-yongbong-gps` 코스와 DB·Edge·웹 적용은 [용봉관 적용 안내](docs/be/YONGBONG_APPLY.md)를 따릅니다. 기존 배포가 자동 갱신되는 것은 아닙니다.
 
 PR-5 전체 개발 코스는 추모의 벽·봉지 회고·최종 결과까지 연결합니다. [PR-5 적용 안내](docs/be/PR_5_APPLY.md)를 참고합니다. 추모의 벽 GPS 좌표는 미확정이므로 전체 흐름은 모의 도착으로 시험하며, 기존 두 거점 GPS 코스와 구분합니다.
+
+2026-10-11 선택 통합은 정문 문제 UI와 국화 헌화를 연결합니다. 메인 정문 입력 UI는 코스명 대신 `gate`의 서버 문항 유형을 따르고, 새 `tribute` 추모의 벽은 네 명 모두 도착한 뒤 각자 국화를 올리면 완료됩니다. 용봉관·봉지와 기존 공동 확인형(`confirm`) 코스는 유지합니다. 헌화형은 `seed:review` 또는 `seed:course`의 `--wall-mode tribute`로 새 리비전을 준비하며, 운영 등록에는 새 `--course-id`도 필요합니다. 기본값은 기존 wall 보존입니다. 이번 작업에서 새 DB 마이그레이션·코스 등록·활성화·클라우드 배포를 수행하지 않았습니다. [선택 통합 적용 안내](docs/fe/GATE_TRIBUTE_INTEGRATION.md)를 따릅니다.
 
 ## 팀 역할
 

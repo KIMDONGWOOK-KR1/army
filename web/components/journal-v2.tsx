@@ -1,4 +1,6 @@
 "use client";
+import { ExpeditionPassport } from "./coop-compass";
+import { plain } from "@/lib/practice-text";
 import type { V2Response } from "@/lib/game-snapshot";
 import styles from "./mission-v2.module.css";
 import { SharedRecords } from "./yongbong-panel";
@@ -12,7 +14,7 @@ const methods: Record<string, string> = {
 
 export function JournalV2({ snapshot }: { snapshot: V2Response }) {
   return (
-    <div className={`record-grid ${styles.journal}`} data-testid="journal-v2">
+    <div><ExpeditionPassport snapshot={snapshot} /><div className={`record-grid ${styles.journal}`} data-testid="journal-v2">
       {snapshot.course.sites.filter((site) => site.id !== "bongji").map((site) => {
         const acquired = snapshot.game.acquired_sites.find((s) =>
           s.id === site.id
@@ -32,33 +34,33 @@ export function JournalV2({ snapshot }: { snapshot: V2Response }) {
             <h3>{site.sacho.name}</h3>
             <p>
               {acquired
-                ? acquired.sacho.body || "함께 복원한 기록이다."
+                ? plain(acquired.sacho.body) || "함께 복원한 기록이다."
                 : "동료들과 단서를 모아 이 기록을 복원하라."}
             </p>
             {journal && (
               <>
                 <p>
-                  {journal.method === "explained"
+                  {journal.label ?? (journal.method === "explained"
                     ? "해설 확인 후 복원"
-                    : "조사 후 복원"}
+                    : "조사 후 복원")}
                 </p>
                 {journal.memorial_record && <section className={styles.note}><h4>추모의 벽 공동 기록</h4><p>{journal.memorial_record.text}</p><p>근거: {journal.memorial_record.reason}</p></section>}
-                <h4>내 조사 기록</h4>
+                <h4>{journal.label === "헌화 완료" ? "내 헌화 기록" : "내 조사 기록"}</h4>
                 {journal.visit && <p>{journal.visit.label}</p>}
                 {!!journal.shared_records?.length && <SharedRecords records={journal.shared_records} />}
                 {journal.entries.map((entry) => (
                   <section className={styles.note} key={entry.step_id}>
-                    <h5>{entry.prompt}</h5>
+                    <h5>{plain(entry.prompt)}</h5>
                     <p>
-                      {entry.verified ? "조사 검증 완료" : "해설로 확인"}
-                      {entry.method && <> · {methods[entry.method] ?? "확인 완료"}</>}
+                      {journal.label === "헌화 완료" ? "국화를 올렸다." : entry.verified ? "조사 검증 완료" : "해설로 확인"}
+                      {journal.label !== "헌화 완료" && entry.method && <> · {methods[entry.method] ?? "확인 완료"}</>}
                     </p>
                     {Object.values(entry.record ?? {}).map((text, i) => (
-                      <p key={i}>{text}</p>
+                      <p key={i}>{plain(text)}</p>
                     ))}
-                    {entry.source && <p>사용한 출처: {entry.source.text}</p>}
-                    {entry.explanation && <p>{entry.explanation}</p>}
-                    {entry.reward && <p>{entry.reward}</p>}
+                    {entry.source && <p>사용한 출처: {plain(entry.source.text)}</p>}
+                    {entry.explanation && <p>{plain(entry.explanation)}</p>}
+                    {entry.reward && <p>{plain(entry.reward)}</p>}
                   </section>
                 ))}
               </>
@@ -68,12 +70,12 @@ export function JournalV2({ snapshot }: { snapshot: V2Response }) {
                 <h4>내 조사 해설</h4>
                 {Object.entries(snapshot.self.explanations).map((
                   [id, text],
-                ) => <p key={id}>{text}</p>)}
+                ) => <p key={id}>{plain(text)}</p>)}
               </>
             )}
           </article>
         );
       })}
-    </div>
+    </div></div>
   );
 }

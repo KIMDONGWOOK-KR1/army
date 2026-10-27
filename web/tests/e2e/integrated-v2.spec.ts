@@ -99,6 +99,7 @@ async function createTeam(browser: Browser, baseURL: string): Promise<Team> {
                 { name: "hoguk:narration", value: "off" },
                 { name: "hoguk:stop", value: "off" },
                 { name: "hoguk:sound", value: "off" },
+                { name: "hoguk:photo-gate", value: "off" },
               ],
             }],
           },
@@ -211,15 +212,21 @@ async function createTeam(browser: Browser, baseURL: string): Promise<Team> {
 }
 
 async function fillAnswer(form: Locator, step: Step, answer: StepAnswer) {
-  if (step.type === "truefalse" || step.type === "order") {
-    for (const [index, value] of (answer as string[]).entries()) {
-      await form.getByRole("combobox").nth(index).selectOption(value);
+  if (step.type === "order") {
+    for (const value of answer as string[]) {
+      await form.getByTestId(`order-choice-${step.id}-${value}`).click();
     }
-  } else if (step.type === "match") {
-    for (const field of step.fields!) {
-      await form.getByLabel(field.label, { exact: true }).selectOption(
-        (answer as Record<string, string>)[field.id],
-      );
+  } else if (step.type === "truefalse") {
+    for (const [index, value] of (answer as string[]).entries()) {
+      await form.getByRole("navigation", { name: "묶음 안 카드 선택" })
+        .getByRole("button").nth(index).click();
+      await form.getByRole("radio", { name: value === "true" ? "참" : "거짓", exact: true }).check();
+    }
+  } else if (step.type === "match" || step.type === "classification") {
+    for (const [index, field] of step.fields!.entries()) {
+      await form.getByRole("navigation", { name: "묶음 안 카드 선택" })
+        .getByRole("button").nth(index).click();
+      await form.getByTestId(`connect-${step.id}-${(answer as Record<string, string>)[field.id]}`).click();
     }
   } else if (step.type === "words") {
     for (const [index, value] of (answer as string[]).entries()) {
@@ -231,17 +238,25 @@ async function fillAnswer(form: Locator, step: Step, answer: StepAnswer) {
     }
   } else if (step.fields?.length) {
     for (const field of step.fields) {
-      await form.getByLabel(`${field.label} (필수)`, { exact: true }).fill(
+      await form.getByTestId(`record-tab-${field.id}`).click();
+      await form.getByLabel(`${field.label}${field.required ? " (필수)" : ""}`, { exact: true }).fill(
         (answer as Record<string, string>)[field.id],
       );
     }
   } else {
     await form.getByLabel(
       step.type === "frequency"
-        ? "주파수 (소수점 한 자리 이하)"
+        ? "주파수 직접 입력"
         : "답안 또는 기록",
       { exact: true },
     ).fill(answer as string);
+  }
+}
+
+async function openHelp(page: Page) {
+  const help = page.getByTestId("story-help");
+  if (!(await help.evaluate((element) => element.hasAttribute("open")))) {
+    await help.locator("summary").click();
   }
 }
 
@@ -260,20 +275,23 @@ async function report(page: Page) {
 async function solve(team: Team, role: Role) {
   const page = team.roles[role];
   for (const step of gate.roles[role]!.steps) {
+    await page.getByTestId(`story-step-tab-${step.id}`).click();
     const form = page.getByTestId(`mission-v2-step-${step.id}`);
+    await expect(form.getByTestId("story-open-clue")).toBeVisible();
+    await form.getByTestId("story-open-clue").click();
     const answer = synthetic.privateInput.stages.gate.steps[step.id].answer ??
       Object.fromEntries(
         step.fields!.map((field) => [field.id, `[합성] ${field.id} 확인 기록`]),
       );
-    await expect(form.getByRole("button", { name: "문제 제출", exact: true }))
-      .toBeEnabled();
+    if (step.type !== "frequency") await expect(form.getByTestId("story-submit")).toBeDisabled();
     await fillAnswer(form, step, answer);
+    await expect(form.getByTestId("story-submit")).toBeEnabled();
     await expect(form.getByLabel("확인 방식", { exact: true })).toHaveCount(0);
     await expect(form.getByLabel(/^확인한 출처/)).toHaveCount(0);
     await expect(form.getByLabel(/^연결할 자료/)).toHaveCount(0);
     const view = await clickAction(
       page,
-      form.getByRole("button", { name: "문제 제출", exact: true }),
+      form.getByTestId("story-submit"),
       "submit-step",
     );
     expect(view.result?.accepted).toBe(true);
@@ -283,6 +301,8 @@ async function solve(team: Team, role: Role) {
     // Solving a problem must not automatically send the separate oral report.
     expect(view.self.reported).toBe(false);
     expect(view.self.digit === null).toBe(true);
+    await form.getByTestId("story-claim").click();
+    await expect(page.getByTestId(`story-step-tab-${step.id}`)).toHaveAttribute("data-collected", "true");
   }
   return report(page);
 }
@@ -326,22 +346,32 @@ async function verifyPrivacy(team: Team) {
 
 async function verifyStorage(team: Team) {
   for (const page of team.pages) {
-    const stored = await page.evaluate((id) => {
-      const allowedSettings = ["hoguk:narration", "hoguk:stop", "hoguk:sound"];
+    const role = ROLES.find((candidate) => team.roles[candidate] === page)!;
+    const stored = await page.evaluate(({ id, role, stepIds }) => {
+      const allowedSettings = ["hoguk:narration", "hoguk:stop", "hoguk:sound", "hoguk:photo-gate"];
       const localKeys = Object.keys(localStorage);
       const sessionKeys = Object.keys(sessionStorage);
       // UI preferences and animation flags are safe. Pending commands, clue
       // values, answer drafts, and lock digits must remain out of storage.
-      const safeSession = sessionKeys.every((key) =>
-        key === `hoguk:reveal-seen:${id}` && sessionStorage.getItem(key) === "1"
-      );
+      const safeSession = sessionKeys.every((key) => {
+        const value = sessionStorage.getItem(key);
+        if (key === `hoguk:reveal-seen:${id}`) return value === "1";
+        if (key === `hoguk:discovery:${id}:gate:sacho`) return value === "seen";
+        if (key !== `hoguk:discovery:${id}:gate:${role}`) return false;
+        try {
+          const memory = JSON.parse(value ?? "null");
+          return memory && Object.keys(memory).sort().join(",") === "collected,opened" &&
+            [memory.opened, memory.collected].every((ids) => Array.isArray(ids) &&
+              ids.every((stepId) => typeof stepId === "string" && stepIds.includes(stepId)));
+        } catch { return false; }
+      });
       return {
         onlyGameId: localStorage.getItem("hoguk-game") === id &&
           localKeys.every((key) => key === "hoguk-game" ||
             (allowedSettings.includes(key) && localStorage.getItem(key) === "off")),
         noPendingAnswer: safeSession,
       };
-    }, team.id);
+    }, { id: team.id, role, stepIds: gate.roles[role]!.steps.map((step) => step.id) });
     expect(stored.onlyGameId).toBe(true);
     expect(stored.noPendingAnswer).toBe(true);
   }
@@ -507,6 +537,7 @@ test("main UI private role hints retry once and require all confirmations before
   const team = await createTeam(browser, baseURL!);
   try {
     const commander = team.roles.commander;
+    await openHelp(commander);
     for (const role of ["scout", "signal", "cipher", "commander"] as const) {
       for (const level of [1, 2, 3]) {
         const button = commander.getByRole("button", {
@@ -550,6 +581,7 @@ test("main UI private role hints retry once and require all confirmations before
     await commander.getByRole("button", { name: "내 조사와 해설 확인", exact: true }).click();
     for (const role of ["scout", "signal", "cipher"] as const)
       await team.roles[role].getByRole("button", { name: "내 조사와 해설 확인", exact: true }).click();
+    for (const role of ROLES) await openHelp(team.roles[role]);
     for (const role of ["commander", "scout", "signal"] as const) {
       await clickAction(
         team.roles[role],

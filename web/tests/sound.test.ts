@@ -307,10 +307,10 @@ describe("배경음 작곡", () => {
             expect(compose(createComposer(mood, 42, 0, other), 60)).not.toEqual(a);
       }
   });
-  it("기본 갈래는 산책(a)이다", () => {
-    expect(DEFAULT_BGM_STYLE).toBe("a");
+  it("기본 갈래는 명랑(d)이다", () => {
+    expect(DEFAULT_BGM_STYLE).toBe("d");
     expect(compose(createComposer("field", 5), 60)).toEqual(
-      compose(createComposer("field", 5, 0, "a"), 60),
+      compose(createComposer("field", 5, 0, "d"), 60),
     );
   });
   it("추모 분위기에는 가락·북·종이 없고 같은 낮은 음만 숨 쉬듯 이어진다", () => {
@@ -344,11 +344,12 @@ describe("배경음 작곡", () => {
         expect(barLength("memorial", style)).toBe(6);
       }
   });
-  it("빠르기: 산책 104~112, 모험 120~126, 장단 점4분음표 95~105", () => {
+  it("빠르기: 산책 104~112, 모험 120~126, 장단 점4분음표 95~105, 명랑 118~130", () => {
     const range: Record<BgmStyle, [number, number]> = {
       a: [104, 112],
       b: [120, 126],
       c: [95, 105],
+      d: [118, 130],
     };
     for (const style of BGM_STYLES)
       for (const mood of TONAL) {
@@ -648,11 +649,12 @@ describe("배경음 표본 미리 계산", () => {
 });
 
 describe("배경음 갈래 고르기", () => {
-  it("a·b·c만 받고 나머지는 무시한다", () => {
+  it("a·b·c·d만 받고 나머지는 무시한다", () => {
     expect(parseBgmStyle("a")).toBe("a");
     expect(parseBgmStyle("B")).toBe("b");
     expect(parseBgmStyle(" c ")).toBe("c");
-    for (const bad of ["", "d", "ab", "산책", null, undefined, 1, {}])
+    expect(parseBgmStyle("d")).toBe("d");
+    for (const bad of ["", "e", "ab", "산책", null, undefined, 1, {}])
       expect(parseBgmStyle(bad)).toBeNull();
   });
   it("주소의 ?bgm= 값을 읽는다", () => {
@@ -666,7 +668,7 @@ describe("배경음 갈래 고르기", () => {
   });
   it("서버에서는 기본값, 브라우저에서는 처음 한 번만 주소를 읽는다", async () => {
     const server = await freshEngine();
-    expect(server.bgmStyle()).toBe("a");
+    expect(server.bgmStyle()).toBe("d");
     const location = { search: "?bgm=c" };
     vi.stubGlobal("window", { localStorage: memoryStorage(), location });
     const engine = await freshEngine();
@@ -674,14 +676,14 @@ describe("배경음 갈래 고르기", () => {
     location.search = "?bgm=b";
     expect(engine.bgmStyle()).toBe("c");
     location.search = "?bgm=nope";
-    expect((await freshEngine()).bgmStyle()).toBe("a");
+    expect((await freshEngine()).bgmStyle()).toBe("d");
     vi.stubGlobal("window", {
       localStorage: memoryStorage(),
       get location(): never {
         throw new Error("SecurityError");
       },
     });
-    expect((await freshEngine()).bgmStyle()).toBe("a");
+    expect((await freshEngine()).bgmStyle()).toBe("d");
   });
 });
 

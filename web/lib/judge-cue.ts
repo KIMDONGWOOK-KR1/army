@@ -6,10 +6,13 @@ import type { SoundName } from "./sound-synth";
 // 자물쇠가 열린 뒤에도 서버는 방금 연 거점을 current_site로 둔다.
 export function judgeCue(
   c: Pick<Command, "action">,
-  next: Pick<Snapshot, "result" | "current_site"> | null,
+  next: (Pick<Snapshot, "result" | "current_site"> & { stage?: { completion: { type: string } } }) | null,
 ): { name: SoundName; calm: boolean } | null {
   if (!next?.result) return null;
+  if (next.stage?.completion.type === "tribute") return null;
   const result = next.result, calm = !!next.current_site?.reverent;
+  // 추모의 벽 헌화는 맞고 틀림이 없다(국화를 올릴 때 '정답' 소리를 내지 않는다)
+  if ((next as { stage?: { completion?: { type?: string } } }).stage?.completion?.type === "tribute") return null;
   if (c.action === "submit-step" && typeof result.accepted === "boolean")
     return { name: result.accepted ? "clue-correct" : "clue-wrong", calm };
   if (c.action === "open-after-explanation" && result.opened === true)

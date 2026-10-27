@@ -19,6 +19,10 @@ export default defineConfig({
           localStorage: [
             { name: "hoguk:narration", value: "off" },
             { name: "hoguk:stop", value: "off" },
+            // 혼자 데모 체험은 네 곳 코스가 기본이다. 예전 두 곳 혼자 시연을 다루는 시험은 이 스위치로 고른다.
+            { name: "hoguk:demo-course", value: "v1" },
+            // 정찰원 '사진으로 찾기'(모의 판정)는 solo-route.spec.ts에서만 켠다
+            { name: "hoguk:photo-gate", value: "off" },
           ],
         },
       ],

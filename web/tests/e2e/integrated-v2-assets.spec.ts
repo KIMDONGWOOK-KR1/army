@@ -33,7 +33,15 @@ for (const path of ["/", "/verify"]) {
     }));
     const material = page.getByTestId("mission-asset");
     const img = material.locator("img");
+    const revealMaterial = async () => {
+      if (path === "/" && current.stage.id === "gate") {
+        await expect(page.getByTestId("story-workbench")).toBeVisible();
+        await page.getByText("작전 이야기·관찰 안내", { exact: true }).click();
+      }
+    };
     await page.goto(path);
+    await revealMaterial();
+    await expect(material).toBeVisible();
     await expect(material).toHaveAttribute("data-temporary", "true");
     await expect(img).toHaveJSProperty("src", new URL(placeholder, page.url()).href);
     await expect.poll(() => img.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
@@ -43,15 +51,18 @@ for (const path of ["/", "/verify"]) {
 
     current.self.mission!.asset = { url: `https://example.com${placeholder}`, alt: "임시 이미지", confirmed: true };
     await page.reload();
+    await revealMaterial();
     await expect(img).toHaveJSProperty("src", new URL(placeholder, page.url()).href);
 
     current.self.mission!.asset = { url: "https://example.com/missing-material.png", alt: "[합성] 사진 자료", confirmed: true };
     await page.reload();
+    await revealMaterial();
     await expect(material).toContainText("사진을 불러오지 못해");
     await expect(img).toHaveJSProperty("src", new URL(placeholder, page.url()).href);
 
     current.self.mission!.asset = { url: "https://example.com/material.svg", alt: "[합성] 교체한 사진 자료", confirmed: true };
     await page.reload();
+    await revealMaterial();
     await expect(material).toHaveAttribute("data-temporary", "false");
     await expect(img).toHaveAttribute("src", "https://example.com/material.svg");
     await expect.poll(() => img.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBe(40);
@@ -67,7 +78,15 @@ for (const path of ["/", "/verify"]) {
     current = fixture("signal");
     delete current.self.mission!.asset;
     await page.reload();
-    await expect(page.getByText(current.self.mission!.steps[0].prompt, { exact: true })).toBeVisible();
+    const step = current.self.mission!.steps[0];
+    if (path === "/") {
+      await page.getByTestId(`story-step-tab-${step.id}`).click();
+      const card = page.getByTestId(`mission-v2-step-${step.id}`);
+      await card.getByTestId("story-open-clue").click();
+      await expect(card.getByTestId("story-clue-content")).toContainText(step.prompt);
+    } else {
+      await expect(page.getByText(step.prompt, { exact: true })).toBeVisible();
+    }
     await expect(material).toHaveCount(0);
   });
 }

@@ -18,8 +18,8 @@ export const HOME = {
   heightShare: 0.3,
   dist: { min: 30, max: 90 },
   elevation: 0.2, // 내려다보는 각(rad, 약 11°)
-  swing: 0.16, // 좌우로 흔들리는 폭(rad, 약 9°): 민주대로 끝 용봉관이 나무에 가리지 않을 만큼
-  dolly: 0.08, // 다가갔다 물러나는 폭(거리 비율)
+  swing: 0.08, // 좌우로 흔들리는 폭(rad, 약 9°): 민주대로 끝 용봉관이 나무에 가리지 않을 만큼
+  dolly: 0.04, // 다가갔다 물러나는 폭(거리 비율)
   period: 44, // 한 바퀴(초)
   intro: { sec: 3.6, lift: 0.22, back: 0.35 }, // 처음 뜰 때 위·뒤에서 내려앉는 정도
   fps: 30, // 배경이라 초당 30장만 그린다
@@ -70,12 +70,15 @@ export function soldierSpots(gate: XZ, axis: XZ, count = 4) {
 
 // 장병 키 h(m)가 화면 띠(px)의 heightShare를 차지하는 카메라 거리(m).
 // viewH는 캔버스 높이(px), fov는 세로 시야각(도).
-export function heroDistance(viewH: number, bandH: number, fov: number) {
+export function heroDistance(viewH: number, bandH: number, fov: number, viewW?: number) {
   const want = Math.max(60, bandH * HOME.heightShare),
     d =
       (HOME.soldierM * viewH) /
       (2 * Math.tan(((fov / 2) * Math.PI) / 180) * want);
-  return Math.min(HOME.dist.max, Math.max(HOME.dist.min, d));
+  // Include the entire four-person silhouette, even on tall, narrow phones.
+  const span = HOME.spacing * 3 + HOME.soldierM * 1.1;
+  const horizontal = viewW && viewW > 0 ? span * viewH / (2 * Math.tan(fov * Math.PI / 360) * viewW * 0.84 * (1 - HOME.dolly)) : 0;
+  return Math.max(horizontal, Math.min(HOME.dist.max, Math.max(HOME.dist.min, d)));
 }
 
 // 화면 띠(캔버스 위에서 top~bottom px) 가운데에 장병을 두는 setViewOffset의 y(px)

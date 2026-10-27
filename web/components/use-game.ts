@@ -8,20 +8,13 @@ import { isV2Response, type GameResponse, type V2Response } from "@/lib/game-sna
 function refreshV1(id?: string) {
   return requestGame({ action: "get-game", game_id: id });
 }
-async function refreshV2(id?: string) {
-  const next = await requestGameV2({ action: "get-game", game_id: id });
-  if (next.game.status === "playing" && next.game.site_phase !== "travel") {
-    return requestGameV2({ action: "get-stage", game_id: next.game.id, stage_id: next.game.stage_id });
-  }
-  return next;
+function refreshV2(id?: string) {
+  return requestGameV2({ action: "get-game", game_id: id });
 }
 
-async function refreshAny(id?: string) {
-  const next = await requestGameAny({ action: "get-game", game_id: id });
-  if (isV2Response(next) && next.game.status === "playing" && next.game.site_phase !== "travel") {
-    return requestGameV2({ action: "get-stage", game_id: next.game.id, stage_id: next.game.stage_id });
-  }
-  return next;
+function refreshAny(id?: string) {
+  // get-game already returns the full role-filtered v2 stage snapshot.
+  return requestGameAny({ action: "get-game", game_id: id });
 }
 
 export function useGame() {
@@ -44,7 +37,8 @@ function useGameSession<S extends Snapshot>(
   storagePrefix: string,
   persistPending: boolean | "v1",
 ) {
-  const gameKey = `${storagePrefix}-game`, pendingKey = `${storagePrefix}-pending`;
+  const gameKey = `${storagePrefix}-game`, pendingKey = `${storagePrefix}-pending`,
+    homeKey = `${storagePrefix}-home`;
   const [snapshot, setSnapshot] = useState<S | null>(null),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
@@ -60,7 +54,11 @@ function useGameSession<S extends Snapshot>(
     refreshAgain = useRef(false),
     generation = useRef(0),
     changingGame = useRef(false),
-    errorCode = useRef("");
+    errorCode = useRef(""),
+    mounted = useRef(true),
+    blockedUntil = useRef(0),
+    nextReadAt = useRef(0),
+    refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const apply = useCallback((next: S) => {
     if (
       current.current?.game.id === next.game.id &&
@@ -69,6 +67,7 @@ function useGameSession<S extends Snapshot>(
     )
       return;
     manualReset.current = false;
+    sessionStorage.removeItem(homeKey);
     offset.current = next.server_now - Date.now();
     current.current = next;
     setSnapshot(next);
@@ -82,32 +81,57 @@ function useGameSession<S extends Snapshot>(
       }
     }
     if (
-      ["NETWORK", "SERVER_ERROR"].includes(errorCode.current) &&
+      ["NETWORK", "SERVER_ERROR", "REQUEST_THROTTLED"].includes(errorCode.current) &&
       !pending.current && (!persistPending || !sessionStorage.getItem(pendingKey))
     ) {
       errorCode.current = "";
       setError("");
     }
-  }, [gameKey, pendingKey, persistPending]);
+  }, [gameKey, pendingKey, homeKey, persistPending]);
   const refresh = useCallback(async (): Promise<void> => {
-    if (changingGame.current || (manualReset.current && !current.current))
+    if (!mounted.current || changingGame.current || (manualReset.current && !current.current))
       return;
-    if (polling.current) {
+    if (polling.current || mutation.current) {
       refreshAgain.current = true;
       return;
     }
+    const delay = Math.max(blockedUntil.current, nextReadAt.current) - Date.now();
+    if (delay > 0) {
+      if (refreshTimer.current === null) {
+        refreshTimer.current = setTimeout(() => {
+          refreshTimer.current = null;
+          void refresh();
+        }, Math.min(delay, 2_147_483_647));
+      }
+      return;
+    }
+    if (refreshTimer.current !== null) {
+      clearTimeout(refreshTimer.current);
+      refreshTimer.current = null;
+    }
     polling.current = true;
+    nextReadAt.current = Date.now() + 1000;
     const scope = generation.current;
     try {
       const id =
         current.current?.game.id ??
         localStorage.getItem(gameKey) ??
         undefined;
+      // The local session cookie can restore a room even without a saved id.
+      // Keep an explicit return home across reloads without deleting that room.
+      if (!id && sessionStorage.getItem(homeKey) === "1") {
+        manualReset.current = true;
+        return;
+      }
       if (backend === "supabase" && !id) return;
       const next = await read(id);
-      if (scope === generation.current) apply(next);
+      if (mounted.current && scope === generation.current) apply(next);
     } catch (e) {
-      if (scope !== generation.current) return;
+      if (!mounted.current || scope !== generation.current) return;
+      if (e instanceof ApiError && e.code === "REQUEST_THROTTLED") {
+        blockedUntil.current = Math.max(blockedUntil.current, e.retry_at ?? Date.now() + 2000);
+        refreshAgain.current = true;
+      }
       if (
         e instanceof ApiError &&
         ["NO_GAME", "FORBIDDEN", "EXPIRED"].includes(e.code)
@@ -116,7 +140,7 @@ function useGameSession<S extends Snapshot>(
         if (!current.current) {
           localStorage.removeItem(gameKey);
           if (
-            ["NETWORK", "SERVER_ERROR"].includes(errorCode.current) &&
+            ["NETWORK", "SERVER_ERROR", "REQUEST_THROTTLED"].includes(errorCode.current) &&
             !pending.current && (!persistPending || !sessionStorage.getItem(pendingKey))
           ) {
             errorCode.current = "";
@@ -131,20 +155,24 @@ function useGameSession<S extends Snapshot>(
     } finally {
       polling.current = false;
       setRestoring(false);
-      if (refreshAgain.current) {
+      if (mounted.current && refreshAgain.current) {
         refreshAgain.current = false;
         queueMicrotask(() => void refresh());
       }
     }
-  }, [apply, gameKey, pendingKey, persistPending, read]);
+  }, [apply, gameKey, pendingKey, homeKey, persistPending, read]);
   useEffect(() => {
+    mounted.current = true;
     void refresh();
     const timer = setInterval(() => setNow(Date.now() + offset.current), 500);
     const focus = () => void refresh();
     window.addEventListener("online", focus);
     window.addEventListener("focus", focus);
     return () => {
+      mounted.current = false;
       clearInterval(timer);
+      if (refreshTimer.current !== null) clearTimeout(refreshTimer.current);
+      refreshTimer.current = null;
       window.removeEventListener("online", focus);
       window.removeEventListener("focus", focus);
     };
@@ -218,11 +246,11 @@ function useGameSession<S extends Snapshot>(
   }, [snapshot?.game.id, refresh]); // Only resubscribe when the operation changes.
   const send = useCallback(
     async (command: Command) => {
-      if (mutation.current) return null;
+      if (mutation.current || Date.now() < blockedUntil.current) return null;
       mutation.current = true;
       setBusy(true);
       setError("");
-      const creating = ["create-game", "create-demo", "join-game"].includes(
+      const creating = ["create-game", "create-demo", "create-solo", "join-game"].includes(
         command.action,
       );
       const { game_id: oldId, ...fields } = command;
@@ -273,13 +301,17 @@ function useGameSession<S extends Snapshot>(
         return next;
       } catch (e) {
         if (scope !== generation.current) return null;
+        if (e instanceof ApiError && e.code === "REQUEST_THROTTLED") {
+          blockedUntil.current = Math.max(blockedUntil.current, e.retry_at ?? Date.now() + 2000);
+        }
         errorCode.current = e instanceof ApiError ? e.code : "NETWORK";
         setError(e instanceof Error ? e.message : "요청을 처리하지 못했다.");
         if (
           e instanceof ApiError &&
           e.code !== "NETWORK" &&
           e.code !== "RETRY" &&
-          e.code !== "SERVER_ERROR"
+          e.code !== "SERVER_ERROR" &&
+          e.code !== "REQUEST_THROTTLED"
         ) {
           pending.current = null;
           sessionStorage.removeItem(pendingKey);
@@ -290,9 +322,13 @@ function useGameSession<S extends Snapshot>(
         mutation.current = false;
         changingGame.current = false;
         setBusy(false);
+        if (mounted.current && scope === generation.current && refreshAgain.current) {
+          refreshAgain.current = false;
+          void refresh();
+        }
       }
     },
-    [apply, pendingKey, persistPending, request],
+    [apply, pendingKey, persistPending, request, refresh],
   );
   const retry = useCallback(async (): Promise<S | null> => {
     if (pending.current) {
@@ -311,15 +347,28 @@ function useGameSession<S extends Snapshot>(
     await refresh();
     return null;
   }, [send, refresh, pendingKey, persistPending]);
+  // 혼자 데모 체험에서 보는 보직(자리)을 바꾸면, 앞 자리로 보낸 조회 결과는 버리고 새 자리로 다시 읽는다
+  const rescope = useCallback(() => {
+    if (mutation.current || pending.current) return;
+    generation.current++;
+    void refresh();
+  }, [refresh]);
   const reset = () => {
     generation.current++;
     manualReset.current = true;
     current.current = null;
     pending.current = null;
+    refreshAgain.current = false;
+    if (refreshTimer.current !== null) clearTimeout(refreshTimer.current);
+    refreshTimer.current = null;
+    errorCode.current = "";
     setSnapshot(null);
     setError("");
+    setRestoring(false);
     localStorage.removeItem(gameKey);
     sessionStorage.removeItem(pendingKey);
+    sessionStorage.setItem(homeKey, "1");
   };
-  return { snapshot, busy, error, online, restoring, now, send, retry, reset };
+  return { snapshot, busy, error, online, restoring, now, send, retry, reset, rescope,
+    canRescope: !busy && !pending.current };
 }

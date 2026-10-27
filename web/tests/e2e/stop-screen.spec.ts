@@ -9,7 +9,7 @@ test.use({
   storageState: {
     cookies: [],
     origins: [
-      { origin, localStorage: [{ name: "hoguk:narration", value: "off" }] },
+      { origin, localStorage: [{ name: "hoguk:narration", value: "off" }, { name: "hoguk:demo-course", value: "v1" }] },
     ],
   },
 });

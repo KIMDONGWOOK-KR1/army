@@ -3,9 +3,11 @@ import { projectGameV2 } from "../../supabase/functions/_shared/engine-v2";
 import { fullDemoCourseV2, fullDemoV2Input } from "../../supabase/functions/_shared/wall-bongji-course-v2";
 import { ROLES, type Command, type GameEvent, type Role } from "../../supabase/functions/_shared/types";
 
-export async function fullTeam(options: { evidence?: boolean } = {}) {
+export async function fullTeam(options: { evidence?: boolean; wallMode?: "tribute" | "confirm" } = {}) {
   const salt = crypto.randomUUID(), id = "jnu-demo-dev-full-test";
-  const course = await fullDemoCourseV2(id, salt), input = fullDemoV2Input(id).privateInput;
+  // Existing suites exercise stored confirm revisions; new tribute tests opt in explicitly.
+  const wallMode = options.wallMode ?? "confirm";
+  const course = await fullDemoCourseV2(id, salt, false, wallMode), input = fullDemoV2Input(id, wallMode).privateInput;
   const game = createGame("one", "연습1", course, 100000, "TEST");
   let now = 100000, seq = 0;
   const events: GameEvent[] = [];
@@ -22,13 +24,13 @@ export async function fullTeam(options: { evidence?: boolean } = {}) {
   const solve = async (role: Role) => {
     const stage = course.stages[game.v2!.stageIndex];
     for (const step of stage.roles[role]!.steps) {
-      const answer = input.stages[stage.id].steps[step.id].answer ?? (step.fields
+      const answer = step.grading === "confirm" ? "confirmed" : input.stages[stage.id].steps[step.id].answer ?? (step.fields
         ? Object.fromEntries(step.fields.map((f) => [f.id, `[합성] ${stage.id}-${role} 비공개 ${f.id}`])) : "[합성] 자유 기록");
       await call(role, { action: "submit-step", step_id: step.id, answer,
         ...(options.evidence === false ? {} : { method: "official_digital" as const,
           source: { text: `[합성] ${stage.id}-${role} 비공개 출처` } }) });
     }
-    await call(role, { action: "submit-report" });
+    if (stage.completion.type !== "tribute") await call(role, { action: "submit-report" });
   };
   const depart = () => call("commander", { action: "depart-next-site" });
   const wallReady = async () => { for (const role of ["scout", "signal", "cipher", "commander"] as const) await solve(role); };
@@ -37,7 +39,9 @@ export async function fullTeam(options: { evidence?: boolean } = {}) {
     text: "[합성] 함께 작성한 문장", reason: "[합성] 함께 확인한 근거", ...extra,
   });
   const wallComplete = async () => {
-    await wallReady(); await draft();
+    await wallReady();
+    if (course.stages[game.v2!.stageIndex].completion.type === "tribute") return;
+    await draft();
     for (const role of ROLES) await call(role, { action: "confirm-stage", draft_version: 1 });
   };
   await call("commander", { action: "begin-operation" });

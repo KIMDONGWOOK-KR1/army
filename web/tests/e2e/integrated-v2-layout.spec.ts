@@ -59,6 +59,47 @@ function legacyPublicFixture(role: Role): V2Response {
   return fixture;
 }
 
+function tributePublicFixture(): V2Response {
+  const fixture = publicFixture("scout");
+  const step: NonNullable<V2Response["self"]["mission"]>["steps"][number] = {
+    id: "MOCK-W.scout.tribute", type: "confirm", grading: "confirm",
+    confirmed: false, sourceRequired: false, maxLen: 600,
+    prompt: "[합성] 국화 올리기 동작을 확인합니다.",
+  };
+  const site = {
+    ...fixture.current_site, id: "wall", seq: 3, name: "[합성] 헌화 화면", reverent: true,
+    sacho: { char: "", name: "[합성] 헌화 기록", body: "" },
+  };
+  fixture.course.id = "mock-course-tribute";
+  fixture.course.name = "[합성] 헌화 화면 연습 코스";
+  fixture.course.sites = [site, { ...fixture.course.sites[1], seq: 4 }];
+  fixture.current_site = site;
+  fixture.stage = {
+    ...fixture.stage, id: "wall", seq: 3, name: site.name, kind: "memorial", quiet: true,
+    scoring: { enabled: false, confirmed: true, hintPenalty: { 1: 0, 2: 0, 3: 0 }, noHintBonus: 0 },
+    completion: { type: "tribute", label: "국화 올리기" }, narration: [], sources: [],
+    sacho: { id: "mock-sacho-wall", name: "[합성] 헌화 기록", sections: ["[합성] 헌화"] },
+  };
+  fixture.game.id = "mock-game-wall-tribute";
+  fixture.game.stage_id = "wall";
+  fixture.game.current_site_seq = 3;
+  fixture.game.report_mask = [true, false, false, true];
+  fixture.game.step_done_count = { commander: 1, scout: 0, signal: 0, cipher: 1 };
+  fixture.game.attempts_left = 0;
+  fixture.self.mission = {
+    intro: { id: "MOCK-W.intro", trigger: "enter", channel: "screen",
+      text: "[합성] 동료들과 조용히 머무르며 국화 한 송이씩 올리는 화면 연습입니다." },
+    scenes: [], digit: false, steps: [step],
+  };
+  fixture.self.step_progress = { [step.id]: { status: "open", attempts: 0 } };
+  fixture.self.hints = [];
+  fixture.self.explanations = {};
+  fixture.self.rewards = {};
+  fixture.self.digit = null;
+  fixture.self.lock = null;
+  return fixture;
+}
+
 type Surface = Page | FrameLocator;
 const PHONE_SCREEN = 'iframe[title="호국실록 폰 화면"]';
 
@@ -84,6 +125,7 @@ async function renderFixture(page: Page, fixture: V2Response) {
     localStorage.setItem("hoguk:narration", "off");
     localStorage.setItem("hoguk:stop", "off");
     localStorage.setItem("hoguk:sound", "off");
+    localStorage.setItem("hoguk:photo-gate", "off");
   }, { gameId: fixture.game.id });
   await page.goto("/");
   await expect(page.locator('[data-scene="mission"]')).toBeVisible();
@@ -131,27 +173,58 @@ for (const role of ROLES) {
     for (const width of [360, 390, 430]) {
       await test.step(`${width}px`, async () => {
         await page.setViewportSize({ width, height: 844 });
+        // The public mock exposes each input for geometry checks only. Server
+        // prerequisite enforcement is exercised by integrated-v2.spec.ts.
+        for (const step of mission.steps) fixture.self.step_progress[step.id].status = "open";
+        await page.evaluate(({ gameId, role }) => {
+          sessionStorage.removeItem(`hoguk:discovery:${gameId}:gate:${role}`);
+        }, { gameId: fixture.game.id, role });
+        await page.reload();
+        await expect(page.getByTestId("story-workbench")).toBeVisible();
+        await expect(page.getByRole("button", { name: "조사 결과 보고", exact: true })).toHaveCount(0);
         for (const step of mission.steps) {
+          const tab = page.getByTestId(`story-step-tab-${step.id}`);
+          await tab.click();
+          await expect(tab).toHaveAttribute("aria-current", "step");
           const card = page.getByTestId(`mission-v2-step-${step.id}`);
-          const heading = card.getByRole("heading", {
-            name: step.prompt,
-            exact: true,
-          });
-          await heading.scrollIntoViewIfNeeded();
-          await expect(heading).toBeInViewport();
-          const submit = card.getByRole("button", {
-            name: "문제 제출",
-            exact: true,
-          });
+          const parcel = card.getByTestId("story-open-clue");
+          await parcel.scrollIntoViewIfNeeded();
+          await expect(parcel).toBeInViewport();
+          await parcel.focus();
+          await parcel.press("Enter");
+          await expect(card.getByTestId("story-clue-content")).toBeVisible();
+          const reference = card.getByTestId("story-reference");
+          await reference.locator("summary").click();
+          const original = reference.locator("p").first();
+          await expect(original).toHaveText(step.prompt);
+          await original.scrollIntoViewIfNeeded();
+          await expect(original).toBeInViewport();
+          await reference.locator("summary").click();
+          if (step.fields?.length && step.type !== "match" && step.type !== "classification") {
+            for (const field of step.fields) {
+              await card.getByTestId(`record-tab-${field.id}`).click();
+              const input = card.getByLabel(`${field.label}${field.required ? " (필수)" : ""}`, { exact: true });
+              await input.scrollIntoViewIfNeeded();
+              await expect(input).toBeInViewport();
+            }
+          }
+          const submit = card.getByTestId("story-submit");
           await submit.scrollIntoViewIfNeeded();
           await expect(submit).toBeInViewport();
+          if (step.type !== "frequency") await expect(submit).toBeDisabled();
+          await expectNoHorizontalOverflow(page);
         }
+        // Report and explanation controls become available only after the
+        // server-projected role steps are complete; never submit the mock.
+        for (const step of mission.steps) fixture.self.step_progress[step.id].status = "done";
+        await page.reload();
         const report = page.getByRole("button", {
           name: "조사 결과 보고",
           exact: true,
         });
         await report.scrollIntoViewIfNeeded();
         await expect(report).toBeInViewport();
+        await page.getByTestId("story-help").locator("summary").click();
         const confirmation = page.getByRole("button", {
           name: "내 해설 읽음 확인",
           exact: true,
@@ -193,10 +266,10 @@ for (const role of ROLES) {
           await page.locator(".mission-stage").evaluate((panel) => {
             panel.scrollTop = 0;
           });
-          const folder = new URL("../../.demo-data/", import.meta.url);
+          const folder = new URL("../../../docs/fe/images/", import.meta.url);
           mkdirSync(folder, { recursive: true });
           await page.screenshot({
-            path: fileURLToPath(new URL("ui-integration-preview.png", folder)),
+            path: fileURLToPath(new URL("gate-story-ui-synthetic.png", folder)),
             animations: "disabled",
           });
         }
@@ -210,6 +283,76 @@ for (const role of ROLES) {
     ).toBe(true);
   });
 }
+
+test("공개 tribute 헌화 화면은 360·390·430px에서 넘치지 않고 키보드로 국화를 올린다", async ({ page }) => {
+  const fixture = tributePublicFixture();
+  const step = fixture.self.mission!.steps[0];
+  await page.setViewportSize({ width: 360, height: 844 });
+  const actions = await renderFixture(page, fixture);
+  const submissions: Record<string, unknown>[] = [];
+  // Only the fixed confirmation command reaches this local mock. No engine,
+  // seed, historical prose, answer data or external API is involved.
+  await page.route("**/api/game", async (route) => {
+    const command = route.request().postDataJSON() as Record<string, unknown>;
+    if (command.action !== "submit-step") return route.fallback();
+    submissions.push(command);
+    fixture.version++;
+    fixture.game.version++;
+    fixture.game.report_mask[ROLES.indexOf("scout")] = true;
+    fixture.game.step_done_count.scout = 1;
+    fixture.self.reported = true;
+    fixture.self.step_progress[step.id] = { status: "done", attempts: 1 };
+    await route.fulfill({ status: 200, json: {
+      ...fixture, result: { step_id: step.id, accepted: true, status: "done" },
+    } });
+  });
+  const tribute = page.getByTestId("tribute");
+  const offer = tribute.getByRole("button", { name: "국화 올리기", exact: true });
+  await expect(tribute).toContainText("[합성] 헌화 화면");
+  await expect(tribute.getByRole("status")).toContainText("국화 2송이");
+  await expect(tribute.getByRole("list", { name: "올린 국화" }).getByRole("listitem")).toHaveCount(4);
+  await expect(page.locator(".hud-score")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "팀 자물쇠로", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "조사 결과 보고", exact: true })).toHaveCount(0);
+
+  for (const width of [360, 390, 430]) {
+    await test.step(`${width}px`, async () => {
+      await page.setViewportSize({ width, height: 844 });
+      await offer.scrollIntoViewIfNeeded();
+      await expect(offer).toBeInViewport();
+      await expect(offer).toBeEnabled();
+      const bounds = await offer.boundingBox();
+      expect(bounds).not.toBeNull();
+      expect(bounds!.width).toBeGreaterThanOrEqual(44);
+      expect(bounds!.height).toBeGreaterThanOrEqual(44);
+      await expectNoHorizontalOverflow(page);
+      expect(await tribute.evaluate((panel) => panel.scrollWidth <= panel.clientWidth + 1)).toBe(true);
+      if (process.env.CAPTURE_PUBLIC_FIXTURE === "1" && width === 390) {
+        await page.locator(".mission-stage").evaluate((panel) => { panel.scrollTop = 0; });
+        const folder = new URL("../../../docs/fe/images/", import.meta.url);
+        mkdirSync(folder, { recursive: true });
+        await page.screenshot({
+          path: fileURLToPath(new URL("tribute-ui-synthetic.png", folder)),
+          animations: "disabled",
+        });
+      }
+    });
+  }
+
+  await offer.focus();
+  await expect(offer).toBeFocused();
+  await offer.press("Enter");
+  await expect(tribute.getByRole("status")).toContainText("국화 3송이");
+  await expect(offer).toHaveCount(0);
+  await expect(tribute).toContainText("동료들이 마음을 전하는 동안 조용히 기다리자.");
+  expect(submissions).toHaveLength(1);
+  expect(submissions[0]).toMatchObject({
+    action: "submit-step", game_id: fixture.game.id, stage_id: "wall", step_id: step.id, answer: "confirmed",
+  });
+  expect("method" in submissions[0] || "source" in submissions[0]).toBe(false);
+  expect(actions.every((action) => action === "get-game" || action === "get-stage")).toBe(true);
+  await expectNoHorizontalOverflow(page);
+});
 
 for (const role of ROLES) {
   test(`공개 legacy ${role} 입력 UI는 360·390·430px에서 넘치지 않는다`, async ({ page }) => {

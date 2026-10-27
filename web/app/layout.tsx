@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
-import "@fontsource/bagel-fat-one/400.css";
 import "./globals.css";
+import "./game-theme.css";
+import localFont from "next/font/local";
+const gameFont = localFont({ src: "../public/fonts/Jua-Regular.ttf", variable: "--font-game", weight: "400", display: "swap", preload: false });
 import { mockupBootScript } from "@/components/mockup-view";
 export const metadata: Metadata = {
   title: "호국실록 — 기억을 잇는 전남대편",
@@ -11,12 +13,14 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  // 아이폰 노치·아래 막대 영역까지 그리고, 글자·버튼은 env(safe-area-inset-*)로 비켜 둔다
+  viewportFit: "cover",
   themeColor: "#213c2c",
 };
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     // 목업으로 열 때 인라인 스크립트가 수화 전에 data-mockup을 단다(그 차이는 경고하지 않는다)
-    <html lang="ko" suppressHydrationWarning>
+    <html lang="ko" className={gameFont.variable} suppressHydrationWarning>
       <body>
         {/* 폰 목업 보기로 열지 첫 그림 전에 정한다(목업일 때만 서버가 그린 앱을 감춘다. app-shell.tsx) */}
         <script dangerouslySetInnerHTML={{ __html: mockupBootScript() }} />

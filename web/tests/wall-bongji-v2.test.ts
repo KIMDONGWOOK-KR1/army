@@ -8,7 +8,7 @@ import { ROLES, type Command } from "../supabase/functions/_shared/types";
 
 describe("wall and Bongji completion", () => {
   it("rejects a memorial relay in seed and suppresses it in live and completed projections", async () => {
-    const { content } = fullDemoV2Input("jnu-demo-dev-relay-test");
+    const { content } = fullDemoV2Input("jnu-demo-dev-relay-test", "confirm");
     const ref = { role: "scout" as const, stepId: "W-01.activities" };
     const step = content.stages[2].roles.signal!.steps[0];
     step.recordFrom = ref; step.requires = [ref];

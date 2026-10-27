@@ -7,16 +7,38 @@ export function Narration({
   lines,
   onClose,
   auto = false,
+  label = "기록",
+  closeLabel = "계속",
+  kind = "common",
+  emphasis,
 }: {
   lines: string[];
   onClose: () => void;
   auto?: boolean;
+  label?: string;
+  closeLabel?: string;
+  kind?: "common" | "personal";
+  emphasis?: "first-line" | "last-line";
 }) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null;
+    const modal = dialog.current;
+    modal?.showModal();
+    modal?.querySelector<HTMLButtonElement>(".narration-close")?.focus();
+    return () => { modal?.close(); if (previous?.isConnected) previous.focus(); };
+  }, []);
   const full = lines.join("\n");
   const [shown, setShown] = useState(0);
   const close = useRef(onClose);
   close.current = onClose;
   const done = shown >= full.length;
+  // Reserve the complete sentence layout so typing does not move words between lines.
+  const reveal = (start: number, end: number) => {
+    const text = full.slice(start, end);
+    const count = Math.max(0, shown - start);
+    return <>{text.slice(0, count)}<span style={{ visibility: "hidden" }}>{text.slice(count)}</span></>;
+  };
   useEffect(() => {
     if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches)
       setShown(full.length);
@@ -34,45 +56,37 @@ export function Narration({
     );
     return () => window.clearTimeout(t);
   }, [shown, done, full]);
-  // 자동 시연: 다 쳐지면 잠시 보여 주고 닫는다.
   useEffect(() => {
     if (!auto || !done) return;
-    const t = window.setTimeout(() => close.current(), 2200);
-    return () => window.clearTimeout(t);
+    const timer = window.setTimeout(() => close.current(), 2200);
+    return () => window.clearTimeout(timer);
   }, [auto, done]);
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") close.current();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
   return (
-    <div
-      className="narration"
-      role="dialog"
-      aria-modal="true"
-      aria-label="기록"
-      onClick={() => setShown(full.length)}
-    >
-      <p className="narration-label" aria-hidden="true">
-        記錄
-      </p>
-      <p className="narration-sr">{lines.join(" ")}</p>
-      <div className="narration-text" aria-hidden="true">
-        {full.slice(0, shown)}
-        <span className="narration-caret" />
+    <dialog ref={dialog} className="narration" data-narration-kind={kind} aria-label={label}
+      onCancel={(event) => { event.preventDefault(); onClose(); }}>
+      <header className="narration-header">
+        <p className="narration-label" aria-hidden="true">{label === "기록" ? "記錄" : label}</p>
+        <span>{kind === "personal" ? "나에게 전해진 임무" : "기억을 여는 이야기"}</span>
+      </header>
+      <div className="narration-body" tabIndex={0} role="region" aria-label={`${label} 본문`} onClick={() => setShown(full.length)}>
+        <p className="narration-sr">{lines.join(" ")}</p>
+        <div className="narration-text" aria-hidden="true">
+          {full.split("\n").map((line, index, paragraphs) => {
+            const start = paragraphs.slice(0, index).join("\n").length + (index > 0 ? 1 : 0);
+            const emphasized = emphasis === "first-line" ? index === 0
+              : emphasis === "last-line" && index === paragraphs.length - 1;
+            const text = reveal(start, start + line.length);
+            return <p className="narration-line" key={index}>
+              {emphasized ? <strong>{text}</strong> : text}
+              {index === paragraphs.length - 1 && <span className="narration-caret" style={{ visibility: done ? "visible" : "hidden" }} />}
+            </p>;
+          })}
+        </div>
       </div>
-      <button
-        className="narration-close"
-        autoFocus
-        onClick={(e) => {
-          e.stopPropagation();
-          onClose();
-        }}
-      >
-        {done ? "계속" : "건너뛰기"}
-      </button>
-    </div>
+      <footer className="narration-footer">
+        {!done && <button className="narration-reveal" onClick={() => setShown(full.length)}>한 번에 읽기</button>}
+        <button className="narration-close" onClick={onClose}>{done ? closeLabel : "건너뛰기"}</button>
+      </footer>
+    </dialog>
   );
 }
