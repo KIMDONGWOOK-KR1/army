@@ -22,6 +22,10 @@ import styles from "./mission-v2.module.css";
 import { RetroPanel, SharedDraftPanel } from "./closing-v2";
 import { TributePanel } from "./tribute-v2";
 import { YongbongPanel } from "./yongbong-panel";
+import { ScanResult, ScoutScan } from "./scout-scan";
+import { scanState } from "@/lib/scout-photo/session";
+import type { ScoutScanSite } from "@/lib/scout-photo/sites";
+import type { PhotoGateState } from "@/lib/scout-photo/contract";
 
 // 점수 규칙이 정해지기 전까지 감점·점수 수치는 화면에 적지 않는다(계산은 그대로)
 const SHOW_SCORE = false;
@@ -202,9 +206,15 @@ function StepCard(
 }
 
 /** Only the caller's server-projected mission is rendered; no course/answer data is imported. */
-export function MissionV2({ snapshot, busy, send, onShowDigit }: Props & { onShowDigit?: () => void }) {
+export function MissionV2({ snapshot, busy, send, onShowDigit, scan }: Props & {
+  onShowDigit?: () => void;
+  /** 정찰원 '사진으로 찾기'(개발 서버의 모의 판정). 찾은 뒤에야 서버 문제가 열린다 */
+  scan?: ScoutScanSite;
+}) {
   const { self, game, stage } = snapshot;
   const { mission, role } = self;
+  const scanKey = `${game.id}:${stage.id}`;
+  const [scanResult, setScanResult] = useState<PhotoGateState | null>(() => scan ? scanState(scanKey) : null);
   if (!mission || !role) return <p role="status">본인 조사를 불러오는 중…</p>;
   if (stage.completion.type === "joint-record") return <RetroPanel snapshot={snapshot} busy={busy} send={send} />;
   if (stage.completion.type === "tribute") return <TributePanel snapshot={snapshot} busy={busy} send={send} />;
@@ -212,7 +222,11 @@ export function MissionV2({ snapshot, busy, send, onShowDigit }: Props & { onSho
   const complete = (step: Step) =>
     ["done", "explained"].includes(self.step_progress[step.id]?.status);
   const allDone = mission.steps.length > 0 && mission.steps.every(complete);
-  const doneCount = mission.steps.filter(complete).length;
+  // 사진으로 찾기: 문제를 이미 풀었거나(새로고침·해설) 보고했으면 다시 막지 않는다
+  const scanOpen = !!scan && !cleared && !self.reported && !mission.steps.some(complete) &&
+    (!scanResult || scanResult.photo.status === "pending");
+  const doneCount = mission.steps.filter(complete).length + (scan && !scanOpen ? 1 : 0);
+  const totalCount = mission.steps.length + (scan ? 1 : 0);
   // 짧은 안내(조사 이름)는 카드 머리에, 긴 안내는 본문 문단으로 둔다
   const introText = mission.intro.trigger === "enter" ? plain(mission.intro.text).trim() : "";
   const shortIntro = introText && introText.length <= 16 ? introText : "";
@@ -240,11 +254,11 @@ export function MissionV2({ snapshot, busy, send, onShowDigit }: Props & { onSho
           <span className={styles.questKind}>
             {ROLE_NAMES[role]}의 조사{shortIntro && <b>{shortIntro}</b>}
           </span>
-          <span className={styles.questCount} aria-label={`조사 ${mission.steps.length}개 중 ${doneCount}개 완료`}>
-            {doneCount} / {mission.steps.length}
+          <span className={styles.questCount} aria-label={`조사 ${totalCount}개 중 ${doneCount}개 완료`}>
+            {doneCount} / {totalCount}
           </span>
         </div>
-        <span className={styles.questBar} aria-hidden="true"><i style={{ width: `${mission.steps.length ? (doneCount / mission.steps.length) * 100 : 0}%` }} /></span>
+        <span className={styles.questBar} aria-hidden="true"><i style={{ width: `${totalCount ? (doneCount / totalCount) * 100 : 0}%` }} /></span>
         <ul className={styles.questRewards} aria-label="이 조사로 얻는 것">
           <li><b>얻는 것</b>{mission.digit ? "기억의 숫자 1개" : "팀에 전할 조사 결과"}</li>
           {stage.completion.type === "lock" && <li><b>함께</b>네 보고가 모여 자물쇠가 열리면 이곳의 기록이 복원돼요</li>}
@@ -269,7 +283,15 @@ export function MissionV2({ snapshot, busy, send, onShowDigit }: Props & { onSho
           {self.hints.map((hint, i) => <p key={i}>{i + 1}단계: {plain(hint)}</p>)}
         </section>
       )}
-      {mission.steps.map((step) => (
+      {scan && !cleared && (scanOpen
+        ? <ScoutScan site={scan} scope={scanKey} onSettled={setScanResult} />
+        : scanResult && scanResult.photo.status !== "pending" && <ScanResult site={scan} state={scanResult} />)}
+      {scanOpen ? (
+        <section className={styles.card} data-testid="scout-scan-locked">
+          <h3><LockKeyhole size={18} /> 사진으로 찾으면 열리는 문제</h3>
+          <p className="fine-print">{scan!.locked}</p>
+        </section>
+      ) : mission.steps.map((step) => (
         <StepCard
           key={`${game.id}:${stage.id}:${role}:${step.id}`}
           step={step}

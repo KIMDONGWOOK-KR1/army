@@ -11,6 +11,7 @@ import {
   HelpCircle,
   LocateFixed,
   LockKeyhole,
+  Map as MapIcon,
   Maximize,
   Menu,
   Play,
@@ -64,7 +65,9 @@ import {
   useAutoplay,
 } from "./use-autoplay";
 import dynamic from "next/dynamic";
-import { backend } from "@/lib/client";
+import { backend, setSoloRole, soloFor } from "@/lib/client";
+import { SCOUT_SCAN_SITES } from "@/lib/scout-photo/sites";
+import { scanEnabled } from "@/lib/scout-photo/session";
 import {
   markNarrationSeen,
   narrationEnabled,
@@ -100,6 +103,13 @@ const revealSeen = (gameId: string) => {
   }
 };
 // 추모의 벽 묵념을 이 기기에서 이미 마쳤는지(새로고침해도 다시 띄우지 않는다)
+const photoGateOn = () => {
+  try {
+    return localStorage.getItem("hoguk:photo-gate") !== "off";
+  } catch {
+    return true;
+  }
+};
 const bowSeenKey = (key: string) => `hoguk:bow-seen:${key}`;
 const bowSeen = (key: string) => {
   try {
@@ -224,12 +234,33 @@ export default function GameApp({
       send: rawSend,
       retry: rawRetry,
       reset,
+      rescope,
     } = useGameAny(),
     // 단서 보고·자물쇠 판정이 돌아오면 소리를 낸다
     cueSend = useCueSend(rawSend);
   const v2 = s && isV2Response(s) ? s : null;
   const soloDemo = !!s?.game.demo && !v2;
+  // 혼자 데모 체험(네 곳 코스): 이 기기가 네 자리를 맡고 보직을 바꿔 가며 진행한다
+  const soloSeats = v2 ? soloFor(v2.game.id) : null;
   const simulatedArrival = !!v2 && allowsSimulatedArrival(v2.course, v2.stage.arrival);
+  // 정찰원 '사진으로 찾기'(개발 서버의 모의 판정). localStorage "hoguk:photo-gate"="off"는 e2e 시험에서 끄는 스위치다
+  const scoutScan = v2?.self.role === "scout" && v2.stage.completion.type === "lock" && scanEnabled() &&
+    photoGateOn() ? SCOUT_SCAN_SITES[v2.stage.id] : undefined;
+  // 사진으로 찾으면 머리의 정찰원이 쌍안경을 내리고 끄덕인다
+  const [nod, setNod] = useState(false);
+  useEffect(() => {
+    let timer = 0;
+    const found = () => {
+      setNod(true);
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => setNod(false), 2600);
+    };
+    window.addEventListener("hoguk:scout-found", found);
+    return () => {
+      window.removeEventListener("hoguk:scout-found", found);
+      window.clearTimeout(timer);
+    };
+  }, []);
   const ownArrival = !!v2?.self.role &&
     v2.game.arrival_mask[ROLES.indexOf(v2.self.role)];
   // Keep the completion receipt visible across polling while this view is mounted.
@@ -336,9 +367,15 @@ export default function GameApp({
     if (s && (!joinCode || s.game.code === joinCode)) setEntry(null);
   }, [s?.game.id, joinCode]);
   const create = async (demo = false) => {
+    // 혼자 데모 체험은 4인 방과 같은 네 곳 코스로 연다. localStorage "hoguk:demo-course"="v1"은
+    // e2e 시험에서 예전 두 곳 혼자 시연(보직 맞바꾸기·장면 고르기)을 고르는 스위치다.
+    let legacy = false;
+    try {
+      legacy = localStorage.getItem("hoguk:demo-course") === "v1";
+    } catch {}
     const next = await send({
       action: demo
-        ? "create-demo"
+        ? legacy ? "create-demo" : "create-solo"
         : entry === "join"
           ? "join-game"
           : "create-game",
@@ -831,7 +868,7 @@ export default function GameApp({
           id="main-content"
         >
           {v2 && ["mission", "report", "lock", "waiting", "sacho"].includes(scene) && (
-            <CoopCompass snapshot={v2} onRecords={() => setModal("records")} onMap={() => { setMapPeek(true); if (!location.fix) location.start(); }} />
+            <CoopCompass snapshot={v2} onRecords={() => setModal("records")} />
           )}
           {scene === "title" ? (
             <>
@@ -1243,7 +1280,7 @@ export default function GameApp({
                 location={location}
                 demo={soloDemo}
                 v2Arrival={v2 ? { simulated: simulatedArrival, arrived: ownArrival,
-                  count: v2.game.arrival_mask.filter(Boolean).length } : undefined}
+                  count: v2.game.arrival_mask.filter(Boolean).length, team: !!soloSeats } : undefined}
                 busy={busy}
                 remaining={remaining}
                 onDemoArrival={() => void send(simulatedArrival
@@ -1286,13 +1323,13 @@ export default function GameApp({
                     {role && <RoleBadge role={role} />}
                   </h1>
                 </div>
-                <span className="mission-emblem">
+                <span className={`mission-emblem${nod ? " nod" : ""}`}>
                   {/* 문제를 푸는 동안에만 내 장병이 소품을 들고 조사하는 모습(추모·회고 단계는 평소 모습) */}
                   {role && (
                     <RolePortrait
                       role={role}
                       look={s!.self.id}
-                      action={v2?.stage.kind !== "memorial" && v2?.stage.completion.type !== "joint-record"}
+                      action={!nod && v2?.stage.kind !== "memorial" && v2?.stage.completion.type !== "joint-record"}
                       fallback={(() => {
                         const Icon = icons[role];
                         return <Icon size={38} />;
@@ -1302,7 +1339,7 @@ export default function GameApp({
                 </span>
               </div>
               <div className="mission-stage game-window">
-                {v2 ? <MissionV2 snapshot={v2} busy={busy} now={now} send={send} onShowDigit={() => setPane("report")} /> : <Mission
+                {v2 ? <MissionV2 snapshot={v2} busy={busy} now={now} send={send} onShowDigit={() => setPane("report")} scan={scoutScan} /> : <Mission
                   snapshot={s!}
                   busy={busy}
                   send={send}
@@ -1440,7 +1477,7 @@ export default function GameApp({
                 {v2 ? (
                   // 다음 거점 카드 → 출발(지휘관 큰 버튼, 나머지는 기다림 안내와 네 사람) → 결과·기록 두 칸
                   <>{nextSite ? <NextStopCard next={nextSite} /> : <p className="dialogue-line">함께 복원한 {site!.name} 기록을 보관했다.</p>}
-                  <MemorialDeparture key={`${v2.game.id}:${v2.stage.id}`} snapshot={v2} busy={busy} send={send} />
+                  {role !== "commander" && <MemorialDeparture key={`${v2.game.id}:${v2.stage.id}`} snapshot={v2} busy={busy} send={send} />}
                   <div className="summary-actions">
                     <button className="button secondary" aria-label={`${site!.name} 결과 보기`} onClick={() => setPane("summary")}>
                       결과 보기 <ArrowRight size={17} />
@@ -1471,6 +1508,12 @@ export default function GameApp({
                   </span>
                 )}</>)}
               </section>
+              {/* 지휘관의 출발 단추는 기록을 읽는 동안에도 화면 아래에 붙여 둔다(스크롤 아래에 숨으면 여기서 끝난 것처럼 보인다) */}
+              {v2 && nextSite && role === "commander" && (
+                <div className="depart-dock">
+                  <MemorialDeparture key={`${v2.game.id}:${v2.stage.id}`} snapshot={v2} busy={busy} send={send} />
+                </div>
+              )}
             </>
           ) : scene === "done" && v2?.game.status === "done" ? (
             <><ResultV2 snapshot={v2} />
@@ -1559,6 +1602,19 @@ export default function GameApp({
             </>
           ) : null}
         </main>
+        {/* 문제 화면이 기본이고, 원할 때만 지도(내 위치·거점)로 갔다가 돌아온다 */}
+        {v2 && ["mission", "report", "lock", "waiting"].includes(scene) && !stop && !narration && (
+          <button
+            type="button"
+            className="map-fab"
+            data-testid="map-fab"
+            aria-label={`지도 보기: 내 위치와 ${site?.name ?? "거점"}`}
+            onClick={() => { setMapPeek(true); if (!location.fix && !simulatedArrival) location.start(); }}
+          >
+            <MapIcon size={19} aria-hidden="true" />
+            지도
+          </button>
+        )}
         {stop && site && (
           <StopScreen
             key={`${gameId}:${stop}`}
@@ -1580,7 +1636,7 @@ export default function GameApp({
             auto={auto && !v2}
           />
         )}
-        {soloDemo && s!.game.status !== "done" && (
+        {(soloDemo || soloSeats) && s!.game.status !== "done" && (
           <div className="demo-role-bar" aria-label="시연 보직 전환">
             <span>체험 보직</span>
             {ROLES.map((r) => (
@@ -1588,7 +1644,11 @@ export default function GameApp({
                 key={r}
                 aria-pressed={role === r}
                 disabled={busy}
-                onClick={() => void send({ action: "demo-role", demo_role: r })}
+                onClick={() => {
+                  if (!soloSeats) return void send({ action: "demo-role", demo_role: r });
+                  setSoloRole(soloSeats.game, r);
+                  rescope();
+                }}
               >
                 {ROLE_NAMES[r]}
               </button>
@@ -1628,6 +1688,7 @@ export default function GameApp({
             look={s.self.id}
             fallback={<SceneArt site={site.seq - 1} />}
             simulateMovement={false}
+            parked
           />
           <div className="map-peek-bar">
             <p>
@@ -1635,7 +1696,8 @@ export default function GameApp({
               <span>
                 {location.distance !== null
                   ? `내 위치에서 약 ${Math.round(location.distance)}m`
-                  : location.fix ? "지도에 내 자리를 표시했어요" : location.status}
+                  : location.fix ? "지도에 내 자리를 표시했어요"
+                    : simulatedArrival || soloDemo ? "시연 중이라 거점 앞에 서 있어요" : location.status}
               </span>
             </p>
             <div>

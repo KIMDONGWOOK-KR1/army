@@ -84,6 +84,7 @@ async function renderFixture(page: Page, fixture: V2Response) {
     localStorage.setItem("hoguk:narration", "off");
     localStorage.setItem("hoguk:stop", "off");
     localStorage.setItem("hoguk:sound", "off");
+    localStorage.setItem("hoguk:photo-gate", "off");
   }, { gameId: fixture.game.id });
   await page.goto("/");
   await expect(page.locator('[data-scene="mission"]')).toBeVisible();

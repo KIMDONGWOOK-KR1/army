@@ -4,6 +4,8 @@ test.use({
   storageState: { cookies: [], origins: [] },
   reducedMotion: "no-preference",
 });
+// 예전 두 곳 혼자 시연의 나레이션을 본다(혼자 데모 체험의 기본은 네 곳 코스)
+test.beforeEach(({ page }) => page.addInitScript(() => localStorage.setItem("hoguk:demo-course", "v1")));
 test("typewriter narration appears at start, arrival and reward only once", async ({
   page,
 }) => {

@@ -30,6 +30,7 @@ export default defineConfig({
           { name: "hoguk:narration", value: "off" },
           { name: "hoguk:stop", value: "off" },
           { name: "hoguk:sound", value: "off" },
+          { name: "hoguk:photo-gate", value: "off" },
         ],
       }],
     },

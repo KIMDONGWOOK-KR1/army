@@ -222,7 +222,7 @@ function useGameSession<S extends Snapshot>(
       mutation.current = true;
       setBusy(true);
       setError("");
-      const creating = ["create-game", "create-demo", "join-game"].includes(
+      const creating = ["create-game", "create-demo", "create-solo", "join-game"].includes(
         command.action,
       );
       const { game_id: oldId, ...fields } = command;
@@ -311,6 +311,11 @@ function useGameSession<S extends Snapshot>(
     await refresh();
     return null;
   }, [send, refresh, pendingKey, persistPending]);
+  // 혼자 데모 체험에서 보는 보직(자리)을 바꾸면, 앞 자리로 보낸 조회 결과는 버리고 새 자리로 다시 읽는다
+  const rescope = useCallback(() => {
+    generation.current++;
+    void refresh();
+  }, [refresh]);
   const reset = () => {
     generation.current++;
     manualReset.current = true;
@@ -321,5 +326,5 @@ function useGameSession<S extends Snapshot>(
     localStorage.removeItem(gameKey);
     sessionStorage.removeItem(pendingKey);
   };
-  return { snapshot, busy, error, online, restoring, now, send, retry, reset };
+  return { snapshot, busy, error, online, restoring, now, send, retry, reset, rescope };
 }

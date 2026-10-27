@@ -20,11 +20,15 @@ const config: NextConfig = {
           { key: "Content-Security-Policy", value: "frame-ancestors 'self'" },
         ],
       },
-      // 정찰원 사진 미션 개발용 미리보기만 카메라를 허용한다(같은 키는 뒤 규칙이 이긴다). 운영 빌드에는 넣지 않는다.
+      // 정찰원 사진 미션 개발용 미리보기와 게임 화면의 '사진으로 찾기'(모의 판정)만 카메라를 허용한다
+      // (같은 키는 뒤 규칙이 이긴다). 판정 서버와 잇기 전이라 운영 빌드에는 넣지 않는다. 게임 화면은 위치(GPS)도 그대로 둔다.
       ...(process.env.NODE_ENV === "production" ? [] : [{
         source: "/dev/scout-photo",
         headers: [{ key: "Permissions-Policy", value: "camera=(self), microphone=(), geolocation=()" }],
-      }]),
+      }, ...["/", "/j/:code"].map((source) => ({
+        source,
+        headers: [{ key: "Permissions-Policy", value: "camera=(self), microphone=(), geolocation=(self)" }],
+      }))]),
     ];
   },
 };

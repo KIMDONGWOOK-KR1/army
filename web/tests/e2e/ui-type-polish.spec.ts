@@ -2,6 +2,8 @@ import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
 test.use({storageState:{cookies:[],origins:[]},reducedMotion:"no-preference"});
+// 예전 두 곳 혼자 시연 화면을 본다(혼자 데모 체험의 기본은 네 곳 코스)
+test.beforeEach(({page})=>page.addInitScript(()=>localStorage.setItem('hoguk:demo-course','v1')));
 test("narration keeps its action visible, stable paragraphs and keyboard focus at small sizes", async({page})=>{
   await page.setViewportSize({width:390,height:844});
   await page.goto('/design-review');

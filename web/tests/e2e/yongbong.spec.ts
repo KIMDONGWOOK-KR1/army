@@ -8,6 +8,7 @@ test("four sessions travel gate to Yongbong, relay records privately and retain 
     viewport: { width: 390, height: 844 }, reducedMotion: "reduce",
     storageState: { cookies: [], origins: [{ origin: baseURL!, localStorage: [
       { name: "hoguk:narration", value: "off" }, { name: "hoguk:stop", value: "off" }, { name: "hoguk:sound", value: "off" },
+      { name: "hoguk:photo-gate", value: "off" },
     ] }] },
   })));
   try {

@@ -176,6 +176,7 @@ test("four sessions complete the migrated v1 gate through v2 solve, separate rep
           { name: "hoguk:narration", value: "off" },
           { name: "hoguk:stop", value: "off" },
           { name: "hoguk:sound", value: "off" },
+          { name: "hoguk:photo-gate", value: "off" },
         ],
       }],
     },
@@ -334,7 +335,7 @@ test("four sessions complete the migrated v1 gate through v2 solve, separate rep
       await expect(page.getByTestId("stage-v2-completed")).toBeVisible();
       await expect(page.getByRole("button", { name: "다음 거점으로 출발", exact: true })).toHaveCount(0);
       const safe = await page.evaluate((id) => {
-        const settings = ["hoguk:narration", "hoguk:stop", "hoguk:sound"];
+        const settings = ["hoguk:narration", "hoguk:stop", "hoguk:sound", "hoguk:photo-gate"];
         return localStorage.getItem("hoguk-game") === id &&
           Object.keys(localStorage).every((key) => key === "hoguk-game" || settings.includes(key)) &&
           Object.keys(sessionStorage).every((key) =>

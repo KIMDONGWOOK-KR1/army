@@ -58,7 +58,8 @@ export function TravelHud({
   field: FieldStatus | null;
   location: Location;
   demo: boolean;
-  v2Arrival?: { simulated: boolean; arrived: boolean; count: number };
+  // team: 혼자 데모 체험. 이 기기가 맡은 시연 동료도 함께 도착한다
+  v2Arrival?: { simulated: boolean; arrived: boolean; count: number; team?: boolean };
   busy: boolean;
   remaining: number;
   onDemoArrival: () => void;
@@ -155,7 +156,7 @@ export function TravelHud({
           </button>
         ) : v2Arrival?.simulated ? (
           <button className="hud-action ready" disabled={busy} onClick={onDemoArrival}>
-            본인 모의 도착 확인 <ArrowRight size={18} aria-hidden="true" />
+            {v2Arrival.team ? "시연 팀 함께 도착" : "본인 모의 도착 확인"} <ArrowRight size={18} aria-hidden="true" />
           </button>
         ) : demo ? (
           <button

@@ -95,6 +95,7 @@ async function createTeam(browser: Browser, baseURL: string): Promise<Team> {
                 { name: "hoguk:narration", value: "off" },
                 { name: "hoguk:stop", value: "off" },
                 { name: "hoguk:sound", value: "off" },
+                { name: "hoguk:photo-gate", value: "off" },
               ],
             }],
           },
@@ -324,7 +325,7 @@ async function verifyPrivacy(team: Team) {
 async function verifyStorage(team: Team) {
   for (const page of team.pages) {
     const stored = await page.evaluate((id) => {
-      const allowedSettings = ["hoguk:narration", "hoguk:stop", "hoguk:sound"];
+      const allowedSettings = ["hoguk:narration", "hoguk:stop", "hoguk:sound", "hoguk:photo-gate"];
       const localKeys = Object.keys(localStorage);
       const sessionKeys = Object.keys(sessionStorage);
       // UI preferences and animation flags are safe. Pending commands, clue
