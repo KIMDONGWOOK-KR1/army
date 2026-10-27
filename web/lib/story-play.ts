@@ -35,8 +35,17 @@ export function usesGateStory(stageId: string, steps: readonly Step[]) {
 
 /** Completeness and input shape only. Correctness is exclusively decided by the server. */
 export function hasCompleteDraft(step: Step, answer: StepAnswer) {
+  if (step.grading === "map-hash") {
+    if (answer === null || typeof answer !== "object" || Array.isArray(answer)) return false;
+    const fields = step.fields ?? [];
+    if (!fields.length || Object.keys(answer).length !== fields.length) return false;
+    const choices = fields.map((field) => answer[field.id]);
+    if (choices.some((value) => typeof value !== "string" ||
+      !/^[1-9]\d*$/.test(value.trim()) || Number(value) > (step.choices?.length ?? 0))) return false;
+    return step.type === "classification" || new Set(choices.map((value) => value.trim())).size === fields.length;
+  }
   if (step.fields?.length) {
-    if (typeof answer !== "object" || Array.isArray(answer)) return false;
+    if (answer === null || typeof answer !== "object" || Array.isArray(answer)) return false;
     return step.fields.every((field) => !field.required || !!answer[field.id]?.trim());
   }
   if (step.type === "truefalse" || step.type === "order" || step.type === "words" || step.grading === "set-hash") {

@@ -272,7 +272,7 @@ async function report(page: Page) {
   return view;
 }
 
-async function solve(team: Team, role: Role) {
+async function solve(team: Team, role: Role, beforeReport?: () => Promise<void>) {
   const page = team.roles[role];
   for (const step of gate.roles[role]!.steps) {
     await page.getByTestId(`story-step-tab-${step.id}`).click();
@@ -304,6 +304,7 @@ async function solve(team: Team, role: Role) {
     await form.getByTestId("story-claim").click();
     await expect(page.getByTestId(`story-step-tab-${step.id}`)).toHaveAttribute("data-collected", "true");
   }
+  await beforeReport?.();
   return report(page);
 }
 
@@ -433,11 +434,23 @@ async function fillLock(page: Page, digits: number[]) {
 }
 
 async function restoreAfterPoll(page: Page, button: Locator) {
+  let releasePoll!: () => void;
+  const pollMayFetch = new Promise<void>((resolve) => releasePoll = resolve);
   let releaseResponse!: () => void;
   const responseMayArrive = new Promise<void>((resolve) => releaseResponse = resolve);
+  let pollHeld = false;
   let committed = false;
-  const handler = async (route: import("@playwright/test").Route) => {
-    if (route.request().postDataJSON()?.action !== "open-after-explanation") {
+  const handlers: Promise<void>[] = [];
+  const handlerErrors: unknown[] = [];
+  const handle = async (route: import("@playwright/test").Route) => {
+    const action = route.request().postDataJSON()?.action;
+    if (action === "get-game" && !pollHeld) {
+      pollHeld = true;
+      await pollMayFetch;
+      await route.fulfill({ response: await route.fetch() });
+      return;
+    }
+    if (action !== "open-after-explanation") {
       await route.continue();
       return;
     }
@@ -446,23 +459,56 @@ async function restoreAfterPoll(page: Page, button: Locator) {
     await responseMayArrive;
     await route.fulfill({ response });
   };
+  const handler = (route: import("@playwright/test").Route) => {
+    // Drain handlers before closing the context, including an assertion-failure path.
+    // Errors are collected here and rethrown after cleanup, never silently ignored.
+    const pending = handle(route).catch((error: unknown) => { handlerErrors.push(error); });
+    handlers.push(pending);
+    return pending;
+  };
+  let submitted: Promise<{ ok: true; reply: Reply } | { ok: false; error: unknown }> | undefined;
+  let failed = false;
+  let failure: unknown;
+  let checkedSubmission = false;
   await page.route("**/api/game", handler);
   try {
-    const submitted = clickAction(page, button, "open-after-explanation").then(
+    // refresh() defers NEW reads while a mutation is pending. Hold a read that
+    // was already in flight before clicking; that read is still allowed to apply.
+    await expect.poll(() => pollHeld, { message: "hold an in-flight get-game poll" }).toBe(true);
+    submitted = clickAction(page, button, "open-after-explanation").then(
       (reply) => ({ ok: true as const, reply }),
       (error: unknown) => ({ ok: false as const, error }),
     );
-    // The poll reaches the completed scene before the action receipt arrives.
-    // That late receipt must still supply the explicit restoration label.
+    await expect.poll(() => committed, { message: "commit restoration before releasing the earlier poll" }).toBe(true);
+    // Fetch the held read after the write commits. Its newer server_now wins
+    // snapshot reconciliation, while the older action receipt is still delayed.
+    releasePoll();
     await expect(page.getByTestId("stage-v2-completed")).toBeVisible();
-    expect(committed).toBe(true);
     releaseResponse();
     const outcome = await submitted;
+    checkedSubmission = true;
     if (!outcome.ok) throw outcome.error;
     return outcome.reply;
+  } catch (error) {
+    failed = true;
+    failure = error;
+    throw error;
   } finally {
+    releasePoll();
     releaseResponse();
-    await page.unroute("**/api/game", handler);
+    const cleanupErrors: unknown[] = [];
+    try { await page.unroute("**/api/game", handler); }
+    catch (error) { cleanupErrors.push(error); }
+    await Promise.all(handlers);
+    cleanupErrors.push(...handlerErrors);
+    if (submitted) {
+      const outcome = await submitted;
+      if (!checkedSubmission && !outcome.ok) cleanupErrors.push(outcome.error);
+    }
+    if (cleanupErrors.length) {
+      throw new AggregateError(failed ? [failure, ...cleanupErrors] : cleanupErrors,
+        "Restoration race or its route cleanup failed");
+    }
   }
 }
 
@@ -472,7 +518,17 @@ test("main UI four sessions solve and report separately, recover a partial lock,
     await verifyPrivacy(team);
     const digits = {} as Record<Role, number>;
     for (const role of ["scout", "signal", "cipher", "commander"] as const) {
-      const view = await solve(team, role);
+      const view = await solve(team, role, role === "scout" ? async () => {
+        const commander = team.roles.commander;
+        const view = await current(commander, team.id);
+        expect(view.game.report_mask[ROLES.indexOf("scout")]).toBe(false);
+        expect(view.game.step_total_count?.scout).toBe(gate.roles.scout!.steps.length);
+        expect(view.game.step_done_count.scout).toBe(view.game.step_total_count?.scout);
+        await commander.bringToFront();
+        await openHelp(commander);
+        await expect(commander.getByRole("button", { name: "정찰원 1단계 힌트", exact: true })).toBeDisabled();
+        await expect(commander.getByRole("button", { name: "통신원 1단계 힌트", exact: true })).toBeEnabled();
+      } : undefined);
       digits[role] = view.self.digit!;
     }
     const commander = team.roles.commander;
@@ -627,7 +683,7 @@ test("main UI private role hints retry once and require all confirmations before
     for (let poll = 0; poll < 2; poll++) {
       await commander.waitForResponse((response) =>
         response.url().endsWith("/api/game") &&
-        response.request().postDataJSON()?.action === "get-stage"
+        response.request().postDataJSON()?.action === "get-game"
       );
     }
     await expect(commander.getByTestId("stage-v2-completed")).toContainText("해설 확인 후 복원");

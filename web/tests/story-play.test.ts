@@ -45,6 +45,24 @@ describe("gate story presentation contract", () => {
     expect(hasCompleteDraft(correction, { updated: "참가자 수정 기록" })).toBe(true);
     expect(hasCompleteDraft(correction, { note: "선택 항목만 작성" })).toBe(false);
   });
+
+  it("requires every mapping even when authoring marks the fields optional", () => {
+    const mapping = step({ type: "match", grading: "map-hash", choices: ["연습 자료 가", "연습 자료 나"], fields: [
+      { id: "a", label: "연습 연결 가", required: false, maxLen: 100 },
+      { id: "b", label: "연습 연결 나", required: false, maxLen: 100 },
+    ] });
+    expect(hasCompleteDraft(mapping, {})).toBe(false);
+    expect(hasCompleteDraft(mapping, { a: "1" })).toBe(false);
+    expect(hasCompleteDraft(mapping, { a: "1", other: "2" })).toBe(false);
+    expect(hasCompleteDraft(mapping, { a: "1", b: " " })).toBe(false);
+    expect(hasCompleteDraft(mapping, { a: "1", b: "3" })).toBe(false);
+    expect(hasCompleteDraft(mapping, { a: "1", b: "1" })).toBe(false);
+    expect(hasCompleteDraft(mapping, { a: " 1 ", b: "2" })).toBe(true);
+    const classification = { ...mapping, type: "classification" as const };
+    expect(hasCompleteDraft(classification, {})).toBe(false);
+    expect(hasCompleteDraft(classification, { a: "1", b: "2", extra: "1" })).toBe(false);
+    expect(hasCompleteDraft(classification, { a: "1", b: "1" })).toBe(true);
+  });
 });
 
 describe("editable match drafts", () => {

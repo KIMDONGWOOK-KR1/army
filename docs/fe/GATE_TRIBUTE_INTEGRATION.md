@@ -46,6 +46,8 @@ Set-Location 'C:\Users\kjy00\Desktop\Real\army-gate-tribute-ui\web'
 
 `seed:review`는 지정 dev 프로젝트에 검수 사본을 등록한다. 기본값은 전원 모의 도착이며 `--arrival-mode gps`는 원본의 GPS 설정을 보존한다. 이 경로는 현장 검증이나 운영 콘텐츠 확정을 대신하지 않는다. 새 `full-course` 합성 preset은 기본으로 헌화 방식을 사용한다. 과거 방과 코스는 그대로 조회·진행할 수 있다.
 
+GPS 검수 등록의 좌표 출처는 비공개 작성본이다. `jnu-gps.ts`의 기준 좌표를 바꿔도 작성본이나 기존 등록 코스에 자동으로 넣거나 `confirmed:true`로 승인하지 않는다. 좌표가 없는 추모의 벽은 계속 도착 대기 상태로 남는다. `full-course` 합성 preset은 모의 도착용이며 `full-course-gps` preset은 제공하지 않는다. 네 거점 GPS 검수는 작성본의 좌표를 확인한 뒤 위 `seed:review --arrival-mode gps` 경로로 새 리비전을 등록한다. `arrival.mode:"none"`인 프롤로그는 현장 도착 검증 대상에서 제외하고 원본 설정을 보존한다.
+
 ## 사용자가 실행할 적용 절차
 
 이번 통합은 배포를 실행하지 않는다. PR-5까지의 기존 DB 마이그레이션이 적용되어 있어야 하며 **이번 변경에 추가 마이그레이션이나 새 비밀값은 없다.** Edge와 Vercel 웹 모두 재배포해야 한다. Vercel은 저장소 루트 archive와 기존 Root Directory=`web` 설정을 유지한다. 기존 `codex-handoff-v2/` 참조는 유지되며 새 외부 런타임 의존 파일은 없다.

@@ -40,7 +40,11 @@ describe("wall and Bongji completion", () => {
     await expect(t.call("scout", { action: "confirm-stage", draft_version: 1 })).rejects.toMatchObject({ code: "STALE_DRAFT" });
     for (const role of ROLES.slice(0, 3)) await t.call(role, { action: "confirm-stage", draft_version: 2 });
     expect(t.game.phase).toBe("mission");
-    await t.call("cipher", { action: "confirm-stage", draft_version: 2 });
+    const completion = await t.call("cipher", { action: "confirm-stage", draft_version: 2 });
+    expect(completion).toEqual({ confirmed: true, draft_version: 2 });
+    expect(t.view("cipher").game.completion).toMatchObject({ completion_type: "confirm", label: "공동 확인 완료" });
+    expect(t.view("cipher").self.journal.find((entry) => entry.stage_id === "wall"))
+      .toMatchObject({ completion_type: "confirm", label: t.view("cipher").game.completion?.label });
     expect(t.game.phase).toBe("cleared"); expect(t.game.v2!.sacho.wall).toBeDefined();
     expect(t.game.v2!.jointRecords).toBeUndefined(); expect(t.game.locks.wall).toBeUndefined();
     await expect(t.draft("draft-memorial-record", 2)).rejects.toMatchObject({ code: "WRONG_PHASE" });
@@ -83,14 +87,18 @@ describe("wall and Bongji completion", () => {
     for (const role of ROLES.slice(0, 3)) await t.call(role, { action: "consent-joint-record", draft_version: 3 });
     expect(t.game.status).toBe("playing");
     const command = { action: "consent-joint-record", draft_version: 3, request_id: "finish-once" };
-    await t.call("cipher", command); const version = t.game.version, events = t.events.length;
-    await t.call("cipher", command);
+    const completion = await t.call("cipher", command); const version = t.game.version, events = t.events.length;
+    expect(completion).toEqual({ confirmed: true, draft_version: 3 });
+    expect(t.view("cipher").game.completion).toMatchObject({ completion_type: "joint-record", label: "공동 기록 완료" });
+    expect(await t.call("cipher", command)).toEqual(completion);
     expect(t.game.version).toBe(version); expect(t.events).toHaveLength(events);
     expect(t.game.status).toBe("done"); expect(t.game.endedAt).not.toBeNull();
     expect(Object.keys(t.game.v2!.sacho)).toEqual(["gate", "yongbong", "wall"]);
     expect(t.view("cipher").game.acquired_sites).toHaveLength(3);
     const result = await t.call("cipher", { action: "get-result" });
     expect(result).toMatchObject({ investigation: { completed: 3, total: 3 }, sacho: { completed: 3, total: 3 }, time_score: null, ranking: null });
+    expect(t.view("cipher").self.result?.stages.find((stage) => stage.stage_id === "wall"))
+      .toMatchObject({ completion_type: "confirm", completion: "공동 확인 완료" });
     for (const action of ["submit-retro", "draft-joint-record", "consent-joint-record", "depart-next-site"])
       await expect(t.call("commander", { action, text: "[합성] 종료 후 수정", draft_version: 3 })).rejects.toMatchObject({ code: "WRONG_PHASE" });
     await expect(t.callUser("outsider", { action: "get-result" })).rejects.toMatchObject({ code: "FORBIDDEN" });

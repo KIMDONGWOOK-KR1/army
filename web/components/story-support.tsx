@@ -2,6 +2,7 @@
 import { BookOpen, LifeBuoy, Mail } from "lucide-react";
 import { ROLES, ROLE_NAMES } from "@/supabase/functions/_shared/types";
 import type { StoryProps } from "./story-challenge";
+import { roleStepsComplete } from "@/lib/hint-availability";
 import s from "./story-mission.module.css";
 
 export function StorySupport({ snapshot, busy, send, inboxOnly = false }: StoryProps & { inboxOnly?: boolean }) {
@@ -23,7 +24,7 @@ export function StorySupport({ snapshot, busy, send, inboxOnly = false }: StoryP
       {role === "commander" ? <><p>동료가 막혔다면 도움을 보내세요. 3단계는 해설로 이어집니다.</p>
         {ROLES.map((r, i) => { const level = game.hint_level[r] ?? 0, next = level + 1;
           return <div className={s.hintRow} key={r}><span>{ROLE_NAMES[r]} · {level}/3{next <= 3 ? ` · 감점 ${stage.scoring.enabled ? stage.scoring.hintPenalty[next as 1 | 2 | 3] ?? "미정" : 0}` : ""}</span>
-            <button type="button" disabled={busy || level >= 3 || game.report_mask[i] || (r === role && allDone)}
+            <button type="button" disabled={busy || level >= 3 || game.report_mask[i] || roleStepsComplete(snapshot, r)}
               onClick={() => void send({ action: "request-hint", stage_id: stage.id, target_role: r, level: next })}>
               {level >= 3 ? `${ROLE_NAMES[r]} 힌트 완료` : `${ROLE_NAMES[r]} ${next}단계 힌트`}</button></div>;
         })}</> : !self.hints.length && <p>지휘관에게 도움이 필요한 단서를 말해주세요.</p>}

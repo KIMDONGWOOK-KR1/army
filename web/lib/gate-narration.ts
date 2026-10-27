@@ -2,6 +2,7 @@ import { ROLE_NAMES, type Role, type RoleMission } from "@/supabase/functions/_s
 
 export type NarrationFrame = {
   key: string;
+  legacyKeys?: string[];
   lines: string[];
   kind: "common" | "personal";
   label?: string;
@@ -30,6 +31,7 @@ export function gateNarrationFrames({
   const common = commonLines.filter((line) => line.trim());
   const frames: NarrationFrame[] = common.length ? [{
     key: `${scope}:common:${role ?? "unassigned"}`,
+    legacyKeys: [scope],
     lines: common,
     kind: "common",
     emphasis: "last-line",
@@ -56,5 +58,5 @@ export function nextNarrationFrame(
   frames: NarrationFrame[],
   seen: (key: string) => boolean,
 ): NarrationFrame | undefined {
-  return frames.find((frame) => !seen(frame.key));
+  return frames.find((frame) => !seen(frame.key) && !frame.legacyKeys?.some(seen));
 }

@@ -44,14 +44,15 @@ describe("four-person tribute", () => {
     }
     const command = { ...offer("cipher"), request_id: "tribute-final-once" };
     const result = await t.call("cipher", command);
-    expect(result).toMatchObject({ accepted: true, opened: true, label: "헌화 완료" });
+    expect(result).toMatchObject({ accepted: true, opened: true, completion_type: "tribute", label: "헌화 완료" });
     expect(t.game.phase).toBe("cleared");
     expect(t.game.score).toBe(score);
     expect(t.game.v2!.memorialRecords).toBeUndefined();
     expect(t.game.locks.wall).toBeUndefined();
     expect(t.view("cipher").game.report_mask).toEqual([true, true, true, true]);
-    expect(t.view("cipher").game.completion?.label).toBe("헌화 완료");
-    expect(t.view("cipher").self.journal.find((entry) => entry.stage_id === "wall")?.label).toBe("헌화 완료");
+    expect(t.view("cipher").game.completion).toMatchObject({ completion_type: "tribute", label: result.label });
+    expect(t.view("cipher").self.journal.find((entry) => entry.stage_id === "wall"))
+      .toMatchObject({ completion_type: "tribute", label: result.label });
     expect(t.game.v2!.sacho.wall).toMatchObject({ sources: [], observations: [], eventRecords: [], eventOrder: [] });
     const version = t.game.version, events = t.events.length;
     expect(await t.call("cipher", command)).toEqual(result);
@@ -65,7 +66,8 @@ describe("four-person tribute", () => {
     await t.draft("draft-joint-record");
     for (const role of ROLES) await t.call(role, { action: "consent-joint-record", draft_version: 1 });
     expect(t.game.status).toBe("done");
-    expect(t.view("cipher").self.result?.stages.find((stage) => stage.stage_id === "wall")?.completion).toBe("헌화 완료");
+    expect(t.view("cipher").self.result?.stages.find((stage) => stage.stage_id === "wall"))
+      .toMatchObject({ completion_type: "tribute", completion: result.label });
   });
 
   it("replays the same offering and keeps independent new request IDs from offering twice", async () => {

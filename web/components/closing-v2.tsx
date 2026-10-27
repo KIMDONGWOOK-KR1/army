@@ -1,6 +1,7 @@
 "use client";
 import { ExpeditionPassport } from "./coop-compass";
 import { plain } from "@/lib/practice-text";
+import { isTributeCompletion } from "@/lib/completion-view";
 import { useEffect, useState } from "react";
 import type { GameResponse, V2Response } from "@/lib/game-snapshot";
 import { ROLE_NAMES, ROLES, type Command } from "@/supabase/functions/_shared/types";
@@ -135,8 +136,8 @@ export function ResultV2({ snapshot: s }: { snapshot: V2Response }) {
     {result.stages.map((stage) => <section key={stage.stage_id} className={styles.card}>
       <h2>{stage.name} · {stage.completion}</h2><p>{plain(stage.summary)}</p>
       <p>도착: {stage.arrival_method === "simulated" ? "모의 확인" : "GPS 확인"}{stage.visit_mode === "outdoor" ? " · 외부 대체 조사" : ""}</p>
-      {stage.completion === "헌화 완료" && <p>국화 {stage.roles.filter((r) => r.reported).length}송이를 함께 올렸다.</p>}
-      <ul>{stage.roles.map((r) => stage.completion === "헌화 완료" ? <li key={r.role}>
+      {isTributeCompletion(stage) && <p>국화 {stage.roles.filter((r) => r.reported).length}송이를 함께 올렸다.</p>}
+      <ul>{stage.roles.map((r) => isTributeCompletion(stage) ? <li key={r.role}>
         {ROLE_NAMES[r.role]} · {r.reported ? "국화를 올림" : "헌화 대기"}
       </li> : <li key={r.role}>{ROLE_NAMES[r.role]} · 조사 {r.completed}/{r.total} · 보고 {r.reported ? "완료" : "대기"}
         {` · 힌트 ${r.hint_level}단계 · 해설 ${r.explained}건 · 기록 ${r.records}건 · 교차 확인 ${r.cross_checks}건`}

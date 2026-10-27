@@ -11,6 +11,11 @@ export function completionLabelV2(stage: Stage, method?: "field" | "explained") 
   return "조사 후 복원";
 }
 
+/** New responses include the kind; optional typing also accepts older Edge snapshots. */
+export function completionTypeV2(stage: Stage): { completion_type?: Stage["completion"]["type"] } {
+  return { completion_type: stage.completion.type };
+}
+
 export function requireDraftVersion(cmd: Command, version: number) {
   if (!Number.isSafeInteger(cmd.draft_version) || cmd.draft_version !== version) {
     throw new DomainError("STALE_DRAFT", "공동 기록이 변경되었다. 최신 문장과 근거를 다시 확인하라.");
@@ -66,6 +71,7 @@ export function resultV2(game: Game, course: CourseV2) {
     stages: stages.map((s) => {
       const progress = state.progress[s.id];
       return { stage_id: s.id, name: s.name, summary: s.sacho?.body ?? "", quiet: s.quiet,
+        ...completionTypeV2(s),
         completion: completionLabelV2(s, state.completed[s.id]?.method),
         visit_mode: state.altMode?.[s.id] ?? "onsite",
         arrival_method: game.arrivals.some((a) => a.siteId === s.id && a.simulated) ? "simulated" : "gps",

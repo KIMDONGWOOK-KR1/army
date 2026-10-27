@@ -24,6 +24,7 @@ import { RetroPanel, SharedDraftPanel } from "./closing-v2";
 import { TributePanel } from "./tribute-v2";
 import { YongbongPanel } from "./yongbong-panel";
 import { MissionAsset } from "./mission-asset";
+import { roleStepsComplete } from "@/lib/hint-availability";
 import { usesGateStory } from "@/lib/story-play";
 import { StoryMission } from "./story-mission";
 import { ScanResult, ScoutScan } from "./scout-scan";
@@ -327,8 +328,7 @@ function MissionContent({ snapshot, busy, send, onShowDigit, scan: requestedScan
                 <button
                   type="button"
                   className="button secondary full"
-                  disabled={busy || level >= 3 || game.report_mask[i] ||
-                    (target === role && allDone)}
+                  disabled={busy || level >= 3 || game.report_mask[i] || roleStepsComplete(snapshot, target)}
                   onClick={() =>
                     void send({
                       action: "request-hint",

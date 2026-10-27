@@ -26,6 +26,15 @@ describe("정문 본인 나레이션 순서", () => {
     expect(next()).toBeUndefined();
   });
 
+  it("예전 정문 읽음 기록은 공통 안내만 건너뛰고 새 개인 안내는 남긴다", () => {
+    for (const role of ROLES) {
+      const queue = gateNarrationFrames({ stageId: "gate", role, commonLines: ["공통"], mission: mission() });
+      expect(nextNarrationFrame(queue, (key) => key === "arrive:gate")?.key)
+        .toBe(`arrive:gate:personal:${role}`);
+      expect(nextNarrationFrame(queue, (key) => key === "arrive:yongbong")?.kind).toBe("common");
+    }
+  });
+
   it("본인 intro를 우선하고 다른 이벤트의 안내를 미리 섞지 않는다", () => {
     const personal = frames()[1];
     expect(personal.lines).toEqual(["내 안내만 읽는다."]);

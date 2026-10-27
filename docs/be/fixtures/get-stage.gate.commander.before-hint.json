@@ -138,6 +138,12 @@
       "signal": 0,
       "cipher": 0
     },
+    "step_total_count": {
+      "commander": 3,
+      "scout": 2,
+      "signal": 2,
+      "cipher": 2
+    },
     "hint_level": {
       "commander": 0,
       "scout": 0,

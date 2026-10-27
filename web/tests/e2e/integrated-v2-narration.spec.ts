@@ -29,7 +29,7 @@ function fixtureFor(role: Role): V2Response {
   return fixture;
 }
 
-async function renderFixture(page: Page, fixture: V2Response, enabled = true) {
+async function renderFixture(page: Page, fixture: V2Response, enabled = true, scene = "mission") {
   const writes: string[] = [];
   await page.context().route("**/api/game", async (route) => {
     const command = route.request().postDataJSON() as { action?: string };
@@ -47,7 +47,7 @@ async function renderFixture(page: Page, fixture: V2Response, enabled = true) {
     localStorage.setItem("hoguk:sound", "off");
   }, { gameId: fixture.game.id, enabled });
   await page.goto("/");
-  await expect(page.locator('[data-scene="mission"]')).toBeVisible();
+  await expect(page.locator(`[data-scene="${scene}"]`)).toBeVisible();
   return writes;
 }
 
@@ -102,6 +102,79 @@ test("공통 확인 뒤 재접속하면 개인 안내부터 이어지고 완료 
   await page.reload();
   await expect(page.locator('[data-scene="mission"]')).toBeVisible();
   await expect(page.locator(".narration")).toHaveCount(0);
+});
+
+test("서버가 briefing에서 equip으로 전환하면 열린 안내만 읽음 처리한다", async ({ page }) => {
+  const fixture = fixtureFor("commander");
+  fixture.game.status = "briefing";
+  fixture.stage.narration = [
+    { id: "mock-briefing", channel: "screen", trigger: "role-reveal", text: "[합성] 역할 공개 안내" },
+    { id: "mock-ready", channel: "screen", trigger: "ready", text: "[합성] 준비 안내" },
+  ];
+  await page.addInitScript((id) => sessionStorage.setItem(`hoguk:reveal-seen:${id}`, "1"), fixture.game.id);
+  await renderFixture(page, fixture, true, "briefing");
+  await expect(commonDialog(page)).toContainText("[합성] 역할 공개 안내");
+  fixture.game.status = "equip";
+  fixture.version += 1; fixture.game.version += 1;
+  await expect(commonDialog(page)).toContainText("[합성] 준비 안내");
+  expect(await page.evaluate((id) => sessionStorage.getItem(`hoguk:narration-seen:${id}:intro:briefing`), fixture.game.id)).toBe("1");
+  expect(await page.evaluate((id) => sessionStorage.getItem(`hoguk:narration-seen:${id}:intro:equip`), fixture.game.id)).toBeNull();
+  fixture.game.status = "briefing";
+  fixture.version += 1; fixture.game.version += 1;
+  await expect(page.locator('[data-scene="briefing"]')).toBeVisible();
+  await expect(page.locator(".narration")).toHaveCount(0);
+  await page.reload();
+  await expect(page.locator('[data-scene="briefing"]')).toBeVisible();
+  await expect(page.locator(".narration")).toHaveCount(0);
+});
+
+test("공통 안내 도중 단계가 끝나도 아직 열지 않은 개인 안내를 읽음 처리하지 않는다", async ({ page }) => {
+  const fixture = fixtureFor("scout");
+  await renderFixture(page, fixture);
+  await expect(commonDialog(page)).toBeVisible();
+  fixture.game.site_phase = "cleared";
+  fixture.version += 1; fixture.game.version += 1;
+  await expect(page.locator('[data-scene="sacho"]')).toBeVisible();
+  await expect(page.locator(".narration")).toHaveCount(0);
+  const seen = await page.evaluate((id) => ({
+    common: sessionStorage.getItem(`hoguk:narration-seen:${id}:arrive:gate:common:scout`),
+    personal: sessionStorage.getItem(`hoguk:narration-seen:${id}:arrive:gate:personal:scout`),
+  }), fixture.game.id);
+  expect(seen).toEqual({ common: "1", personal: null });
+  fixture.game.site_phase = "mission";
+  fixture.version += 1; fixture.game.version += 1;
+  await expectPrivateCopyOnly(page, "scout");
+  await expect(commonDialog(page)).toHaveCount(0);
+});
+
+test("기존 arrive:gate 읽음 기록으로 재접속해도 새 개인 안내는 표시한다", async ({ page }) => {
+  const fixture = fixtureFor("signal");
+  await page.addInitScript((id) => sessionStorage.setItem(`hoguk:narration-seen:${id}:arrive:gate`, "1"), fixture.game.id);
+  await renderFixture(page, fixture);
+  await expectPrivateCopyOnly(page, "signal");
+  await expect(commonDialog(page)).toHaveCount(0);
+});
+
+test("타자 커서는 문장 배치를 움직이지 않고 출력 중인 글자 뒤를 따른다", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  const fixture = fixtureFor("scout");
+  fixture.stage.narration[0].text = "[합성] 타자 커서의 이동과 고정된 문장 배치를 확인하는 긴 안내입니다.";
+  await page.setViewportSize({ width: 360, height: 640 });
+  await renderFixture(page, fixture);
+  const dialog = commonDialog(page), anchor = dialog.getByTestId("narration-caret-anchor");
+  await expect(anchor.locator(".narration-caret")).toBeVisible();
+  const first = await anchor.boundingBox();
+  const textBox = await dialog.locator(".narration-text").boundingBox();
+  await expect.poll(async () => {
+    const next = await anchor.boundingBox();
+    return !!first && !!next && (Math.abs(first.x - next.x) > 1 || Math.abs(first.y - next.y) > 1);
+  }).toBe(true);
+  const after = await dialog.locator(".narration-text").boundingBox();
+  expect(after!.width).toBeCloseTo(textBox!.width, 1);
+  expect(after!.height).toBeCloseTo(textBox!.height, 1);
+  await dialog.getByRole("button", { name: "한 번에 읽기", exact: true }).click();
+  await expect(anchor).toHaveCount(0);
+  await expect(dialog.getByRole("button", { name: "계속", exact: true })).toBeVisible();
 });
 
 test("나레이션 끄기 옵션은 공통·개인 화면을 함께 건너뛴다", async ({ page }) => {

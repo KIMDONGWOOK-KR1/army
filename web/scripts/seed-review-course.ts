@@ -61,6 +61,8 @@ export async function prepareReviewSeed(args: string[], environment: Record<stri
   // Legacy seed discriminator follows the dev envelope; it does not claim the source prose is synthetic.
   input.synthetic = true;
   for (const stage of content.stages) {
+    // A prologue has no field arrival; preserve its authored no-arrival policy.
+    if (stage.kind === "prologue") continue;
     if (arrivalMode === "gps") {
       const arrival = stage.arrival;
       const pendingWall = stage.id === "wall" && arrival.confirmed === false &&

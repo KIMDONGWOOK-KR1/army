@@ -159,6 +159,12 @@
       "signal": 2,
       "cipher": 2
     },
+    "step_total_count": {
+      "commander": 3,
+      "scout": 2,
+      "signal": 2,
+      "cipher": 2
+    },
     "hint_level": {
       "commander": 0,
       "scout": 0,
@@ -185,7 +191,8 @@
     "completion": {
       "at": 1791418200000,
       "method": "field",
-      "label": "조사 후 복원"
+      "label": "조사 후 복원",
+      "completion_type": "lock"
     }
   },
   "self": {
@@ -375,7 +382,8 @@
             "method": null,
             "explanation": "[합성] 이 역할의 조사 절차를 확인했습니다."
           }
-        ]
+        ],
+        "completion_type": "lock"
       }
     ]
   },
