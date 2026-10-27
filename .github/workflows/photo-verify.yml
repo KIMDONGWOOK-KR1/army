@@ -1,0 +1,26 @@
+name: photo-verify
+
+on:
+  pull_request:
+    paths: ["photo-verify/**", ".github/workflows/photo-verify.yml"]
+  push:
+    branches: [main]
+    paths: ["photo-verify/**", ".github/workflows/photo-verify.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: photo-verify
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - run: pipx install uv==0.11.23
+      - run: uv sync --frozen
+      - run: uv run pytest -v

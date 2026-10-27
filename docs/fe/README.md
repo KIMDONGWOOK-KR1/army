@@ -17,6 +17,7 @@ FE는 `stage.completion.type`으로 잠금/공동 확인/회고 화면을 구분
 | 자료 | 용도 |
 |---|---|
 | [최신 시나리오](../scenario/GPS_MINO_1st_scenario_current.md) | 정답 포함 공동 검토 문서. FE 문항·나레이션·장면 구성의 기준이며 전체 파일을 앱에 import하거나 public에 복사하지 않는다 |
+| [정찰원 사진 미션 UI 전달 문서](SCOUT_PHOTO_GATE_HANDOFF.md) | `feat/scout-photo-gate`의 개발 전용 촬영·모의 판정·객관식 틀과 UI 담당 작업 범위. 실제 게임·모델·서버 연결 전 초안 |
 | [PR-5 적용 안내](../be/PR_5_APPLY.md) / [합성 최종 공동 기록 화면](images/full-result-synthetic.png) | 추모·봉지·결과 계약과 네 세션 시험 캡처 |
 | [메인 UI 통합 안내](UI_INTEGRATION.md) | PR #8 디자인과 PR #9 API의 연결 범위·로컬 실행·dev 적용 조건 |
 | [GPS 적용·개발용 모드 전환](../be/GPS_APPLY.md) | 같은 Vercel 주소에서 실내 모의 도착/GPS 현장 시험, Supabase 코스 전환과 새 방 생성 |
