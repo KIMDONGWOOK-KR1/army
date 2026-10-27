@@ -41,6 +41,18 @@ export class ApiError extends Error {
     super(message);
   }
 }
+function requestThrottle(response: Response) {
+  const now = Date.now();
+  const header = response.headers.get("Retry-After");
+  const deadline = header && /^\d+(\.\d+)?$/.test(header.trim())
+    ? now + Number(header) * 1000
+    : header ? Date.parse(header) : NaN;
+  return new ApiError(
+    "REQUEST_THROTTLED",
+    "서버 요청이 잠시 몰렸다. 잠시 기다린 뒤 다시 연결하라. 입력한 내용은 유지된다.",
+    Number.isFinite(deadline) ? Math.max(now + 1000, deadline) : now + 2000,
+  );
+}
 async function requestSnapshot(command: Command): Promise<GameResponse> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -72,10 +84,15 @@ async function requestSnapshot(command: Command): Promise<GameResponse> {
   try {
     data = await response.json();
   } catch {
+    if (response.status === 429) throw requestThrottle(response);
     throw new ApiError(
       "NETWORK",
       "응답을 확인하지 못했다. 같은 요청으로 다시 시도하라.",
     );
+  }
+  // Game cooldowns are intentional rules; only platform throttling gets backoff.
+  if (response.status === 429 && !["COOLDOWN", "RATE_LIMITED"].includes(data?.code ?? "")) {
+    throw requestThrottle(response);
   }
   if (!response.ok)
     throw new ApiError(

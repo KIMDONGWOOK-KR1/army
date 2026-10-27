@@ -9,6 +9,7 @@ import {
   Compass,
   Copy,
   HelpCircle,
+  Home,
   LocateFixed,
   LockKeyhole,
   Maximize,
@@ -211,6 +212,7 @@ export default function GameApp({
     cueSend = useCueSend(rawSend);
   const v2 = s && isV2Response(s) ? s : null;
   const soloDemo = !!s?.game.demo && !v2;
+  const canReturnHome = !!s && (backend === "local" || s.course.demo);
   const isContentReview = s?.course.demo === true &&
     s.course.id.startsWith("jnu-demo-dev-review-");
   const gpsReview = !!v2 && isGpsReviewCourse(v2.course);
@@ -337,16 +339,31 @@ export default function GameApp({
     });
     if (next) setEntry(null);
   };
-  const home = () => {
+  const resetView = () => {
     location.stop();
+    setAuto(false);
+    setRehearsal(null);
+    setOpenNarration(null);
+    setStop(null);
     reset();
     setEntry(null);
     setModal(null);
     setPane("report");
   };
+  const home = () => {
+    resetView();
+    // Clear invite/autoplay routes in the outer page too when using the phone mockup.
+    const host = window.frameElement?.hasAttribute("data-phone-screen") ? window.parent : window;
+    const url = new URL(host.location.href);
+    if (url.pathname.startsWith("/j/") || url.searchParams.has("auto")) {
+      if (url.pathname.startsWith("/j/")) url.pathname = "/";
+      url.searchParams.delete("auto");
+      host.location.replace(url.toString());
+    }
+  };
   // 발표용 자동 시연: 항상 새 시연 작전으로 처음부터 진행한다.
   const startAuto = () => {
-    home();
+    resetView();
     setAuto(true);
   };
   const copy = async () => {
@@ -575,7 +592,7 @@ export default function GameApp({
   });
   useAutoplay({
     active: auto && !v2,
-    paused: !!narration || restoring || !!stop,
+    paused: !!narration || restoring || !!stop || !!modal,
     s,
     scene,
     busy,
@@ -960,6 +977,12 @@ export default function GameApp({
                   </p>
                 </div>
                 <div className="console-actions">
+                  {canReturnHome && (
+                    <button className="button secondary" disabled={busy} onClick={home}>
+                      <ArrowLeft size={18} />
+                      첫 화면으로
+                    </button>
+                  )}
                   {rehearsing ? (
                     <button
                       className="button secondary"
@@ -1588,6 +1611,17 @@ export default function GameApp({
                 </button>
               )}
               <SoundToggle variant="menu" />
+              {canReturnHome && (
+                <>
+                  <button className="button secondary full" disabled={busy} onClick={home}>
+                    첫 화면으로
+                    <Home size={18} />
+                  </button>
+                  <p className="console-footnote">
+                    방과 저장된 진행은 유지됩니다. 입장 코드로 다시 합류할 수 있습니다.
+                  </p>
+                </>
+              )}
               {dev && soloDemo && s && (
                 <DevControls snapshot={s} busy={busy} send={send} />
               )}
