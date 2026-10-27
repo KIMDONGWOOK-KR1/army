@@ -1,5 +1,6 @@
 "use client";
 
+import { plain } from "@/lib/practice-text";
 import { type FormEvent, useState } from "react";
 import { BookOpen, Check, LockKeyhole, Radio } from "lucide-react";
 import { personalMissionBody } from "@/lib/gate-narration";
@@ -20,11 +21,15 @@ import { isLegacyMissionStep, LegacyMissionInput } from "./legacy-mission-input"
 import { useLockDraft } from "./use-lock-draft";
 import styles from "./mission-v2.module.css";
 import { RetroPanel, SharedDraftPanel } from "./closing-v2";
+import { TributePanel } from "./tribute-v2";
 import { YongbongPanel } from "./yongbong-panel";
 import { MissionAsset } from "./mission-asset";
 import { usesGateStory } from "@/lib/story-play";
 import { StoryMission } from "./story-mission";
-import { TributePanel } from "./tribute-v2";
+import { ScanResult, ScoutScan } from "./scout-scan";
+import { scanEnabled, scanState } from "@/lib/scout-photo/session";
+import type { ScoutScanSite } from "@/lib/scout-photo/sites";
+import type { PhotoGateState } from "@/lib/scout-photo/contract";
 
 type Props = {
   snapshot: V2Response;
@@ -86,7 +91,7 @@ function StepCard(
         <span>{labels[progress?.status ?? "locked"]}</span>
         {snapshot.stage.kind !== "memorial" && <span>제출 {progress?.attempts ?? 0}회</span>}
       </div>
-      <h3>{step.prompt}</h3>
+      <h3>{plain(step.prompt)}</h3>
       {!!step.requiresReports?.length && (
         <p className="fine-print">
           선행 보고: {step.requiresReports.map((role) =>
@@ -118,7 +123,7 @@ function StepCard(
           <h4>내 기록</h4>
           {Object.entries(progress.record).map(([key, value]) => (
             <p key={key}>
-              {step.fields?.find((f) => f.id === key)?.label ?? "기록"}: {value}
+              {step.fields?.find((f) => f.id === key)?.label ?? "기록"}: {plain(value)}
             </p>
           ))}
         </div>
@@ -126,13 +131,13 @@ function StepCard(
       {snapshot.self.explanations[step.id] && (
         <div className={styles.note}>
           <h4>문제 해설</h4>
-          <p>{snapshot.self.explanations[step.id]}</p>
+          <p>{plain(snapshot.self.explanations[step.id])}</p>
         </div>
       )}
       {snapshot.self.rewards[step.id] && (
         <div className={styles.note}>
           <h4>복원한 기록</h4>
-          <p>{snapshot.self.rewards[step.id]}</p>
+          <p>{plain(snapshot.self.rewards[step.id])}</p>
         </div>
       )}
       {feedback && <p role="status" className="fine-print">{feedback}</p>}
@@ -140,20 +145,57 @@ function StepCard(
   );
 }
 
-/** Only the caller's server-projected mission is rendered; no course/answer data is imported. */
-export function MissionV2({ snapshot, busy, send, onShowDigit }: Props & { onShowDigit?: () => void }) {
+type MissionProps = Props & {
+  onShowDigit?: () => void;
+  /** 정찰원 '사진으로 찾기'(개발 서버의 모의 판정). 찾은 뒤에야 서버 문제가 열린다 */
+  scan?: ScoutScanSite;
+};
+
+/** Keep local photo state scoped to the current room, stage and role. */
+export function MissionV2(props: MissionProps) {
+  const { game, stage, self } = props.snapshot;
+  return <MissionContent key={`${game.id}:${stage.id}:${self.role ?? "pending"}`} {...props} />;
+}
+
+/** The real mission always comes from the caller's server-projected response. */
+function MissionContent({ snapshot, busy, send, onShowDigit, scan: requestedScan }: MissionProps) {
   const { self, game, stage } = snapshot;
   const { mission, role } = self;
+  const scan = scanEnabled() && snapshot.course.demo && role === "scout" &&
+    requestedScan?.stageId === stage.id ? requestedScan : undefined;
+  const scanKey = `${game.id}:${stage.id}`;
+  const [scanResult, setScanResult] = useState<PhotoGateState | null>(() => scan ? scanState(scanKey) : null);
   if (!mission || !role) return <p role="status">본인 조사를 불러오는 중…</p>;
   if (stage.completion.type === "joint-record") return <RetroPanel snapshot={snapshot} busy={busy} send={send} />;
   if (stage.completion.type === "tribute") return <TributePanel snapshot={snapshot} busy={busy} send={send} />;
-  if (usesGateStory(stage.id, mission.steps)) return <StoryMission
-    key={`${game.id}:${stage.id}:${role}:${mission.steps.map((step) => step.id).join("|")}`}
-    snapshot={snapshot} busy={busy} send={send} onShowDigit={onShowDigit} />;
   const cleared = game.stage_phase === "done" || game.site_phase === "cleared";
   const complete = (step: Step) =>
     ["done", "explained"].includes(self.step_progress[step.id]?.status);
   const allDone = mission.steps.length > 0 && mission.steps.every(complete);
+  // 사진으로 찾기: 문제를 이미 풀었거나(새로고침·해설) 보고했으면 다시 막지 않는다
+  const scanOpen = !!scan && !cleared && !self.reported && !mission.steps.some(complete) &&
+    (!scanResult || scanResult.photo.status === "pending");
+  const scanPanel = scan && !cleared && (scanOpen
+    ? <ScoutScan site={scan} scope={scanKey} onSettled={setScanResult} />
+    : scanResult && scanResult.photo.status !== "pending" && <ScanResult site={scan} state={scanResult} />);
+  const scanLocked = scanOpen && <section className={styles.card} data-testid="scout-scan-locked">
+    <h3><LockKeyhole size={18} /> 사진으로 찾으면 열리는 문제</h3>
+    <p className="fine-print">{scan!.locked}</p>
+  </section>;
+  // Preserve the existing gate interaction, but do not skip the optional local photo rehearsal.
+  if (usesGateStory(stage.id, mission.steps)) return <div className={styles.root}>
+    {scanPanel}
+    {scanOpen ? scanLocked : <StoryMission
+      key={mission.steps.map((step) => step.id).join("|")}
+      snapshot={snapshot} busy={busy} send={send} onShowDigit={onShowDigit} />}
+  </div>;
+  const doneCount = mission.steps.filter(complete).length + (scan && !scanOpen ? 1 : 0);
+  const totalCount = mission.steps.length + (scan ? 1 : 0);
+  // 짧은 안내(조사 이름)는 카드 머리에, 긴 안내는 본문 문단으로 둔다
+  const introText = mission.intro.trigger === "enter"
+    ? plain(stage.id === "gate" ? personalMissionBody(mission.intro.text) : mission.intro.text).trim()
+    : "";
+  const shortIntro = introText && introText.length <= 16 ? introText : "";
   const requiredReports = [
     ...new Set(mission.steps.flatMap((step) => step.requiresReports ?? [])),
   ];
@@ -171,23 +213,32 @@ export function MissionV2({ snapshot, busy, send, onShowDigit }: Props & { onSho
     <div className={styles.root}>
       <YongbongPanel snapshot={snapshot} busy={busy} send={send} />
       {stage.completion.type === "confirm" && <SharedDraftPanel snapshot={snapshot} busy={busy} send={send} />}
-      <div className={styles.card}>
-        <div className="section-label">
-          <span>{ROLE_NAMES[role]}의 조사</span>
-          <span>
-            {mission.steps.filter(complete).length} / {mission.steps.length}
+      {/* 내 조사 퀘스트 카드(포켓몬 GO 리서치·브롤스타즈 퀘스트처럼): 이름 · 진행 · 얻는 것을 한 카드에.
+          얻는 것은 종류만 적는다(숫자·정답은 보고 전에 보이지 않는다). */}
+      <div className={`${styles.card} ${styles.quest}`} data-testid="mission-v2-quest">
+        <div className={styles.questTop}>
+          <span className={styles.questKind}>
+            {ROLE_NAMES[role]}의 조사{shortIntro && <b>{shortIntro}</b>}
+          </span>
+          <span className={styles.questCount} aria-label={`조사 ${totalCount}개 중 ${doneCount}개 완료`}>
+            {doneCount} / {totalCount}
           </span>
         </div>
-        {mission.intro.trigger === "enter" && <p>{stage.id === "gate" ? personalMissionBody(mission.intro.text) : mission.intro.text}</p>}
-        {scenes.map((scene) => <p key={scene.id}>{scene.text}</p>)}
+        <span className={styles.questBar} aria-hidden="true"><i style={{ width: `${totalCount ? (doneCount / totalCount) * 100 : 0}%` }} /></span>
+        <ul className={styles.questRewards} aria-label="이 조사로 얻는 것">
+          <li><b>얻는 것</b>{mission.digit ? "기억의 숫자 1개" : "팀에 전할 조사 결과"}</li>
+          {stage.completion.type === "lock" && <li><b>함께</b>네 보고가 모여 자물쇠가 열리면 이곳의 기록이 복원돼요</li>}
+        </ul>
+        {mission.intro.trigger === "enter" && !shortIntro && <p>{introText}</p>}
+        {scenes.map((scene) => <p key={scene.id}>{plain(scene.text)}</p>)}
       </div>
-      <MissionAsset asset={mission.asset} stageId={stage.id} role={role} />
+      {!scanOpen && <MissionAsset asset={mission.asset} stageId={stage.id} role={role} />}
       {role === "commander" && self.transfer_clue && (
         <section className={styles.clue} data-testid="mission-v2-transfer-clue">
           <h3>
-            <Radio size={18} /> {self.transfer_clue.label}
+            <Radio size={18} /> {plain(self.transfer_clue.label)}
           </h3>
-          <p>{self.transfer_clue.value}</p>
+          <p>{plain(self.transfer_clue.value)}</p>
           <p className="fine-print">
             대상 보직에게 말로 전달하라. 지휘관의 화면에만 보이는 단서다.
           </p>
@@ -196,10 +247,11 @@ export function MissionV2({ snapshot, busy, send, onShowDigit }: Props & { onSho
       {!!self.hints.length && (
         <section className={styles.note}>
           <h3>내 역할 힌트</h3>
-          {self.hints.map((hint, i) => <p key={i}>{i + 1}단계: {hint}</p>)}
+          {self.hints.map((hint, i) => <p key={i}>{i + 1}단계: {plain(hint)}</p>)}
         </section>
       )}
-      {mission.steps.map((step) => (
+      {scanPanel}
+      {scanOpen ? scanLocked : mission.steps.map((step) => (
         <StepCard
           key={`${game.id}:${stage.id}:${role}:${step.id}`}
           step={step}

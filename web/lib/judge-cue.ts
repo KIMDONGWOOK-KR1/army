@@ -11,6 +11,8 @@ export function judgeCue(
   if (!next?.result) return null;
   if (next.stage?.completion.type === "tribute") return null;
   const result = next.result, calm = !!next.current_site?.reverent;
+  // 추모의 벽 헌화는 맞고 틀림이 없다(국화를 올릴 때 '정답' 소리를 내지 않는다)
+  if ((next as { stage?: { completion?: { type?: string } } }).stage?.completion?.type === "tribute") return null;
   if (c.action === "submit-step" && typeof result.accepted === "boolean")
     return { name: result.accepted ? "clue-correct" : "clue-wrong", calm };
   if (c.action === "open-after-explanation" && result.opened === true)

@@ -52,3 +52,31 @@
   .photo-section-heading { flex-direction: column; gap: 4px; }
   .photo-actions > button { flex: 1 1 130px; }
 }
+
+/* 게임 톤 덧입히기(hh FE, 2026-10-26): 본 게임과 같은 크림 카드·민트 행동·주아 제목. 구조와 규칙은 위 그대로 둔다. */
+.photo-preview { background: #f3eedf; color: #263a37; font-family: var(--sans); }
+.photo-preview h1, .photo-preview h2 { font-family: var(--game); font-weight: 400; letter-spacing: 0; color: #263a37; }
+.photo-preview h1 { font-size: 26px; }
+.photo-preview h2 { font-size: 20px; }
+.photo-card { background: #fffdf5; border: 1px solid #c4d6c5; border-top: 3px solid #83bda6; border-radius: 24px; box-shadow: 0 3px 0 #2c484112; }
+.photo-eyebrow { color: #b62c17; font-size: 13px; }
+.photo-preview button { border-radius: 999px; border-color: #347c66; background: #347c66; color: #fffdf5; font: 400 18px/1.3 var(--game); box-shadow: 0 3px 0 #23533f; }
+.photo-preview button.photo-secondary { background: #fffbee; color: #36594b; border-color: #b9c9b4; box-shadow: none; font-size: 16px; }
+.photo-preview button:disabled { opacity: .55; box-shadow: none; }
+.photo-preview button:focus-visible, .photo-preview select:focus-visible { outline: 3px solid #305c88; outline-offset: 2px; }
+.photo-steps li { background: #f3eedf; color: #59655c; font-size: 14px; }
+.photo-steps [aria-current="step"] { background: #347c66; color: #fffdf5; }
+.photo-sticker { border: 3px solid #237a58; border-radius: 50%; background: #f8f1da; }
+.photo-count { color: #265f50; font-weight: 700; font-size: 14px; }
+.photo-camera-frame { border-radius: 20px; border-color: #c4d6c5; }
+.photo-choices label { border-color: #c4d6c5; border-radius: 18px; background: #fffdf5; }
+.photo-choices label:has(input:checked) { border: 2px solid #347c66; background: #eef7f1; }
+.photo-choices input, .photo-unavailable input { accent-color: #347c66; }
+.photo-unavailable { border-color: #d8d9cb; border-radius: 18px; }
+.photo-outcome { border-left: 0; }
+.photo-outcome[data-verified="true"] { border-top-color: #347c66; background: #eef7f1; }
+/* 실패 후 통과는 성공처럼 보이지 않게 노란 계열로 따로 표시한다 */
+.photo-outcome[data-verified="false"] { border-top-color: #d6b25a; background: #f8f1da; }
+.photo-outcome[data-verified="false"] h2 { color: #6b4f12; }
+.photo-dev-controls { background: #fffdf5; border-color: #b5b7a6; border-radius: 18px; }
+.photo-caption { color: #59655c; font-size: 13px; }

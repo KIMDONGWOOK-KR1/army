@@ -1,4 +1,5 @@
 import { fullDemoCourseV2 } from "@/supabase/functions/_shared/wall-bongji-course-v2";
+import { legacyFullDemoCourseV2 } from "@/supabase/functions/_shared/legacy-full-course-v2";
 import "server-only";
 import { readFile, mkdir, writeFile, rename } from "node:fs/promises";
 import { join } from "node:path";
@@ -30,7 +31,7 @@ type Database = {
   events?: Record<string, GameEvent[]>;
   courses?: Record<string, CourseV2>;
 };
-const folder = join(process.cwd(), ".demo-data"),
+const folder = process.env.LOCAL_GAME_DATA_DIR || join(process.cwd(), ".demo-data"),
   file = join(folder, "state.json");
 const globalStore = globalThis as typeof globalThis & {
   hogukQueue?: Promise<unknown>;
@@ -65,8 +66,10 @@ async function operation(session: string, cmd: Command): Promise<Snapshot> {
     db.courses ??= {};
     if (db.courses[id]) return db.courses[id];
     const preset = process.env.LOCAL_V2_PRESET ?? "synthetic";
-    if (!["synthetic", "v1-gate", "v1-gate-gps", "gate-yongbong", "gate-yongbong-gps", "full-course"].includes(preset))
+    if (!["synthetic", "v1-gate", "v1-gate-gps", "gate-yongbong", "gate-yongbong-gps", "full-course", "full-course-v1"].includes(preset))
       throw new DomainError("SERVER_ERROR", "로컬 v2 preset 설정을 확인하라.");
+    // full-course-v1: 전체 코스에서 용봉관만 hh의 v1 시연 문항(주파수 등)
+    if (preset === "full-course-v1") return db.courses[id] = await legacyFullDemoCourseV2(id, salt ?? "");
     const build = preset === "full-course" ? fullDemoCourseV2 : preset.startsWith("gate-yongbong") ? yongbongDemoCourseV2 : preset !== "synthetic" ? legacyDemoCourseV2 : demoCourseV2;
     return db.courses[id] = await build(id, salt ?? "", preset.endsWith("-gps"));
   };

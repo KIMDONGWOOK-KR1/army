@@ -1,6 +1,6 @@
 "use client";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import type { Command, Snapshot } from "@/supabase/functions/_shared/types";
+import { ROLES, type Command, type Role, type Snapshot } from "@/supabase/functions/_shared/types";
 import { isV2Response, type GameResponse, type V2Response } from "./game-snapshot";
 export const backend =
   process.env.NEXT_PUBLIC_BACKEND === "supabase" ? "supabase" : "local";
@@ -53,13 +53,44 @@ function requestThrottle(response: Response) {
     Number.isFinite(deadline) ? Math.max(now + 1000, deadline) : now + 2000,
   );
 }
+// 혼자 데모 체험(로컬 전용): 이 기기가 네 자리(본인 + 시연 동료 셋)를 맡는다.
+// 방마다 보직별 자리와 지금 보고 있는 보직을 적어 두고, 모든 요청을 그 자리로 보낸다.
+const SOLO_KEY = "hoguk:solo";
+export type SoloSeats = { game: string; seats: Record<Role, number>; role: Role };
+let memorySolo: SoloSeats | null = null;
+export function soloFor(gameId?: string | null): SoloSeats | null {
+  if (backend !== "local" || !gameId) return null;
+  if (memorySolo?.game === gameId) return memorySolo;
+  if (typeof localStorage === "undefined") return null;
+  try {
+    const v = JSON.parse(localStorage.getItem(SOLO_KEY) ?? "null") as SoloSeats | null;
+    return v?.game === gameId && ROLES.includes(v.role) &&
+      ROLES.every((r) => [0, 1, 2, 3].includes(v.seats?.[r])) &&
+      new Set(ROLES.map((r) => v.seats[r])).size === 4 ? v : null;
+  } catch {
+    return null;
+  }
+}
+export function setSoloRole(gameId: string, role: Role) {
+  const v = soloFor(gameId);
+  if (!v) return;
+  memorySolo = { ...v, role };
+  try {
+    localStorage.setItem(SOLO_KEY, JSON.stringify(memorySolo));
+  } catch {
+    // 저장소를 사용할 수 없어도 이번 탭에서는 선택한 자리를 유지한다.
+  }
+}
+
 async function requestSnapshot(command: Command): Promise<GameResponse> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };
+  const creatingSolo = command.action === "create-solo",
+    solo = creatingSolo ? null : soloFor(command.game_id);
   const endpoint =
     backend === "local"
-      ? "/api/game"
+      ? creatingSolo || solo ? "/api/game/solo" : "/api/game"
       : `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/game`;
   if (backend === "supabase") {
     headers.Authorization = `Bearer ${await token()}`;
@@ -70,7 +101,12 @@ async function requestSnapshot(command: Command): Promise<GameResponse> {
     response = await fetch(endpoint, {
       method: "POST",
       headers,
-      body: JSON.stringify(command),
+      body: JSON.stringify(creatingSolo
+        ? { setup: true, request_id: command.request_id }
+        : solo
+          ? { seat: solo.seats[solo.role], command,
+              team: command.action === "report-arrival" && command.method === "simulated" }
+          : command),
       cache: "no-store",
       credentials: backend === "local" ? "same-origin" : "omit",
     });
@@ -94,12 +130,25 @@ async function requestSnapshot(command: Command): Promise<GameResponse> {
   if (response.status === 429 && !["COOLDOWN", "RATE_LIMITED"].includes(data?.code ?? "")) {
     throw requestThrottle(response);
   }
+  // 네 곳 시연 코스가 없는 서버면 예전 혼자 시연(두 곳)으로 연다
+  if (creatingSolo && data.code === "SOLO_UNAVAILABLE")
+    return requestSnapshot({ ...command, action: "create-demo" });
   if (!response.ok)
     throw new ApiError(
       data.code ?? "SERVER_ERROR",
       data.message ?? "연결을 확인하라.",
       data.retry_at,
     );
+  if (creatingSolo && "solo" in data) {
+    const { solo: seats, ...snapshot } = data as GameResponse & { solo: { seats: Record<Role, number> } };
+    memorySolo = { game: snapshot.game.id, seats: seats.seats, role: "commander" };
+    try {
+      localStorage.setItem(SOLO_KEY, JSON.stringify(memorySolo));
+    } catch {
+      // 저장소를 사용할 수 없어도 이번 탭에서는 네 자리를 유지한다.
+    }
+    return snapshot;
+  }
   return data;
 }
 

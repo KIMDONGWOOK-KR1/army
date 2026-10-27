@@ -73,7 +73,7 @@
   min-width: 0;
 }
 .root :global(.verify-field) {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
 }
 .root input:not([type=checkbox]):not([data-frequency-input]),
@@ -85,7 +85,7 @@
   padding: 10px 12px;
   border: 1px solid #b4baaa;
   border-radius: 8px;
-  background: #fffdf6;
+  background-color: #fffdf6;
   color: #252e24;
   font: inherit;
   font-size: 16px;
@@ -123,7 +123,7 @@
   padding: 0;
   display: grid;
   gap: 8px;
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1.6;
 }
 .journal {
@@ -134,5 +134,19 @@
 }
 .journal h4, .journal h5 {
   margin: 12px 0 8px;
-  font-size: 15px;
+  font-size: 16px;
 }
+
+/* 내 조사 퀘스트 카드와 글자 단계(2026-10-26): 할 일 한 줄 20 · 본문 16 · 라벨·칩 14 */
+.card h3 { font-size: 20px; line-height: 1.45; }
+.quest { gap: 10px; }
+.questTop { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.questKind { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; font: 700 14px/1.5 var(--sans); color: #536048; min-width: 0; }
+.questKind b { font: 400 20px/1.35 var(--game); color: #263a37; }
+.questCount { flex: 0 0 auto; padding: 4px 12px; border-radius: 999px; background: #def0e7; color: #265f50; font: 700 14px/1.4 var(--sans); font-variant-numeric: tabular-nums; }
+.questBar { display: block; height: 8px; border-radius: 999px; background: #e7e2d2; overflow: hidden; }
+.questBar i { display: block; height: 100%; border-radius: inherit; background: #347c66; transition: width .4s ease; }
+.questRewards { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.questRewards li { display: flex; gap: 8px; align-items: baseline; font: 400 14px/1.55 var(--sans); color: #3d4c43; word-break: keep-all; overflow-wrap: anywhere; }
+.questRewards b { flex: 0 0 auto; padding: 1px 8px; border-radius: 999px; background: #f6edd3; color: #6b4f12; font: 700 13px/1.5 var(--sans); }
+@media (prefers-reduced-motion: reduce) { .questBar i { transition: none; } }

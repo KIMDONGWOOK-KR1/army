@@ -223,7 +223,7 @@ export function ScoutPhotoMissionView({ mission, client }: { mission: ScoutPhoto
         <p className="photo-caption">감점 미확정 · 이 시연에서는 점수를 변경하지 않습니다.</p>
       </section>}
 
-      {photoComplete && <section className="photo-card photo-outcome" aria-labelledby="photo-outcome-title">
+      {photoComplete && <section className="photo-card photo-outcome" data-verified={state.photo.verified} aria-labelledby="photo-outcome-title">
         <h2 id="photo-outcome-title">{state.photo.verified ? "사진 검증 통과" : "사진 검증 실패 후 통과"}</h2>
         <p>{state.photo.verified ? "이제 찾아낸 대상에 관한 문제를 풀어 주세요." : "사진 검증 성공으로 기록되지 않습니다. 다음 객관식 문제를 풀어 주세요."}</p>
       </section>}

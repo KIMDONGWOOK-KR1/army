@@ -1,0 +1,153 @@
+/* 탐방은 부드러운 게임 표시체, 기록은 차분한 명조. 레이아웃/상태 규칙은 globals에 둔다. */
+:root {
+  --paper: #f6f1df;
+  --card: #fffbee;
+  --ink: #344b40;
+  --muted: #5b6b5d;
+  --green: #347c66;
+  --line: #c5cdb4;
+  --gold: #e6c76d;
+}
+.game-canvas :is(h1,h2,h3,.dog-tag b) { font-weight:400; }
+.game-brand b { font:400 19px/1.3 var(--game); }
+.game-hud { background:#36594b; border-bottom-color:#c8d4b5; }
+.button, .hud-action { font-family:var(--game); font-weight:400; letter-spacing:0; border-radius:999px; }
+.button { font-size:18px; border-color:#b9c9b4; box-shadow:0 3px 0 #a4b49a; }
+.button.primary { background:#347c66; border-color:#347c66; color:#fffdf4; }
+.button.primary:hover:not(:disabled) { background:#286552; }
+.button.secondary { background:#fff9e5; color:#36594b; }
+.button:active:not(:disabled), .hud-action:active:not(:disabled) { transform:translateY(2px); }
+.game-console .button { box-shadow:0 3px 0 #263a3726; }
+.game-console { background:#fffbee; }
+.game-console:before { border:0; background:#d2b65f; border-radius:50%; transform:none; }
+.game-canvas .dialogue-line { font:400 16px/1.6 var(--game); }
+.speaker { display:inline-block; width:fit-content; padding:3px 12px; border-radius:999px; background:#ddefd3; color:#36594b; font:400 15px/1.5 var(--game); letter-spacing:0; }
+.title-kicker { color:#526948; letter-spacing:.09em; }
+.title-lockup h1 { font:400 76px/1.2 var(--game); letter-spacing:.015em; padding-left:0; color:#36594b; text-shadow:0 3px 0 #fffcdf,0 6px 0 #d1bc7e; }
+.title-seal { font-family:var(--calm); background:#af4a34; border-color:#fff5d8; color:#fff5d8; border-radius:8px; }
+.title-edition { font:400 16px/1.6 var(--game); color:#586e4f; letter-spacing:.12em; }
+.title-console { background:#fffbee; border:2px solid #fffdf3; border-radius:30px 30px 24px 24px; box-shadow:0 5px 0 #9baf8966,0 12px 24px #344b401a; }
+.title-guide-row > span { background:#e4edd6; color:#476149; border-radius:999px; padding:4px 10px; font-size:11px; }
+.title-guide-row button { color:#486949; text-decoration:none; font-size:12px; }
+.title-console .dialogue-line { font:400 16px/1.6 var(--game); color:#4e5b3e; }
+.title-console .title-actions .button { font-size:18px; }
+.title-console .title-actions .demo-button { font:600 13px/1.6 var(--sans); color:#54694f; background:transparent; border:0; box-shadow:none; }
+.game-canvas .title-console .console-footnote { font-size:11px !important; color:#5c6757; }
+.game-window, .game-dialog { border-radius:24px; }
+.dialog-title { background:#edf2df; border-bottom:1px solid #d0d9bd; }
+.dialog-title h2 { font:400 24px/1.4 var(--game); }
+.mission-stage, .lock-stage { border-radius:24px; }
+.choices button { border-radius:18px; background:#fffbee; border-color:#a2b498; }
+.choices button[aria-pressed="true"] { background:#e2f0d4; border-color:#347c66; box-shadow:inset 0 0 0 1px #347c66; }
+.clue-hint { background:#f7edce; border-left-color:#d0b65c; }
+.lock-digits input { background:#fffbee; border-radius:18px; border-color:#83a58b; }
+.hud-site-seq { background:#fffbee; border-color:#d2d8bd; color:#405e4b; }
+.hud-site h1 { font-family:var(--game); text-shadow:1px 1px 0 #36594b,-1px -1px 0 #36594b,1px -1px 0 #36594b,-1px 1px 0 #36594b,0 3px 0 #36594b; }
+.hud-distance { border-radius:999px; background:#fffef5; border-color:#c4d6c5; }
+.hud-distance b { font:400 17px/1.3 var(--game); }
+.hud-distance[data-in-range="true"] { background:#e0f1cd; }
+.hud-distance[data-in-range="true"] .hud-distance-icon { background:#347c66; }
+.hud-action { font:400 18px/1.4 var(--game); background:#fffbee; color:#36594b; border-color:#b9c9b4; }
+.hud-action.ready { background:#347c66; border-color:#347c66; box-shadow:0 3px 0 #23533f; }
+.hud-speech { border-radius:24px; background:#fffbee; font:400 18px/1.6 var(--game); }
+.hud-player { border-radius:999px; background:#fffbee; border-color:#c4d6c5; }
+.hud-main, .hud-round { border:2px solid #fffbee; background:#eef3db; box-shadow:0 3px 0 #7c9c8177; }
+/* 추모와 기록을 읽는 동안에는 과장된 표시체/버튼 음영을 낮춘다. */
+.game-scene:is(.scene-memorial,.scene-sacho,.scene-closing), .travel-hud.calm { --serif:var(--calm); }
+.game-scene:is(.scene-memorial,.scene-sacho,.scene-closing) :is(h1,h2,h3,.dialogue-line) { font-family:var(--calm); font-weight:600; }
+.game-scene:is(.scene-memorial,.scene-sacho,.scene-closing) .button, .travel-hud.calm .hud-action { font-family:var(--sans); font-size:16px; font-weight:600; border-radius:14px; box-shadow:0 2px 0 #344b401a; }
+.travel-hud.calm .hud-site h1 { font-family:var(--calm); }
+@media(max-width:760px) {
+  .title-lockup h1 { font-size:58px; }
+  .title-console { padding:12px 16px; }
+  .title-console .dialogue-line { text-align:center; }
+}
+@media(max-width:360px) {
+  .title-lockup h1 { font-size:50px; }
+  .title-console { padding:10px 12px; border-radius:24px; }
+  .title-console .title-actions .button { font-size:16px; padding-inline:9px; }
+}
+@media(max-height:640px) {
+  .scene-title { overflow-y:auto; }
+  .title-copy { padding-top:10px; }
+}
+/* 혼자 데모의 보직 전환: 다른 패널과 같은 크림·민트 둥근 칩으로 맞춘다. */
+.demo-role-bar { background:#f8f1da; border-top:1px solid #d6c6a1; gap:6px; }
+.demo-role-bar button { border-radius:999px; font-family:var(--game); font-size:14px; color:#405e4b; border:1px solid transparent; }
+.demo-role-bar button[aria-pressed="true"] { background:#347c66; border-color:#347c66; color:#fffdf5; font-weight:400; box-shadow:0 2px 0 #23533f; }
+.demo-role-bar button:focus-visible { outline:3px solid #305c88; outline-offset:2px; }
+
+/* 이름 있는 안내자(기록관): 붉은 기록 도장을 얼굴처럼 붙인다 */
+.speaker.guide { display:inline-flex; align-items:center; gap:6px; padding-left:4px; }
+.speaker.guide i { width:24px; height:24px; display:grid; place-items:center; border-radius:50%; background:#b62c17; color:#fffdf5; font:700 13px/1 var(--calm); font-style:normal; box-shadow:0 2px 0 #7d1e10; }
+
+/* 문제 풀이 화면 머리의 내 장병 초상(한 번 그린 그림) */
+.mission-emblem .role-portrait { display:block; width:84px; height:84px; margin:-14px -6px -10px 0; filter:drop-shadow(0 3px 0 #2c484114); }
+@media(max-width:760px) { .mission-emblem .role-portrait { width:72px; height:72px; margin:-12px -4px -8px 0; } }
+
+/* 글자 5단계(hh 2026-10-26, 레퍼런스 비교 후): 장면 제목 26 · 할 일 한 줄 20 · 본문 16 · 라벨·칩·진행 14 · 보조 13.
+   지도 출처·시연 표시만 11px로 둔다. 추모·기록 장면의 명조는 이 단계와 따로 유지한다. */
+:root { --fs-display: 26px; --fs-quest: 20px; --fs-body: 16px; --fs-label: 14px; --fs-meta: 13px; --fs-fine: 11px; }
+.section-label { font-size: var(--fs-label); }
+.fine-print, .game-canvas .fine-print { font-size: var(--fs-meta); }
+.eyebrow, .mission-header .eyebrow { font-size: var(--fs-meta); }
+.mission-header .role-badge { font-size: var(--fs-display); }
+.hud-site-seq { font-size: var(--fs-meta); }
+.hud-distance small, .hud-top .hud-distance small { font-size: var(--fs-meta); }
+.hud-gps, .hud-top .hud-gps { font-size: var(--fs-meta); }
+.hud-player-plate b { font-size: var(--fs-label); }
+.hud-player-role { font-size: var(--fs-meta); }
+.field-credit { font-size: var(--fs-fine); }
+.simulation-badge { font-size: var(--fs-fine); }
+.hud-route { font-size: var(--fs-meta); }
+.role-badge { font-size: var(--fs-label); }
+.speaker { font-size: var(--fs-label); }
+.hud-distance b, .hud-top .hud-distance b { font-size: var(--fs-body); }
+
+/* 출발 연결 장면: 지도 위에 한 번 뜨는 카드(방금 마친 곳 → 다음 장소) */
+.depart-card { position:absolute; inset:0; z-index:30; display:grid; align-items:end; padding:16px 12px calc(16px + env(safe-area-inset-bottom,0px)); background:linear-gradient(to bottom, #263a3700 0%, #263a3733 40%, #263a37a6 100%); }
+.depart-card-body { display:grid; gap:8px; max-width:440px; width:100%; margin:0 auto; padding:18px 18px 16px; border-radius:24px; background:#fffdf5; border:1px solid #c4d6c5; border-top:3px solid #83bda6; box-shadow:0 8px 24px #263a3733; color:#263a37; }
+.depart-done { display:flex; align-items:center; gap:8px; margin:0; font:700 13px/1.5 var(--sans); color:#265f50; }
+.depart-done span { width:22px; height:22px; display:grid; place-items:center; border-radius:50%; background:#347c66; color:#fffdf5; }
+.depart-who { margin:0; font:400 14px/1.5 var(--sans); color:#59655c; }
+.depart-card h2 { display:flex; align-items:center; gap:8px; margin:4px 0 0; font:400 22px/1.3 var(--game); }
+.depart-card h2 svg { flex:0 0 auto; color:#b62c17; }
+.depart-card h2 span { display:grid; }
+.depart-card h2 small { font:700 13px/1.4 var(--sans); color:#536048; }
+.depart-walk { margin:0; font:700 14px/1.5 var(--sans); color:#265f50; }
+.depart-note { margin:0; font:400 16px/1.6 var(--sans); word-break:keep-all; }
+.depart-actions { display:grid; gap:8px; margin-top:6px; }
+.depart-card[data-calm="true"] .depart-card-body { border-top-color:#b5b7a6; }
+.depart-card[data-calm="true"] h2, .depart-card[data-calm="true"] .depart-note { font-family:var(--calm); font-weight:600; }
+.depart-card[data-calm="true"] .depart-done span { background:#7c8a7f; }
+
+/* 문제를 푸는 중 내 위치 지도(전체 화면) */
+.map-peek { position:fixed; inset:0; z-index:60; background:#dfe9d6; }
+.map-peek .field-3d { position:absolute; inset:0; }
+.map-peek-bar { position:absolute; left:12px; right:12px; bottom:calc(12px + env(safe-area-inset-bottom,0px)); display:grid; gap:10px; max-width:440px; margin:0 auto; padding:14px; border-radius:22px; background:#fffdf5; border:1px solid #c4d6c5; box-shadow:0 6px 18px #263a3733; color:#263a37; }
+.map-peek-bar p { display:grid; gap:2px; margin:0; }
+.map-peek-bar b { font:400 18px/1.35 var(--game); }
+.map-peek-bar span { font:400 14px/1.5 var(--sans); color:#536048; word-break:keep-all; }
+.map-peek-bar div { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+
+/* 나레이션(타자 화면) 줄바꿈: 폭이 줄어도 한 단어만 따로 떨어지지 않게 문단마다 줄 길이를 고르게 나눈다.
+   글자는 폰 18px → 넓은 화면 26px까지 키우고, 한 줄은 약 25자 안으로 둔다(타자 중에도 줄 위치는 처음부터 고정). */
+.narration-text { font-size: clamp(18px, 3.6vw + 6px, 26px); line-height: 1.85; max-width: min(100%, 25em); }
+.narration-text p { text-wrap: balance; }
+@media (max-height: 600px) { .narration-text { font-size: 17px; line-height: 1.75; } }
+
+/* 문제 화면의 지도 단추(hh 2026-10-27): 기본은 문제 화면, 원할 때 지도로 갔다가 돌아온다.
+   아래 오른쪽에 떠 있고, 시연 보직 줄·연결 안내가 있으면 그 위로 올라간다. 끝까지 내려도 내용을 가리지 않게 장면 아래를 비워 둔다 */
+.map-fab { position:absolute; right:14px; bottom:calc(14px + env(safe-area-inset-bottom,0px)); z-index:20; display:inline-flex; align-items:center; gap:6px; min-height:48px; padding:0 18px 0 15px; border-radius:999px; border:2px solid #347c66; background:#fffdf5; color:#2c4841; font:400 17px/1 var(--game); box-shadow:0 3px 0 #23533f40, 0 6px 14px #263a3726; cursor:pointer; }
+.map-fab:active { transform:translateY(2px); box-shadow:0 1px 0 #23533f40; }
+.map-fab:focus-visible { outline:3px solid #305c88; outline-offset:3px; }
+.game-canvas:has(> .map-fab) > .game-scene { padding-bottom:72px; }
+.game-canvas:has(> .demo-role-bar) > .map-fab { bottom:76px; }
+.game-canvas:has(> .error-banner) > .map-fab { display:none; }
+/* 기록 화면(사초)의 지휘관 출발 단추: 글을 읽는 동안에도 화면 아래에 붙어 있다 */
+.depart-dock { position:sticky; bottom:0; z-index:3; margin-top:auto; padding:18px 16px calc(14px + env(safe-area-inset-bottom,0px)); background:linear-gradient(to bottom, transparent, var(--paper) 30%); }
+.depart-dock .depart-button { width:100%; }
+/* 정찰원이 사진으로 대상을 찾으면 쌍안경을 내리고(평소 모습) 두 번 끄덕인다 */
+.mission-emblem.nod .role-portrait { animation:scout-nod 1.1s ease-in-out 2; transform-origin:50% 88%; }
+@keyframes scout-nod { 0%,100% { transform:none; } 30% { transform:translateY(3px) rotate(-3deg); } 60% { transform:translateY(-1px) rotate(1.5deg); } }
+@media (prefers-reduced-motion: reduce) { .mission-emblem.nod .role-portrait { animation:none; } }

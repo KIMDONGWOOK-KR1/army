@@ -34,6 +34,8 @@ import { ROLES } from "@/supabase/functions/_shared/types";
 // 화면 띠: 같은 장면(.game-scene) 안의 [data-hero-top] 아래 끝과 [data-hero-bottom] 위 끝 사이에
 // 장병을 둔다(제목과 아래 버튼판에 가리지 않게).
 
+// 첫 화면에서 한 사람씩 소품을 꺼내 보이는 간격·길이(초)
+const HOME_EMOTE = { every: 4.2, hold: 2.2, first: 1.2 };
 const MAP = jnu as unknown as MapData,
   ANCHORS = MAP.anchors;
 const xz = (p: [number, number]) => ({ x: p[0], z: p[1] });
@@ -146,6 +148,8 @@ export function HomeHero({ fallback }: { fallback: ReactNode }) {
         mount.add(hero.group);
         return { hero };
       });
+      let emoteClock = HOME_EMOTE.every - HOME_EMOTE.first,
+        emoteTurn = 0;
       // 장병 무리 가운데(바라볼 곳)와 정면에서 카메라 쪽(바깥) 방향
       const focus = new THREE.Vector3(
         spots.reduce((a, s) => a + s.x, 0) / spots.length,
@@ -159,6 +163,7 @@ export function HomeHero({ fallback }: { fallback: ReactNode }) {
       // 그림자 상자는 기준 카메라 자리에 묶어 카메라가 돌아도 그림자 지도를 자꾸 다시 그리지 않는다
       const anchorCam = new THREE.Object3D();
       let dist = 40;
+      let compiled = false;
       const place = (cam: THREE.Object3D, az: number, d: number, el: number) => {
         const a = outward + az;
         cam.position.set(
@@ -180,7 +185,7 @@ export function HomeHero({ fallback }: { fallback: ReactNode }) {
           botEl = stage?.querySelector("[data-hero-bottom]");
         const bandTop = topEl ? topEl.getBoundingClientRect().bottom - r.top : h * 0.3,
           bandBot = botEl ? botEl.getBoundingClientRect().top - r.top : h * 0.8;
-        dist = heroDistance(h, bandBot - bandTop, camera.fov);
+        dist = heroDistance(h, bandBot - bandTop, camera.fov, w);
         camera.setViewOffset(w, h, 0, bandOffset(h, bandTop, bandBot), w, h);
         camera.updateProjectionMatrix();
         // 지도 출처(ODbL)는 버튼판 바로 위 오른쪽에 둔다
@@ -188,7 +193,7 @@ export function HomeHero({ fallback }: { fallback: ReactNode }) {
           credit.current.style.top = `${Math.max(0, bandBot - 18)}px`;
         place(anchorCam, 0, dist, HOME.elevation);
         light.invalidate();
-        if (reduced) draw(performance.now());
+        if (reduced && compiled) draw(performance.now());
       };
 
       const stats: HomeStats | null =
@@ -227,7 +232,15 @@ export function HomeHero({ fallback }: { fallback: ReactNode }) {
           d = camera.position.distanceTo(aim);
         fog.near = d + HOME.fog.near;
         fog.far = Math.max(fog.near + 60, HOME.fog.far);
-        if (!reduced) for (const m of crew) m.hero.animate(dt, false, 0);
+        if (!reduced) {
+          // 동물의 숲 주민처럼 한 사람씩 차례로 자기 소품을 꺼내 보이고 다시 넣는다
+          emoteClock += dt;
+          if (emoteClock > HOME_EMOTE.every) {
+            emoteClock = 0;
+            crew[emoteTurn++ % crew.length].hero.emote(HOME_EMOTE.hold);
+          }
+          for (const m of crew) m.hero.animate(dt, false, 0);
+        }
         camera.updateMatrixWorld();
         world.update(focus.x, focus.z, camera);
         anchorCam.updateMatrixWorld();
@@ -263,8 +276,8 @@ export function HomeHero({ fallback }: { fallback: ReactNode }) {
       const loop = (t: number) => {
         frame = 0;
         if (!alive || document.hidden || core.lost) return;
-        frame = requestAnimationFrame(loop);
-        if (t - prev < (reduced ? 500 : step)) return;
+        if (!reduced) frame = requestAnimationFrame(loop);
+        if (!reduced && t - prev < step) return;
         prev = t;
         draw(t);
       };
@@ -290,6 +303,7 @@ export function HomeHero({ fallback }: { fallback: ReactNode }) {
         .compileAsync(scene, camera)
         .catch(() => undefined)
         .then(() => {
+          compiled = true;
           if (alive) wake();
         });
 

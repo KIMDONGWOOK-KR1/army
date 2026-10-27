@@ -1,6 +1,8 @@
 # BE v2 API 계약 — 정문·용봉관·추모의 벽·봉지
 
-2026-10-23 갱신 · FE: 이환희 / BE·Infra: 김종연 / 리뷰·머지: 김동욱
+2026-10-27 갱신 · FE: 이환희 / BE·Infra: 김종연 / 리뷰·머지: 김동욱
+
+**PR #18 통합:** 서버 계약은 유지한다. 사진 찾기는 로컬 모의 UI이고 사진 판정용 Edge 액션을 추가하지 않는다. 로컬 혼자 시연과 화면별 통합 기준은 [FE 통합 안내](../fe/PR18_INTEGRATION.md)를 따른다. 아래 입력 간소화·역할별 공개·GPS·헌화 규칙이 이전 FE 문서보다 우선한다.
 
 **이 문서는 현재 작업 브랜치의 서버 구현 계약이다.** 기준은 [v2 엔진](../../web/supabase/functions/_shared/engine-v2.ts)과 [응답 투영](../../web/supabase/functions/_shared/project-course-v2.ts)이다. 로컬 `/api/game`과 Supabase Edge `game`이 같은 엔진을 사용한다. 문서 갱신은 GitHub 병합·클라우드 배포 완료를 뜻하지 않으며 실제 접속 환경은 배포한 코드와 방에 연결된 코스 리비전을 따른다.
 

@@ -26,6 +26,7 @@ export default defineConfig({
       origins: [{ origin: baseURL, localStorage: [
         { name: "hoguk:narration", value: "off" },
         { name: "hoguk:stop", value: "off" },
+        { name: "hoguk:photo-gate", value: "off" },
       ] }],
     },
   },

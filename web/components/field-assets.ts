@@ -1,3 +1,4 @@
+import { facePoint } from "./soldier-face";
 import * as THREE from "three";
 import {
   GLTFLoader,
@@ -208,6 +209,7 @@ const SOCKET_BONES: Record<SoldierSocket, string> = {
   arm: "LeftArm",
 };
 export type SoldierLook = {
+  face?: number;
   skin?: string; // 피부 무늬를 바꿀 목표 색(sRGB). 모형 피부색(base)에 대한 배율로 칠한다.
   skinBase?: string;
   height?: number; // 키 배율
@@ -238,6 +240,16 @@ export function heroSoldier(
   }
   const box = new THREE.Box3();
   for (const s of skins) {
+    if (look.face !== undefined) {
+      s.geometry = s.geometry.clone();
+      s.geometry.userData.shared = false;
+      const positions = s.geometry.getAttribute("position");
+      for (let i = 0; i < positions.count; i++) {
+        positions.setXYZ(i, ...facePoint(positions.getX(i), positions.getY(i), positions.getZ(i), look.face));
+      }
+      positions.needsUpdate = true;
+      s.geometry.computeVertexNormals();
+    }
     s.geometry.computeBoundingBox();
     box.union(s.geometry.boundingBox!);
     s.material = roleTint(s.material as THREE.MeshStandardMaterial, role, skin);

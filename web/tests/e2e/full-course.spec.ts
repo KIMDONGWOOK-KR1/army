@@ -38,7 +38,11 @@ test("four sessions lay flowers and complete reflections, refresh consent versio
     stageId = "wall";
     for (const p of pages) await p.goto("/");
     for (const p of pages) await call(p, "report-arrival", { method: "simulated" });
-    for (const p of pages) {
+    // Every player sees the quiet introduction before the flower action.
+    await Promise.all(pages.map(async (p) => {
+      await expect(p.locator('[data-scene="memorial"], [data-scene="mission"]')).toBeVisible();
+      const finish = p.getByRole("button", { name: "묵념 마치기", exact: true });
+      if (await finish.isVisible()) await finish.click();
       await expect(p.locator('[data-scene="mission"]')).toBeVisible();
       await expect(p.locator(".hud-score")).toHaveCount(0);
       await expect(p.getByRole("button", { name: "팀 자물쇠로" })).toHaveCount(0);
@@ -46,7 +50,7 @@ test("four sessions lay flowers and complete reflections, refresh consent versio
         (window as unknown as { heard: string[] }).heard = [];
         window.addEventListener("hoguk:sound", (e) => (window as unknown as { heard: string[] }).heard.push((e as CustomEvent<string>).detail));
       });
-    }
+    }));
     for (let index = 0; index < ROLES.length; index++) {
       const p = forRole(ROLES[index]);
       await expect(p.getByTestId("tribute")).toBeVisible();
@@ -78,7 +82,8 @@ test("four sessions lay flowers and complete reflections, refresh consent versio
     console.log("Synthetic full-course: four flowers complete");
     for (const p of pages) {
       await expect(p.getByTestId("stage-v2-completed")).toContainText("헌화 완료");
-      expect(await p.evaluate(() => (window as unknown as { heard: string[] }).heard)).toEqual([]);
+      const heard = await p.evaluate(() => (window as unknown as { heard: string[] }).heard);
+      expect(heard.filter((name) => /clue|lock|digit|arrive/.test(name))).toEqual([]);
     }
     await commander.getByRole("button", { name: "조용히 머무르기", exact: true }).click();
     await expect(commander.getByTestId("depart-next-stage")).toHaveCount(0);

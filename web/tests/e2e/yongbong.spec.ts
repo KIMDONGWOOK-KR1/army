@@ -8,6 +8,7 @@ test("four sessions travel gate to Yongbong, relay records privately and retain 
     viewport: { width: 390, height: 844 }, reducedMotion: "reduce",
     storageState: { cookies: [], origins: [{ origin: baseURL!, localStorage: [
       { name: "hoguk:narration", value: "off" }, { name: "hoguk:stop", value: "off" }, { name: "hoguk:sound", value: "off" },
+      { name: "hoguk:photo-gate", value: "off" },
     ] }] },
   })));
   try {
@@ -71,7 +72,7 @@ test("four sessions travel gate to Yongbong, relay records privately and retain 
     await expect(classify.locator("select").first()).toBeEnabled();
     const classification = input.steps["Y-04.classify"].answer as Record<string, string>;
     for (const [key, value] of Object.entries(classification)) {
-      await classify.getByLabel(`[합성] 카드 ${key.toUpperCase()}`, { exact: true }).selectOption(value);
+      await classify.getByLabel(`카드 ${key.toUpperCase()}`, { exact: true }).selectOption(value);
     }
     await expect(classify.getByLabel("확인 방식", { exact: true })).toHaveCount(0);
     await expect(classify.getByLabel(/^확인한 출처/)).toHaveCount(0);
@@ -87,9 +88,12 @@ test("four sessions travel gate to Yongbong, relay records privately and retain 
     const snapshot = await call(commander, "get-stage");
     if (snapshot.stage.completion.type !== "lock") throw new Error("lock required");
     await call(commander, "open-lock", { digits: snapshot.stage.completion.order.map((r) => input.roles[r]!.digit) });
+    // 다음 거점이 있으면(전체 코스) 지휘관만 출발 버튼을, 나머지는 '함께 이동' 안내와 네 사람을 본다
+    const hasNext = snapshot.course.sites.some((site) => site.seq > snapshot.current_site.seq);
     for (const p of pages) {
       await expect(p.getByTestId("stage-v2-completed")).toContainText("실내 관람 아님");
-      await expect(p.getByTestId("depart-next-stage")).toHaveCount(0);
+      await expect(p.getByTestId("depart-next-stage")).toHaveCount(hasNext && p === commander ? 1 : 0);
+      if (hasNext && p !== commander) await expect(p.getByText("지휘관이 출발을 누르면 함께 이동해요.")).toBeVisible();
     }
     await cipher.reload();
     await cipher.getByRole("button", { name: "수집한 기록 읽기", exact: true }).click();

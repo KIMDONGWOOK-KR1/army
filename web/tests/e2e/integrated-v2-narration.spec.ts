@@ -152,7 +152,13 @@ for (const length of ["short", "long"] as const) {
     await expectButtonInsideViewport(page, commonDialog(page).getByRole("button", { name: "계속", exact: true }));
     await commonDialog(page).getByRole("button", { name: "계속", exact: true }).click();
     const personal = personalDialog(page);
-    await expect(personal.locator(".narration-text")).toHaveText(copy);
+    await expect(personal.locator(".narration-text")).toHaveText(copy, { useInnerText: true });
+    if (length === "long") {
+      const body = personal.locator(".narration-body");
+      expect(await body.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true);
+      await personal.locator(".narration-line").last().scrollIntoViewIfNeeded();
+      await expect(personal.locator(".narration-line").last()).toBeInViewport();
+    }
     const start = personal.getByRole("button", { name: "임무 시작", exact: true });
     await expectButtonInsideViewport(page, start);
     await expect(start).toBeFocused();

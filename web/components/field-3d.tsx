@@ -120,6 +120,8 @@ function skyDome() {
 type Avatar = {
   group: THREE.Group;
   animate(dt: number, moving: boolean, speed: number, t: number): void;
+  setCalm?(calm: boolean): void;
+  setAction?(on: boolean): void;
 };
 // role이 있으면 보직 소품과 사람마다 다른 모습(look: 멤버 id에서 정한다)을 입힌다.
 function avatar(
@@ -143,6 +145,8 @@ function avatar(
         // 길·물길 바닥(높이 0.35m까지) 위에 발을 딛게 한다
         hero.group.position.y = 0.36;
       },
+      setCalm: "setCalm" in hero ? hero.setCalm : undefined,
+      setAction: "setAction" in hero ? hero.setAction : undefined,
     };
   }
   const p = soldier(roleColor);
@@ -336,6 +340,7 @@ export function Field3D({
   fallback,
   fast = false,
   simulateMovement = true,
+  parked = false,
   onStatus,
   onMarkerTap,
 }: {
@@ -352,6 +357,8 @@ export function Field3D({
   // 발표용 자동 시연: 시연 이동을 빠르게 하고 카메라를 살짝 물린다
   fast?: boolean;
   simulateMovement?: boolean;
+  // 도착한 뒤 지도만 볼 때: GPS 위치가 없으면 내 장병을 지금 거점 앞에 세워 둔다(걷지 않는다)
+  parked?: boolean;
   onStatus?: (status: FieldStatus) => void;
   // 도착 반경 안에서 거점 표석을 눌렀다
   onMarkerTap?: () => void;
@@ -365,6 +372,7 @@ export function Field3D({
     distance,
     fast,
     simulateMovement,
+    parked,
     onStatus,
     onMarkerTap,
   });
@@ -376,6 +384,7 @@ export function Field3D({
     distance,
     fast,
     simulateMovement,
+    parked,
     onStatus,
     onMarkerTap,
   };
@@ -546,9 +555,13 @@ export function Field3D({
     };
 
     const pos = new THREE.Vector3();
+    // 시연 이동은 다리 처음에서 출발한다. 도착한 뒤 지도만 볼 때는 거점 앞에 멈춘 자리에서 시작한다
+    const startS = (seq: number) => live.current.parked
+      ? Math.max(0, world.legLength[legOf(seq)] - (live.current.target.radiusM || world.radius) * 0.5)
+      : 0;
     let seqNow = live.current.siteSeq,
-      goal: XZ = pointAlong(world.legs[legOf(seqNow)], 0),
-      demoS = 0,
+      demoS = startS(seqNow),
+      goal: XZ = pointAlong(world.legs[legOf(seqNow)], demoS),
       demoV = 0,
       heading = 0,
       speed = 0,
@@ -637,9 +650,10 @@ export function Field3D({
       const gps = fixOnMap();
       if (seq !== seqNow) {
         seqNow = seq;
-        demoS = demoV = 0;
+        demoS = startS(seq);
+        demoV = 0;
         if (!gps) {
-          goal = pointAlong(world.legs[legOf(seq)], 0);
+          goal = pointAlong(world.legs[legOf(seq)], demoS);
           pos.set(goal.x, 0, goal.z);
         }
         aimCamera(seq);
@@ -692,7 +706,7 @@ export function Field3D({
         heading += diff * Math.min(1, dt * (moving ? 8 : 2.5));
       }
       player.animate(dt, moving, speed, t);
-      player.group.visible = !!gps || live.current.simulateMovement;
+      player.group.visible = !!gps || live.current.simulateMovement || live.current.parked;
       player.group.position.x = pos.x;
       player.group.position.z = pos.z;
       player.group.rotation.y = heading;
@@ -704,10 +718,14 @@ export function Field3D({
       const remain =
           judged !== null
             ? judged
-            : live.current.simulateMovement ? Math.hypot(site.x - pos.x, site.z - pos.z) : Infinity,
+            : live.current.simulateMovement || live.current.parked ? Math.hypot(site.x - pos.x, site.z - pos.z) : Infinity,
         inside = remain <= radius,
         calm = !!tg.reverent || calmAt(site.x, site.z);
       insideNow = inside;
+      // 평소에는 소품을 넣고 걷다가, 도착 범위 안(현장 조사)에서만 꺼내 든다.
+      // 추모 거점으로 가는 길과 조용한 구역 안에서는 꺼내지 않는다.
+      player.setCalm?.(calm || calmAt(pos.x, pos.z));
+      player.setAction?.(inside);
       // 조용한 구역: 들어설 때는 구역 경계에서, 나갈 때는 QUIET_EXIT_M 더 벗어나야(GPS 흔들림에 배경음이
       // 들락날락하지 않게)
       const pad = quietNow ? QUIET_EXIT_M : 0;

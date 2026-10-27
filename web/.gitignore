@@ -2,3 +2,6 @@
 playwright-report/
 test-results/
 *.tsbuildinfo
+
+# 개발 서버 https(폰 카메라 시험)용 자체 서명 인증서와 키. 커밋하지 않는다
+certificates/
