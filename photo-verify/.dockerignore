@@ -1,0 +1,13 @@
+.venv
+**/__pycache__
+.pytest_cache
+tests
+bench
+eval
+docs
+*.onnx
+*.npz
+thresholds.json
+private
+.env*
+*.private.local.json

@@ -19,6 +19,7 @@
 | [개발 지침](codex-handoff-v2/AGENTS.md) | 기술 스택, 정답 보호, 장소 원칙, 개발·PR 규칙 |
 | [작업 인수인계](codex-handoff-v2/HANDOFF.md) | 이전 작업 기록과 최신 역할·일정 변경 |
 | [코스 데이터](codex-handoff-v2/data/courses/jnu.json) | 전남대 두 거점의 데이터 구조와 미확정 값 |
+| [현장 사진 판정](photo-verify/README.md) | `photo-verify/`의 사진 판정 모델·평가 도구·추론 서버 |
 
 ## MVP 범위
 
