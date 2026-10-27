@@ -105,6 +105,22 @@ describe("Yongbong v2", () => {
     await expect(t.call("commander", { action: "depart-next-site" })).rejects.toMatchObject({ code: "NO_STAGE" });
   });
 
+  it("charges ten points at each paid hint level once after travelling to Yongbong", async () => {
+    const t = await setup(); await t.call("commander", { action: "depart-next-site" }); await t.arrive();
+    const startingScore = t.game.score;
+    for (const [level, deducted] of [[1, 0], [2, 10], [3, 20]]) {
+      const command = { action: "request-hint", target_role: "scout" as const, level, request_id: `paid-hint-${level}` };
+      await t.call("commander", command);
+      expect(t.game.score).toBe(startingScore - deducted);
+      const version = t.game.version, count = t.events.length;
+      await t.call("commander", command);
+      expect(t.game.score).toBe(startingScore - deducted);
+      expect(t.game.version).toBe(version); expect(t.events).toHaveLength(count);
+    }
+    expect(t.events.filter((event) => event.action === "request-hint" && event.stage_id === "yongbong")
+      .map((event) => event.data.penalty)).toEqual([0, 10, 10]);
+  });
+
   it("marks an absent material record honestly after level three and permits the explanation path", async () => {
     const t = await setup(); await t.call("commander", { action: "depart-next-site" }); await t.arrive();
     for (const role of ["signal", "scout", "cipher", "commander"] as const) {

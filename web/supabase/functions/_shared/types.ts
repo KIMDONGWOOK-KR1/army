@@ -234,6 +234,7 @@ export type Step = {
   recordFrom?: StepRef;
   requiresReports?: Role[];
   grading: Grading;
+  // Legacy course metadata; submit-step no longer requires source input.
   sourceRequired?: boolean;
   sourceIds?: string[];
   answerCount?: number;
@@ -282,7 +283,13 @@ export type Stage = {
   // Optional public reward text. Released only after this stage is completed.
   sacho?: { id: string; name: string; sections: string[]; char?: string; body?: string };
   altModes?: { id: string; label: string }[];
-  recordTemplate?: { prompt: string; wordChoices: string[]; wordCount: number };
+  recordTemplate?: {
+    prompt: string;
+    wordChoices: string[];
+    wordCount: number;
+    // Optional fixed prose around the selected words, in selection order.
+    sentenceParts?: string[];
+  };
 };
 export type CourseV2Content = {
   schemaVersion: 2;
@@ -365,7 +372,7 @@ export type GameV2State = {
   retros?: Record<string, Partial<Record<Role, { text: string; at: number }>>>;
   sacho: Record<string, {
     completedAt: number;
-    eventOrder: { stepId: string; method: VerifyMethod; verified: boolean }[];
+    eventOrder: { stepId: string; method: VerifyMethod | null; verified: boolean }[];
     observations: {
       role: Role;
       stepId: string;
@@ -379,7 +386,7 @@ export type GameV2State = {
     sources: {
       role: Role;
       stepId: string;
-      method: VerifyMethod;
+      method: VerifyMethod | null;
       text: string;
       source_id?: string;
     }[];

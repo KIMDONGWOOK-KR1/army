@@ -50,8 +50,8 @@ export function JournalV2({ snapshot }: { snapshot: V2Response }) {
                   <section className={styles.note} key={entry.step_id}>
                     <h5>{entry.prompt}</h5>
                     <p>
-                      {entry.verified ? "조사 검증 완료" : "해설로 확인"} ·{" "}
-                      {methods[entry.method] ?? "확인 완료"}
+                      {entry.verified ? "조사 검증 완료" : "해설로 확인"}
+                      {entry.method && <> · {methods[entry.method] ?? "확인 완료"}</>}
                     </p>
                     {Object.values(entry.record ?? {}).map((text, i) => (
                       <p key={i}>{text}</p>

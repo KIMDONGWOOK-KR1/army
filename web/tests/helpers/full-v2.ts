@@ -3,7 +3,7 @@ import { projectGameV2 } from "../../supabase/functions/_shared/engine-v2";
 import { fullDemoCourseV2, fullDemoV2Input } from "../../supabase/functions/_shared/wall-bongji-course-v2";
 import { ROLES, type Command, type GameEvent, type Role } from "../../supabase/functions/_shared/types";
 
-export async function fullTeam() {
+export async function fullTeam(options: { evidence?: boolean } = {}) {
   const salt = crypto.randomUUID(), id = "jnu-demo-dev-full-test";
   const course = await fullDemoCourseV2(id, salt), input = fullDemoV2Input(id).privateInput;
   const game = createGame("one", "연습1", course, 100000, "TEST");
@@ -24,8 +24,9 @@ export async function fullTeam() {
     for (const step of stage.roles[role]!.steps) {
       const answer = input.stages[stage.id].steps[step.id].answer ?? (step.fields
         ? Object.fromEntries(step.fields.map((f) => [f.id, `[합성] ${stage.id}-${role} 비공개 ${f.id}`])) : "[합성] 자유 기록");
-      await call(role, { action: "submit-step", step_id: step.id, answer, method: "official_digital",
-        source: { text: `[합성] ${stage.id}-${role} 비공개 출처` } });
+      await call(role, { action: "submit-step", step_id: step.id, answer,
+        ...(options.evidence === false ? {} : { method: "official_digital" as const,
+          source: { text: `[합성] ${stage.id}-${role} 비공개 출처` } }) });
     }
     await call(role, { action: "submit-report" });
   };
