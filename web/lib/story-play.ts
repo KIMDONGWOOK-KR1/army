@@ -1,4 +1,5 @@
 import type { Role, Step, StepAnswer, StepType } from "@/supabase/functions/_shared/types";
+import { serializeAnswerV2 } from "@/supabase/functions/_shared/answer-v2";
 
 // Presentation only. Questions, choices, records and judgements come from the server.
 export const STORY_TOOLS: Record<Role, { name: string; handoff: string }> = {
@@ -33,23 +34,42 @@ export function usesGateStory(stageId: string, steps: readonly Step[]) {
     steps.every((step) => !step.id.endsWith(".legacy") && step.type in inputCopy);
 }
 
+/** Older local drafts may contain numeric choices; the server wire format is string-only. */
+export function normalizeMappingDraft(answer: unknown): Record<string, string> | null {
+  if (!answer || typeof answer !== "object" || Array.isArray(answer) ||
+    ![Object.prototype, null].includes(Object.getPrototypeOf(answer))) return null;
+  const pairs: [string, string][] = [];
+  for (const [key, value] of Object.entries(answer)) {
+    if (typeof value !== "string" && !(typeof value === "number" && Number.isSafeInteger(value))) return null;
+    pairs.push([key, String(value).normalize("NFC").trim().replace(/\s+/gu, " ")]);
+  }
+  return Object.fromEntries(pairs);
+}
+
+export function storySubmissionAnswer(step: Step, answer: StepAnswer): StepAnswer {
+  if (step.grading !== "map-hash") return answer;
+  const normalized = normalizeMappingDraft(answer);
+  if (!normalized) throw new Error("연결할 선택지를 확인하라.");
+  serializeAnswerV2(step, normalized);
+  return normalized;
+}
+
 /** Completeness and input shape only. Correctness is exclusively decided by the server. */
-export function hasCompleteDraft(step: Step, answer: StepAnswer) {
+export function hasCompleteDraft(step: Step, answer: unknown) {
   if (step.grading === "map-hash") {
-    if (answer === null || typeof answer !== "object" || Array.isArray(answer)) return false;
-    const fields = step.fields ?? [];
-    if (!fields.length || Object.keys(answer).length !== fields.length) return false;
-    const choices = fields.map((field) => answer[field.id]);
-    if (choices.some((value) => typeof value !== "string" ||
-      !/^[1-9]\d*$/.test(value.trim()) || Number(value) > (step.choices?.length ?? 0))) return false;
-    return step.type === "classification" || new Set(choices.map((value) => value.trim())).size === fields.length;
+    const normalized = normalizeMappingDraft(answer);
+    if (!normalized) return false;
+    try { serializeAnswerV2(step, normalized); return true; }
+    catch { return false; }
   }
   if (step.fields?.length) {
     if (answer === null || typeof answer !== "object" || Array.isArray(answer)) return false;
-    return step.fields.every((field) => !field.required || !!answer[field.id]?.trim());
+    const record = answer as Record<string, unknown>;
+    return step.fields.every((field) => !field.required ||
+      (typeof record[field.id] === "string" && !!(record[field.id] as string).trim()));
   }
   if (step.type === "truefalse" || step.type === "order" || step.type === "words" || step.grading === "set-hash") {
-    if (!Array.isArray(answer) || answer.length === 0 || answer.some((value) => !value.trim())) return false;
+    if (!Array.isArray(answer) || answer.length === 0 || answer.some((value) => typeof value !== "string" || !value.trim())) return false;
     const count = step.type === "truefalse" ? step.statements?.length
       : step.type === "order" ? step.choices?.length : step.answerCount;
     if (count !== undefined && answer.length !== count) return false;

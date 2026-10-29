@@ -133,18 +133,21 @@ export function ResultV2({ snapshot: s }: { snapshot: V2Response }) {
     </section>
     <ExpeditionPassport snapshot={s} />
     <p>조사 {result.investigation.completed}/{result.investigation.total} · 사초 {result.sacho.completed}/{result.sacho.total}</p>
-    {result.stages.map((stage) => <section key={stage.stage_id} className={styles.card}>
+    {result.stages.map((stage) => {
+      const tribute = isTributeCompletion(stage);
+      return <section key={stage.stage_id} className={styles.card}>
       <h2>{stage.name} · {stage.completion}</h2><p>{plain(stage.summary)}</p>
       <p>도착: {stage.arrival_method === "simulated" ? "모의 확인" : "GPS 확인"}{stage.visit_mode === "outdoor" ? " · 외부 대체 조사" : ""}</p>
-      {isTributeCompletion(stage) && <p>국화 {stage.roles.filter((r) => r.reported).length}송이를 함께 올렸다.</p>}
-      <ul>{stage.roles.map((r) => isTributeCompletion(stage) ? <li key={r.role}>
+      {tribute && <p>국화 {stage.roles.filter((r) => r.reported).length}송이를 함께 올렸다.</p>}
+      <ul>{stage.roles.map((r) => tribute ? <li key={r.role}>
         {ROLE_NAMES[r.role]} · {r.reported ? "국화를 올림" : "헌화 대기"}
       </li> : <li key={r.role}>{ROLE_NAMES[r.role]} · 조사 {r.completed}/{r.total} · 보고 {r.reported ? "완료" : "대기"}
         {` · 힌트 ${r.hint_level}단계 · 해설 ${r.explained}건 · 기록 ${r.records}건 · 교차 확인 ${r.cross_checks}건`}
         {!!r.methods.length && <><br />확인 방식: {r.methods.map((m) => ({ field: "현장", official_digital: "공식 디지털 자료", explained: "해설", simulated: "모의", proxy: "대리 확인" }[m])).join(", ")}</>}
       </li>)}</ul>
       {stage.memorial_record && <><blockquote>{stage.memorial_record.text}</blockquote><p>근거: {stage.memorial_record.reason}</p></>}
-    </section>)}
+    </section>;
+    })}
     {result.joint_records.map((record) => <section key={record.stage_id} className={styles.card} data-testid="final-joint-record">
       <h2>최종 공동 기록</h2><p>{record.words?.map(plain).join(" · ")}</p><blockquote>{record.text}</blockquote><p>근거: {record.reason}</p>
       <p>회고 {record.retro_mask.filter(Boolean).length}/4 · 동의 {record.confirm_mask?.filter(Boolean).length}/4</p>

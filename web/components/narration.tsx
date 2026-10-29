@@ -36,8 +36,9 @@ export function Narration({
   // Reserve the complete sentence layout so typing does not move words between lines.
   const reveal = (start: number, end: number) => {
     const text = full.slice(start, end);
-    const count = Math.min(text.length, Math.max(0, shown - start));
-    const caret = !done && shown >= start && shown <= end;
+    const position = Math.min(shown, full.length);
+    const count = Math.min(text.length, Math.max(0, position - start));
+    const caret = position >= start && position <= end;
     return <>{text.slice(0, count)}{caret && <span
       data-testid="narration-caret-anchor"
       style={{ position: "relative" }}

@@ -9,7 +9,7 @@ import {
 import { ROLES } from "./types.ts";
 import { projectJournalV2 } from "./project-journal-v2.ts";
 import { researchV2, sharedRecordsV2, visitV2 } from "./yongbong-v2.ts";
-import { closingProjectionV2, completionLabelV2, completionTypeV2, draftV2, requireDraftVersion, resultV2 } from "./closing-v2.ts";
+import { closingProjectionV2, completionLabelV2, draftV2, requireDraftVersion, resultV2 } from "./closing-v2.ts";
 import type {
   Command,
   Course,
@@ -201,11 +201,6 @@ export function projectGameV2(
   const lock = game.locks[stage.id] ?? blankLock();
   const completed = state.completed[stage.id];
   const info = siteInfoV2(stage, !!completed);
-  // Counts are public; mission text and grading remain in the role's private projection.
-  // Optional typing keeps clients compatible with snapshots from an older Edge version.
-  const stepTotals: { step_total_count?: Record<Role, number> } = {
-    step_total_count: Object.fromEntries(ROLES.map((r) => [r, stage.roles[r]?.steps.length ?? 0])) as Record<Role, number>,
-  };
   const publicGame: Snapshot["game"] = {
     id: game.id,
     code: game.code,
@@ -260,7 +255,7 @@ export function projectGameV2(
       completion: completed ? {
         at: completed.at,
         method: completed.method,
-        ...completionTypeV2(stage),
+        completion_type: stage.completion.type,
         label: completionLabelV2(stage, completed.method),
         ...(visitV2(stage, state) ? { visit: visitV2(stage, state) } : {}),
       } : null,
@@ -273,7 +268,8 @@ export function projectGameV2(
           (r) => [r, Object.values(progress[r].steps).filter(done).length],
         ),
       ),
-      ...stepTotals,
+      // Counts are public; mission text and grading remain in the role's private projection.
+      step_total_count: Object.fromEntries(ROLES.map((r) => [r, stage.roles[r]?.steps.length ?? 0])) as Record<Role, number>,
       hint_level: Object.fromEntries(
         ROLES.map((r) => [r, progress[r].hintLevel]),
       ),
@@ -447,7 +443,7 @@ function finish(
   return {
     opened: true,
     method,
-    ...completionTypeV2(stage),
+    completion_type: stage.completion.type,
     label: completionLabelV2(stage, method),
     sacho_id: stage.sacho?.id ?? null,
     ...(visitV2(stage, state) ? { visit: visitV2(stage, state) } : {}),

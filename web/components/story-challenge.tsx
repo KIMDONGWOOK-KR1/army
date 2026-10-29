@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { CornerDownRight, Send } from "lucide-react";
 import { isV2Response, type GameResponse, type V2Response } from "@/lib/game-snapshot";
 import type { Command, Step, StepAnswer } from "@/supabase/functions/_shared/types";
-import { hasCompleteDraft, playCopy } from "@/lib/story-play";
+import { hasCompleteDraft, playCopy, storySubmissionAnswer } from "@/lib/story-play";
 import { emptyStepAnswer } from "./verify-input";
 import { StoryStepInput } from "./story-step-input";
 import { ClueParcel, DiscoveryStamp, type Discovery } from "./story-discovery";
@@ -41,7 +41,8 @@ export function StoryChallenge({ step, snapshot, busy, send, discovery }: StoryP
   return <form ref={form} className={s.challenge} data-testid={`mission-v2-step-${step.id}`} autoComplete="off" onSubmit={async (e) => {
     e.preventDefault(); if (busy || !available || !hasCompleteDraft(step, answer)) return;
     setFeedback("");
-    const next = await send({ action: "submit-step", stage_id: snapshot.stage.id, step_id: step.id, answer });
+    const next = await send({ action: "submit-step", stage_id: snapshot.stage.id, step_id: step.id,
+      answer: storySubmissionAnswer(step, answer) });
     if (!next || !isV2Response(next)) return;
     if (next.result?.accepted === false) setFeedback(snapshot.self.mission?.scenes.find((scene) => scene.trigger === "retry")?.text
       ?? "아직 맞물리지 않는 단서가 있어요. 근거를 다시 대조해보세요. 문제 오답은 자물쇠 시도 횟수를 줄이지 않습니다.");

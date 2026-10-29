@@ -73,6 +73,17 @@ async function expectButtonInsideViewport(page: Page, button: Locator) {
   expect(width).toBeLessThanOrEqual(viewport.width + 1);
 }
 
+async function expectCaretAtEnd(dialog: Locator, lastLine: string) {
+  const anchor = dialog.getByTestId("narration-caret-anchor");
+  await expect(anchor).toHaveCount(1);
+  await expect(anchor.locator(".narration-caret")).toBeVisible();
+  await expect(dialog.locator(".narration-line").last().getByTestId("narration-caret-anchor")).toHaveCount(1);
+  await expect.poll(() => anchor.evaluate((element) => ({
+    before: element.previousSibling?.textContent ?? "",
+    after: element.nextSibling?.textContent ?? "",
+  }))).toEqual({ before: lastLine, after: "" });
+}
+
 test.use({ reducedMotion: "reduce", trace: "off", screenshot: "off", video: "off" });
 
 for (const role of ROLES) {
@@ -137,7 +148,7 @@ test("공통 안내 도중 단계가 끝나도 아직 열지 않은 개인 안�
   await expect(page.locator('[data-scene="sacho"]')).toBeVisible();
   await expect(page.locator(".narration")).toHaveCount(0);
   const seen = await page.evaluate((id) => ({
-    common: sessionStorage.getItem(`hoguk:narration-seen:${id}:arrive:gate:common:scout`),
+    common: sessionStorage.getItem(`hoguk:narration-seen:${id}:arrive:gate:common`),
     personal: sessionStorage.getItem(`hoguk:narration-seen:${id}:arrive:gate:personal:scout`),
   }), fixture.game.id);
   expect(seen).toEqual({ common: "1", personal: null });
@@ -154,6 +165,18 @@ test("기존 arrive:gate 읽음 기록으로 재접속해도 새 개인 안내�
   await expectPrivateCopyOnly(page, "signal");
   await expect(commonDialog(page)).toHaveCount(0);
 });
+
+for (const savedRole of ["unassigned", "scout"] as const) {
+  test(`기존 common:${savedRole} 읽음 기록으로 재접속하면 개인 안내부터 표시한다`, async ({ page }) => {
+    const fixture = fixtureFor("signal");
+    await page.addInitScript(({ id, savedRole }) => {
+      sessionStorage.setItem(`hoguk:narration-seen:${id}:arrive:gate:common:${savedRole}`, "1");
+    }, { id: fixture.game.id, savedRole });
+    await renderFixture(page, fixture);
+    await expectPrivateCopyOnly(page, "signal");
+    await expect(commonDialog(page)).toHaveCount(0);
+  });
+}
 
 test("타자 커서는 문장 배치를 움직이지 않고 출력 중인 글자 뒤를 따른다", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "no-preference" });
@@ -173,9 +196,22 @@ test("타자 커서는 문장 배치를 움직이지 않고 출력 중인 글자
   expect(after!.width).toBeCloseTo(textBox!.width, 1);
   expect(after!.height).toBeCloseTo(textBox!.height, 1);
   await dialog.getByRole("button", { name: "한 번에 읽기", exact: true }).click();
-  await expect(anchor).toHaveCount(0);
+  await expectCaretAtEnd(dialog, fixture.stage.narration[0].text);
   await expect(dialog.getByRole("button", { name: "계속", exact: true })).toBeVisible();
 });
+
+for (const reducedMotion of ["no-preference", "reduce"] as const) {
+  test(`${reducedMotion}: 안내가 모두 표시되어도 마지막 글자 뒤 커서를 유지한다`, async ({ page }) => {
+    await page.emulateMedia({ reducedMotion });
+    const fixture = fixtureFor("scout");
+    fixture.stage.narration[0].text = "[합성] 안내.\n마지막 문장.";
+    await renderFixture(page, fixture);
+    const dialog = commonDialog(page);
+    await expect(dialog.getByRole("button", { name: "계속", exact: true })).toBeVisible();
+    await expectCaretAtEnd(dialog, "마지막 문장.");
+    await expect(dialog.getByRole("button", { name: "한 번에 읽기", exact: true })).toHaveCount(0);
+  });
+}
 
 test("나레이션 끄기 옵션은 공통·개인 화면을 함께 건너뛴다", async ({ page }) => {
   const fixture = fixtureFor("signal");
@@ -210,6 +246,21 @@ test("나중에 본인 임무가 도착하면 이미 읽은 공통 안내 없이
   // The normal local refresh must notice the new self projection without
   // closing the page or resetting the user's narration progress.
   await expectPrivateCopyOnly(page, "commander");
+  await expect(commonDialog(page)).toHaveCount(0);
+});
+
+test("역할 배정 전에 공통 안내를 읽으면 배정 후 개인 안내만 표시한다", async ({ page }) => {
+  const fixture = fixtureFor("scout");
+  const mission = fixture.self.mission;
+  fixture.self.role = null;
+  fixture.self.mission = null;
+  await renderFixture(page, fixture);
+  await commonDialog(page).getByRole("button", { name: "계속", exact: true }).click();
+  await expect(page.locator(".narration")).toHaveCount(0);
+  fixture.self.role = "scout";
+  fixture.self.mission = mission;
+  fixture.version += 1; fixture.game.version += 1;
+  await expectPrivateCopyOnly(page, "scout");
   await expect(commonDialog(page)).toHaveCount(0);
 });
 

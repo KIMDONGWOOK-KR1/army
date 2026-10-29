@@ -35,7 +35,7 @@ function gpsSetup() {
 }
 
 describe("private content dev review registration preparation", () => {
-  it("preserves a no-arrival prologue when registering a GPS review course", async () => {
+  it.each(["gps", "simulated"])("preserves a no-arrival prologue when registering a %s review course", async (mode) => {
     const t = gpsSetup();
     const intro = demoV2Input("jnu-demo-dev-test-intro");
     for (const stage of t.source.content.stages) stage.seq++;
@@ -43,11 +43,25 @@ describe("private content dev review registration preparation", () => {
     t.source.privateInput.stages.intro = intro.privateInput.stages.intro;
     const before = structuredClone(t.source);
 
-    const { course } = await prepareReviewSeed(t.gpsArgs, t.env, t.load);
+    const { course } = await prepareReviewSeed(mode === "gps" ? t.gpsArgs : t.args, t.env, t.load);
 
     expect(course.stages[0]).toEqual(before.content.stages[0]);
     expect(course.stages[0].arrival.mode).toBe("none");
     expect(gpsArrivalPending(course, course.stages[0])).toBe(false);
+    expect(t.source).toEqual(before);
+  });
+
+  it.each(["gps", "simulated"])("rejects an invalid prologue arrival in %s review mode", async (mode) => {
+    const t = gpsSetup(), intro = demoV2Input("jnu-demo-dev-test-intro");
+    for (const stage of t.source.content.stages) stage.seq++;
+    const prologue = intro.content.stages[0];
+    prologue.arrival = { ...t.source.content.stages[0].arrival };
+    t.source.content.stages.unshift(prologue);
+    t.source.privateInput.stages.intro = intro.privateInput.stages.intro;
+    const before = structuredClone(t.source);
+
+    await expect(prepareReviewSeed(mode === "gps" ? t.gpsArgs : t.args, t.env, t.load))
+      .rejects.toThrow(/프롤로그/);
     expect(t.source).toEqual(before);
   });
 

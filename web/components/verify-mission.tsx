@@ -15,6 +15,7 @@ import { MissionV2 } from "./mission-v2";
 import { MemorialDeparture } from "./closing-v2";
 import { NextStageAction, YongbongPanel } from "./yongbong-panel";
 import { MissionAsset } from "./mission-asset";
+import { roleStepsComplete } from "@/lib/hint-availability";
 
 type Send = (command: Command) => Promise<V2Response | null>;
 const statusLabels = {
@@ -378,7 +379,7 @@ export function VerifyMission({ snapshot, busy, now, send }: {
                   type="button"
                   className="button"
                   disabled={busy || level >= 3 || game.report_mask[index] ||
-                    (target === role && allDone)}
+                    roleStepsComplete(snapshot, target)}
                   onClick={() =>
                     void act({
                       action: "request-hint",
