@@ -3,7 +3,8 @@
 // 카메라 동그라미 안에 맞추고 잠깐 멈추면 알아서 찍어 확인한다. 맞으면 동그라미가 금빛 체크로 바뀌고
 // 도장이 기록첩으로 들어간다. 틀릴수록 실루엣이 선명해지고 2번째에는 위치를 알려 준다.
 // 3번 틀리면 '사진 검증 실패 후 통과'로 사진 단계만 넘어가고, 뒤 문제와 보고는 그대로 남는다.
-// 판정은 아직 PR #17의 모의 판정기다(개발 서버 전용). 판정기가 돌려주는 것은 맞음/다시 찍기뿐이다.
+// 판정은 PR #17의 모의 판정기다(개발 서버 전용). NEXT_PUBLIC_PHOTO_VERIFY=local이면 로컬 사진 판정 서버가 실제로 판정한다.
+// 어둡거나 흔들려 판정하지 못한 사진(다시 찍기)은 실패로 세지 않는다.
 import { type RefObject, useEffect, useRef, useState } from "react";
 import { BookOpen, Camera, CameraOff, ScanSearch, X } from "lucide-react";
 import type { PhotoGateState, PhotoOutcome, PhotoUnavailableReason } from "@/lib/scout-photo/contract";
@@ -258,6 +259,10 @@ export function ScoutScan({ site, scope, onSettled }: {
       }
       setPhoto(null);
       setPhase("clue");
+      if (reply.result.kind === "photo_retake") {
+        setMessage("어둡거나 흔들려서 확인하지 못했어요. 실패로 세지 않아요. 표지석 가까이에서 다시 비춰 봐요.");
+        return;
+      }
       if (reply.result.kind === "photo_failed_pass") {
         setMessage("사진 검증 실패 후 통과");
         settled.current(reply.state);
@@ -365,17 +370,19 @@ export function ScoutScan({ site, scope, onSettled }: {
       <p className={styles.message} role="status" aria-live="polite">{message}</p>
       <p className={styles.privacy}>사람 얼굴·명찰·차량 번호가 나오지 않게 표지석만 비춰요. 사진은 확인에만 쓰고 남기지 않아요.</p>
 
-      {/* 판정 서버와 잇기 전까지 쓰는 개발용 모의 판정(개발 서버에서만 보인다) */}
-      <fieldset className={styles.dev} disabled={judging}>
+      {/* 판정 서버와 잇기 전까지 쓰는 개발용 모의 판정(개발 서버에서만 보인다). 실제 판정을 쓰면 숨긴다 */}
+      {session.real ? (
+        <p className={styles.privacy} data-testid="scout-scan-real">로컬 사진 판정 서버로 확인해요(개발용 임시 기준).</p>
+      ) : <fieldset className={styles.dev} disabled={judging}>
         <legend>시연 판정 · 판정 서버 미연결</legend>
-        {([["match", "맞게"], ["no_match", "다르게"], ["service_error", "연결 오류"]] as const).map(([value, label]) => (
+        {([["match", "맞게"], ["no_match", "다르게"], ["retake", "다시 찍기"], ["service_error", "연결 오류"]] as const).map(([value, label]) => (
           <label key={value}>
             <input type="radio" name={`${scope}-outcome`} value={value} checked={outcome === value}
               onChange={() => { setOutcome(value); session.outcome = value; session.client.setPhotoOutcome(value); }} />
             {label}
           </label>
         ))}
-      </fieldset>
+      </fieldset>}
     </section>
   );
 }

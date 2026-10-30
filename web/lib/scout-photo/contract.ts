@@ -1,5 +1,6 @@
 /** UI prototype contract; this is not a deployed game action or Snapshot schema. */
-export type PhotoOutcome = "match" | "no_match" | "service_error";
+/** retake: the verifier skipped judging for quality (dark/blurred). Not counted as a failure. */
+export type PhotoOutcome = "match" | "no_match" | "retake" | "service_error";
 export type ChoiceOutcome = "accepted" | "rejected";
 export type PhotoUnavailableReason =
   | "camera_unavailable"
@@ -57,6 +58,7 @@ export type PhotoGateErrorCode =
 export type PhotoGateResult =
   | { kind: "state" }
   | { kind: "photo_verified" }
+  | { kind: "photo_retake" }
   | {
       kind: "photo_retry" | "photo_failed_pass";
       reason: "no_match" | PhotoUnavailableReason;

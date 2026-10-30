@@ -35,7 +35,8 @@ function wait(delayMs: number, signal?: AbortSignal): Promise<void> {
 }
 
 /**
- * In-memory, dev/test-only simulation. No fetch, persistence, scoring, or inference.
+ * In-memory, dev/test-only simulation. No fetch, persistence, scoring, or inference
+ * of its own; inference happens only through an optional dev `judge`.
  * Receipts retain action metadata/results only, never a Blob, filename, image URL,
  * image bytes, or embedding. Photo fingerprints use MIME + size, so this mock does
  * not detect different images with the same metadata; real BE must validate that.
@@ -43,6 +44,11 @@ function wait(delayMs: number, signal?: AbortSignal): Promise<void> {
 export function createMockPhotoGateClient(options: {
   mission?: ScoutPhotoMission;
   delayMs?: number;
+  /**
+   * Dev-only real judge. When set, the photo outcome comes from this call instead of
+   * setPhotoOutcome; failure counting and receipts stay the same as the mock.
+   */
+  judge?: (photo: Blob, stepId: string, signal?: AbortSignal) => Promise<PhotoOutcome>;
 } = {}): PhotoGateMockClient {
   if (process.env.NODE_ENV === "production") {
     throw new Error("사진 검증 mock은 개발 환경에서만 사용할 수 있습니다.");
@@ -123,7 +129,7 @@ export function createMockPhotoGateClient(options: {
     getState: async () => reply(null, { kind: "state" }),
     setPhotoOutcome: (outcome) => { photoOutcome = outcome; },
     setChoiceOutcome: (outcome) => { choiceOutcome = outcome; },
-    submitPhoto: (input, signal) => {
+    submitPhoto: async (input, signal) => {
       const validPhoto = input.photo instanceof Blob && input.photo.size > 0;
       const fingerprint = JSON.stringify([
         "photo", input.stepId, validPhoto ? input.photo.type : null,
@@ -131,7 +137,11 @@ export function createMockPhotoGateClient(options: {
       ]);
       // Only primitives enter the delayed operation; the input Blob is not retained.
       const { requestId, stepId } = input;
-      const outcome = photoOutcome;
+      let outcome = photoOutcome;
+      // Judge only a new, acceptable request; replays and guarded steps never reach the verifier.
+      if (options.judge && validPhoto && requestId.trim() && !receipts.has(requestId) && !photoGuard(stepId)) {
+        outcome = await options.judge(input.photo, stepId, signal);
+      }
       return run(requestId, fingerprint, () => {
         const guard = photoGuard(stepId);
         if (guard) return guard;
@@ -139,6 +149,7 @@ export function createMockPhotoGateClient(options: {
         if (outcome === "service_error") {
           return error("SERVICE_UNAVAILABLE", "검증 서비스를 사용할 수 없습니다. 다시 시도해 주세요.", true);
         }
+        if (outcome === "retake") return { kind: "photo_retake" };
         if (outcome === "no_match") return failPhoto("no_match");
         state.photo.status = "verified";
         state.photo.verified = true;

@@ -108,6 +108,37 @@ describe("scout photo UI mock", () => {
     expect((await client.getState()).source).toBe("mock");
   });
 
+  it("does not count a retake as a failure", async () => {
+    const client = createMockPhotoGateClient({ delayMs: 0 });
+    client.setPhotoOutcome("retake");
+    for (const id of ["r1", "r2", "r3"]) {
+      const reply = await client.submitPhoto(photoInput(id));
+      expect(reply.result.kind).toBe("photo_retake");
+      expect(reply.state.photo).toMatchObject({ status: "pending", failureCount: 0, verified: false });
+    }
+    client.setPhotoOutcome("match");
+    expect((await client.submitPhoto(photoInput("r4"))).result.kind).toBe("photo_verified");
+  });
+
+  it("uses the dev judge once per new request and keeps failure rules", async () => {
+    const outcomes = ["retake", "no_match", "service_error", "match"] as const;
+    const judge = vi.fn(async () => outcomes[judge.mock.calls.length - 1]);
+    const client = createMockPhotoGateClient({ delayMs: 0, judge });
+    expect((await client.submitPhoto(photoInput("j1"))).result.kind).toBe("photo_retake");
+    expect((await client.submitPhoto(photoInput("j2"))).state.photo.failureCount).toBe(1);
+    // A replay returns the stored result without calling the verifier again.
+    expect((await client.submitPhoto(photoInput("j2"))).state.photo.failureCount).toBe(1);
+    expect(judge).toHaveBeenCalledTimes(2);
+    const outage = await client.submitPhoto(photoInput("j3"));
+    expect(outage.result).toMatchObject({ kind: "error", error: { code: "SERVICE_UNAVAILABLE", retryable: true } });
+    // The same request ID may be retried after an outage and is judged again.
+    expect((await client.submitPhoto(photoInput("j3"))).result.kind).toBe("photo_verified");
+    expect(judge).toHaveBeenCalledTimes(4);
+    // A completed photo step is not sent to the verifier.
+    expect((await client.submitPhoto(photoInput("j5"))).result).toMatchObject({ kind: "error", error: { code: "STEP_COMPLETED" } });
+    expect(judge).toHaveBeenCalledTimes(4);
+  });
+
   it("cannot instantiate in production", () => {
     vi.stubEnv("NODE_ENV", "production");
     expect(() => createMockPhotoGateClient()).toThrow("개발 환경");
