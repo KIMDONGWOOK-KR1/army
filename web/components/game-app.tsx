@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 import { useGameAny } from "./use-game";
 import { useLocation } from "./use-location";
-import { allowsSimulatedArrival, hasGpsArrival, isGpsReviewCourse } from "@/supabase/functions/_shared/arrival-policy";
+import { allowsSimulatedArrival, gpsArrivalPending, isGpsReviewCourse } from "@/supabase/functions/_shared/arrival-policy";
 import { useLockDraft } from "./use-lock-draft";
 import {
   handoffPane,
@@ -248,8 +248,7 @@ export default function GameApp({
   const isContentReview = s?.course.demo === true &&
     s.course.id.startsWith("jnu-demo-dev-review-");
   const gpsReview = !!v2 && isGpsReviewCourse(v2.course);
-  const gpsCoordinatesPending = gpsReview && v2.stage.kind !== "prologue" &&
-    !hasGpsArrival(v2.stage.arrival);
+  const gpsCoordinatesPending = !!v2 && gpsArrivalPending(v2.course, v2.stage);
   // 혼자 데모 체험(네 곳 코스): 이 기기가 네 자리를 맡고 보직을 바꿔 가며 진행한다
   const soloSeats = v2 ? soloFor(v2.game.id) : null;
   const simulatedArrival = !!v2 && allowsSimulatedArrival(v2.course, v2.stage.arrival);
@@ -650,6 +649,7 @@ export default function GameApp({
   const narrationSignature = JSON.stringify(narrationFrames);
   const [openNarration, setOpenNarration] = useState<{ gameId: string; key: string } | null>(null);
   const readNarrations = useRef(new Set<string>());
+  const presentedNarration = useRef<{ gameId: string; key: string } | null>(null);
   const enabledNarration = narrationEnabled();
   const activeNarration = enabledNarration && openNarration && openNarration.gameId === gameId
     ? narrationFrames.find((frame) => frame.key === openNarration.key)
@@ -659,6 +659,17 @@ export default function GameApp({
     readNarrations.current.has(`${gameId}:${key}`) || narrationSeen(gameId, key)
   );
   useEffect(() => {
+    // Only an actually displayed frame can be retired by an automatic scene
+    // change. Unopened personal frames and a different room stay unread.
+    const previous = presentedNarration.current;
+    if (previous && previous.gameId === gameId &&
+      !narrationFrames.some((frame) => frame.key === previous.key)) {
+      readNarrations.current.add(`${previous.gameId}:${previous.key}`);
+      markNarrationSeen(previous.gameId, previous.key);
+      presentedNarration.current = null;
+    } else if (previous?.gameId !== gameId) {
+      presentedNarration.current = null;
+    }
     if (!gameId || stop || !enabledNarration) return setOpenNarration(null);
     setOpenNarration((open) => {
       if (open?.gameId === gameId && narrationFrames.some((frame) => frame.key === open.key)) return open;
@@ -666,6 +677,10 @@ export default function GameApp({
       return next ? { gameId, key: next.key } : null;
     });
   }, [gameId, narrationSignature, stop, enabledNarration]);
+  useEffect(() => {
+    if (gameId && activeNarration && !stop)
+      presentedNarration.current = { gameId, key: activeNarration.key };
+  }, [gameId, activeNarration?.key, stop]);
   // 이동 중 5·18 조용한 구역 안인가(배경음을 추모 숨결로). 지도가 아직 위치를 알리기 전에는
   // 이 다리가 시작하는 자리(앞 거점)가 추모 거점이었는지로 어림한다(정문을 막 떠나는 길).
   const leavingReverent = !!s?.course.sites.find(

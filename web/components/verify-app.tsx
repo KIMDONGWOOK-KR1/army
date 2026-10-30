@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { useGameV2 } from "./use-game";
 import { VerifyMission } from "./verify-mission";
 import { useLocation } from "./use-location";
-import { allowsSimulatedArrival, hasGpsArrival, isGpsReviewCourse } from "@/supabase/functions/_shared/arrival-policy";
+import { allowsSimulatedArrival, gpsArrivalPending, isGpsReviewCourse } from "@/supabase/functions/_shared/arrival-policy";
 import { ROLE_NAMES, ROLES } from "@/supabase/functions/_shared/types";
 
 export default function VerifyApp() {
@@ -27,8 +27,7 @@ export default function VerifyApp() {
   const isContentReview = s?.course.demo === true &&
     s.course.id.startsWith("jnu-demo-dev-review-");
   const gpsReview = !!s && isGpsReviewCourse(s.course);
-  const gpsCoordinatesPending = gpsReview && s.stage.kind !== "prologue" &&
-    !hasGpsArrival(s.stage.arrival);
+  const gpsCoordinatesPending = !!s && gpsArrivalPending(s.course, s.stage);
   const myIndex = s?.self.role ? ROLES.indexOf(s.self.role) : -1;
   const location = useLocation(s, send);
   const canSimulate = !!s && allowsSimulatedArrival(s.course, s.stage.arrival);

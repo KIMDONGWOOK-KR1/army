@@ -18,21 +18,28 @@ it("withholds reward text and journals until completion, then exposes only the c
     expect(view(role).self.journal).toEqual([]);
     expect(view(role).game.completion).toBeNull();
     expect(JSON.stringify(view(role)).includes(body)).toBe(false);
+    expect(view(role).game.step_total_count).toEqual(
+      Object.fromEntries(ROLES.map((r) => [r, gate.roles[r]!.steps.length])),
+    );
+    expect(JSON.stringify(view(role).game)).not.toContain(gate.roles[role]!.steps[0].prompt);
   }
   for (const role of ["scout", "signal", "cipher", "commander"] as const) {
     await t.solve(role);
   }
   expect(view("commander").self.journal).toEqual([]);
-  await t.call("commander", {
+  const receipt = await t.call("commander", {
     action: "open-lock",
     digits: ROLES.map((r) => t.course.private.stages.gate.roles[r]!.digit!),
   });
+  expect(receipt).toMatchObject({ completion_type: "lock", label: "조사 후 복원" });
   for (const role of ROLES) {
     const s = view(role);
     expect(s.current_site.sacho.body === body).toBe(true);
     expect(s.game.acquired_sites[0].sacho.body === body).toBe(true);
     expect(s.game.completion?.method).toBe("field");
+    expect(s.game.completion).toMatchObject({ completion_type: "lock", label: receipt.label });
     const journal = s.self.journal[0];
+    expect(journal).toMatchObject({ completion_type: "lock", label: receipt.label });
     expect(journal.entries.map((entry) => entry.step_id)).toEqual(
       gate.roles[role]!.steps.map((step) => step.id),
     );
@@ -73,11 +80,13 @@ it("keeps explanation completion after a fresh projection without changing lock 
     score: t.game.score,
     attempts: t.game.locks.gate?.attempts ?? 0,
   };
-  await t.call("commander", { action: "open-after-explanation" });
+  const receipt = await t.call("commander", { action: "open-after-explanation" });
+  expect(receipt).toMatchObject({ completion_type: "lock", label: "해설 확인 후 복원" });
   for (const role of ROLES) {
     await t.call(role, { action: "get-stage" });
     const s = projectGameV2(t.game, t.course, t.user(role), t.now());
     expect(s.game.completion?.label).toBe("해설 확인 후 복원");
+    expect(s.self.journal[0]).toMatchObject({ completion_type: "lock", label: receipt.label });
     expect(
       s.self.journal[0].entries.every((entry) =>
         !entry.verified && !entry.reward

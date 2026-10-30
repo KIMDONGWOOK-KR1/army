@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { team } from "./helpers/v2";
 import { projectGameV2 } from "../supabase/functions/_shared/engine-v2";
-import { allowsSimulatedArrival, hasGpsArrival } from "../supabase/functions/_shared/arrival-policy";
+import { allowsSimulatedArrival, gpsArrivalPending, hasGpsArrival } from "../supabase/functions/_shared/arrival-policy";
 import { jnuGpsArrival, JNU_GPS_POINTS } from "../supabase/functions/_shared/jnu-gps";
 import { prepareDemoSeed } from "../scripts/seed-demo-course";
 import { assertEdgeCourseAllowed } from "../supabase/functions/_shared/deployment";
@@ -16,6 +16,20 @@ async function gpsTeam() {
 }
 
 describe("GPS mandatory v2 arrival", () => {
+  it("shares GPS review waiting rules while exempting the prologue and simulated courses", async () => {
+    const t = await team({ arrive: false });
+    const review = { id: "jnu-demo-dev-review-gps-test", demo: true };
+    const gate = t.course.stages.find((stage) => stage.id === "gate")!;
+    const prologue = t.course.stages.find((stage) => stage.kind === "prologue")!;
+    Object.assign(gate.arrival, { mode: "gps", confirmed: false, lat: null, lng: null });
+    expect(gpsArrivalPending(review, gate)).toBe(true);
+    expect(gpsArrivalPending(review, prologue)).toBe(false);
+    expect(gpsArrivalPending({ id: "jnu-demo-dev-review-test", demo: true }, gate)).toBe(false);
+    expect(gpsArrivalPending({ ...review, demo: false }, gate)).toBe(false);
+    gate.arrival = jnuGpsArrival("gate");
+    expect(gpsArrivalPending(review, gate)).toBe(false);
+  });
+
   it("keeps a GPS review stage blocked until its coordinates are available", async () => {
     const t = await team({ arrive: false });
     t.course.id = "jnu-demo-dev-review-gps-test";

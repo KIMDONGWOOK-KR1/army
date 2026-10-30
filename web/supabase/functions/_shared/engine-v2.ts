@@ -255,8 +255,8 @@ export function projectGameV2(
       completion: completed ? {
         at: completed.at,
         method: completed.method,
-        label: stage.kind === "memorial" || stage.kind === "epilogue"
-          ? completionLabelV2(stage) : completionLabelV2(stage, completed.method),
+        completion_type: stage.completion.type,
+        label: completionLabelV2(stage, completed.method),
         ...(visitV2(stage, state) ? { visit: visitV2(stage, state) } : {}),
       } : null,
       ...(stage.altModes?.length ? { visit: visitV2(stage, state) } : {}),
@@ -268,6 +268,8 @@ export function projectGameV2(
           (r) => [r, Object.values(progress[r].steps).filter(done).length],
         ),
       ),
+      // Counts are public; mission text and grading remain in the role's private projection.
+      step_total_count: Object.fromEntries(ROLES.map((r) => [r, stage.roles[r]?.steps.length ?? 0])) as Record<Role, number>,
       hint_level: Object.fromEntries(
         ROLES.map((r) => [r, progress[r].hintLevel]),
       ),
@@ -441,7 +443,8 @@ function finish(
   return {
     opened: true,
     method,
-    label: stage.completion.type === "tribute" ? completionLabelV2(stage) : method === "explained" ? "해설 확인 후 복원" : "조사 후 복원",
+    completion_type: stage.completion.type,
+    label: completionLabelV2(stage, method),
     sacho_id: stage.sacho?.id ?? null,
     ...(visitV2(stage, state) ? { visit: visitV2(stage, state) } : {}),
   };

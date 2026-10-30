@@ -36,8 +36,15 @@ export function Narration({
   // Reserve the complete sentence layout so typing does not move words between lines.
   const reveal = (start: number, end: number) => {
     const text = full.slice(start, end);
-    const count = Math.max(0, shown - start);
-    return <>{text.slice(0, count)}<span style={{ visibility: "hidden" }}>{text.slice(count)}</span></>;
+    const position = Math.min(shown, full.length);
+    const count = Math.min(text.length, Math.max(0, position - start));
+    const caret = position >= start && position <= end;
+    return <>{text.slice(0, count)}{caret && <span
+      data-testid="narration-caret-anchor"
+      style={{ position: "relative" }}
+    ><span className="narration-caret" style={{
+      position: "absolute", left: 0, bottom: "-.15em", width: 2, marginLeft: 0,
+    }} /></span>}<span style={{ visibility: "hidden" }}>{text.slice(count)}</span></>;
   };
   useEffect(() => {
     if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches)
@@ -78,7 +85,6 @@ export function Narration({
             const text = reveal(start, start + line.length);
             return <p className="narration-line" key={index}>
               {emphasized ? <strong>{text}</strong> : text}
-              {index === paragraphs.length - 1 && <span className="narration-caret" style={{ visibility: done ? "visible" : "hidden" }} />}
             </p>;
           })}
         </div>

@@ -1,6 +1,7 @@
 "use client";
 import { ExpeditionPassport } from "./coop-compass";
 import { plain } from "@/lib/practice-text";
+import { isTributeCompletion } from "@/lib/completion-view";
 import type { V2Response } from "@/lib/game-snapshot";
 import styles from "./mission-v2.module.css";
 import { SharedRecords } from "./yongbong-panel";
@@ -22,6 +23,7 @@ export function JournalV2({ snapshot }: { snapshot: V2Response }) {
         const journal = snapshot.self.journal?.find((s) =>
           s.stage_id === site.id
         );
+        const tribute = journal ? isTributeCompletion(journal) : false;
         return (
           <article
             className={`record-card ${acquired ? "acquired" : ""}`}
@@ -45,15 +47,15 @@ export function JournalV2({ snapshot }: { snapshot: V2Response }) {
                     : "조사 후 복원")}
                 </p>
                 {journal.memorial_record && <section className={styles.note}><h4>추모의 벽 공동 기록</h4><p>{journal.memorial_record.text}</p><p>근거: {journal.memorial_record.reason}</p></section>}
-                <h4>{journal.label === "헌화 완료" ? "내 헌화 기록" : "내 조사 기록"}</h4>
+                <h4>{tribute ? "내 헌화 기록" : "내 조사 기록"}</h4>
                 {journal.visit && <p>{journal.visit.label}</p>}
                 {!!journal.shared_records?.length && <SharedRecords records={journal.shared_records} />}
                 {journal.entries.map((entry) => (
                   <section className={styles.note} key={entry.step_id}>
                     <h5>{plain(entry.prompt)}</h5>
                     <p>
-                      {journal.label === "헌화 완료" ? "국화를 올렸다." : entry.verified ? "조사 검증 완료" : "해설로 확인"}
-                      {journal.label !== "헌화 완료" && entry.method && <> · {methods[entry.method] ?? "확인 완료"}</>}
+                      {tribute ? "국화를 올렸다." : entry.verified ? "조사 검증 완료" : "해설로 확인"}
+                      {!tribute && entry.method && <> · {methods[entry.method] ?? "확인 완료"}</>}
                     </p>
                     {Object.values(entry.record ?? {}).map((text, i) => (
                       <p key={i}>{plain(text)}</p>

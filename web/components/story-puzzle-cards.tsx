@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { ArrowLeft, ArrowRight, Check, Link2, Stamp } from "lucide-react";
 import type { Step, StepAnswer } from "@/supabase/functions/_shared/types";
-import { connectChoice } from "@/lib/story-play";
+import { connectChoice, normalizeMappingDraft } from "@/lib/story-play";
 import s from "./story-mission.module.css";
 
 type Props = { step: Step; value: StepAnswer; onChange: (value: StepAnswer) => void };
@@ -41,7 +41,7 @@ export function StoryJudge({ step, value, onChange }: Props) {
 
 export function StoryConnections({ step, value, onChange }: Props) {
   const [index, setIndex] = useState(0), fields = step.fields ?? [], field = fields[index];
-  const record = typeof value === "object" && !Array.isArray(value) ? value : {};
+  const record = normalizeMappingDraft(value) ?? {};
   if (!field) return null;
   return <div className={s.connections}>
     <CardTabs count={fields.length} current={index} filled={(i) => !!record[fields[i].id]} choose={setIndex} />

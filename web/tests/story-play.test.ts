@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { connectChoice, hasCompleteDraft, playCopy, usesGateStory } from "@/lib/story-play";
-import type { Step } from "@/supabase/functions/_shared/types";
+import { connectChoice, hasCompleteDraft, normalizeMappingDraft, playCopy, storySubmissionAnswer, usesGateStory } from "@/lib/story-play";
+import { serializeAnswerV2 } from "@/supabase/functions/_shared/answer-v2";
+import type { Step, StepAnswer } from "@/supabase/functions/_shared/types";
 
 const step = (overrides: Partial<Step> = {}): Step => ({
   id: "current-question", confirmed: false, type: "text", prompt: "서버에서 받은 현재 질문", grading: "hash", ...overrides,
@@ -44,6 +45,56 @@ describe("gate story presentation contract", () => {
     ] });
     expect(hasCompleteDraft(correction, { updated: "참가자 수정 기록" })).toBe(true);
     expect(hasCompleteDraft(correction, { note: "선택 항목만 작성" })).toBe(false);
+  });
+
+  it("requires every mapping even when authoring marks the fields optional", () => {
+    const mapping = step({ type: "match", grading: "map-hash", choices: ["연습 자료 가", "연습 자료 나"], fields: [
+      { id: "a", label: "연습 연결 가", required: false, maxLen: 100 },
+      { id: "b", label: "연습 연결 나", required: false, maxLen: 100 },
+    ] });
+    expect(hasCompleteDraft(mapping, {})).toBe(false);
+    expect(hasCompleteDraft(mapping, { a: "1" })).toBe(false);
+    expect(hasCompleteDraft(mapping, { a: "1", other: "2" })).toBe(false);
+    expect(hasCompleteDraft(mapping, { a: "1", b: " " })).toBe(false);
+    expect(hasCompleteDraft(mapping, { a: "1", b: "3" })).toBe(false);
+    expect(hasCompleteDraft(mapping, { a: "1", b: "1" })).toBe(false);
+    expect(hasCompleteDraft(mapping, { a: " 1 ", b: "2" })).toBe(true);
+    const classification = { ...mapping, type: "classification" as const };
+    expect(hasCompleteDraft(classification, {})).toBe(false);
+    expect(hasCompleteDraft(classification, { a: "1", b: "2", extra: "1" })).toBe(false);
+    expect(hasCompleteDraft(classification, { a: "1", b: "1" })).toBe(true);
+  });
+
+  it("normalizes older numeric mapping drafts for both selection display and server submission", () => {
+    const mapping = step({ type: "match", grading: "map-hash", choices: ["연습 가", "연습 나"], fields: [
+      { id: "a", label: "연습 연결 가", required: true, maxLen: 100 },
+      { id: "b", label: "연습 연결 나", required: true, maxLen: 100 },
+    ] });
+    const draft = { a: 1, b: " 2 " }, before = { ...draft };
+    expect(hasCompleteDraft(mapping, draft)).toBe(true);
+    expect(normalizeMappingDraft(draft)).toEqual({ a: "1", b: "2" });
+    // The old draft is runtime input; current TypeScript wire types correctly require strings.
+    const submitted = storySubmissionAnswer(mapping, draft as unknown as StepAnswer);
+    expect(submitted).toEqual({ a: "1", b: "2" });
+    expect(serializeAnswerV2(mapping, submitted)).toBe('[["a","1"],["b","2"]]');
+    expect(() => serializeAnswerV2(mapping, draft)).toThrow();
+    expect(draft).toEqual(before);
+  });
+
+  it("rejects missing, substituted or extra keys and duplicates after mapping normalization", () => {
+    const mapping = step({ type: "match", grading: "map-hash", choices: ["연습 가", "연습 나"], fields: [
+      { id: "a", label: "연습 연결 가", required: true, maxLen: 100 },
+      { id: "b", label: "연습 연결 나", required: true, maxLen: 100 },
+    ] });
+    for (const draft of [
+      { a: 1 }, { a: 1, other: 2 }, { a: 1, b: 2, extra: 1 },
+      { a: 1, b: " 1 " }, { a: 0, b: 2 }, { a: 1.5, b: 2 }, { a: 1, b: 3 },
+      { a: "01", b: 2 }, { a: true, b: 2 }, { a: NaN, b: 2 },
+    ]) expect(hasCompleteDraft(mapping, draft)).toBe(false);
+    expect(hasCompleteDraft(mapping, Object.assign(Object.create({ other: "1" }), { a: 1, b: 2 }))).toBe(false);
+    expect(hasCompleteDraft({ ...mapping, type: "classification" }, { a: 1, b: " 1 " })).toBe(true);
+    expect(hasCompleteDraft(mapping, Object.assign(Object.create(null), { a: 1, b: 2 }))).toBe(true);
+    expect(() => storySubmissionAnswer(mapping, { a: "1", b: " 1 " })).toThrow();
   });
 });
 

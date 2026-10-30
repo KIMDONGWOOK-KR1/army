@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { prepareReviewSeed, REVIEW_DEV_PROJECT_REF } from "../scripts/seed-review-course";
 import { fullDemoV2Input } from "../supabase/functions/_shared/wall-bongji-course-v2";
+import { demoV2Input } from "../supabase/functions/_shared/demo-course-v2";
 import { assertEdgeCourseAllowed } from "../supabase/functions/_shared/deployment";
-import { allowsSimulatedArrival, hasGpsArrival } from "../supabase/functions/_shared/arrival-policy";
+import { allowsSimulatedArrival, gpsArrivalPending, hasGpsArrival } from "../supabase/functions/_shared/arrival-policy";
 import { answerHashV2 } from "../supabase/functions/_shared/answer-v2";
 import { projectStageV2 } from "../supabase/functions/_shared/project-course-v2";
 import { ROLES } from "../supabase/functions/_shared/types";
@@ -34,6 +35,50 @@ function gpsSetup() {
 }
 
 describe("private content dev review registration preparation", () => {
+  it.each(["gps", "simulated"])("preserves a no-arrival prologue when registering a %s review course", async (mode) => {
+    const t = gpsSetup();
+    const intro = demoV2Input("jnu-demo-dev-test-intro");
+    for (const stage of t.source.content.stages) stage.seq++;
+    t.source.content.stages.unshift(intro.content.stages[0]);
+    t.source.privateInput.stages.intro = intro.privateInput.stages.intro;
+    const before = structuredClone(t.source);
+
+    const { course } = await prepareReviewSeed(mode === "gps" ? t.gpsArgs : t.args, t.env, t.load);
+
+    expect(course.stages[0]).toEqual(before.content.stages[0]);
+    expect(course.stages[0].arrival.mode).toBe("none");
+    expect(gpsArrivalPending(course, course.stages[0])).toBe(false);
+    expect(t.source).toEqual(before);
+  });
+
+  it.each(["gps", "simulated"])("rejects an invalid prologue arrival in %s review mode", async (mode) => {
+    const t = gpsSetup(), intro = demoV2Input("jnu-demo-dev-test-intro");
+    for (const stage of t.source.content.stages) stage.seq++;
+    const prologue = intro.content.stages[0];
+    prologue.arrival = { ...t.source.content.stages[0].arrival };
+    t.source.content.stages.unshift(prologue);
+    t.source.privateInput.stages.intro = intro.privateInput.stages.intro;
+    const before = structuredClone(t.source);
+
+    await expect(prepareReviewSeed(mode === "gps" ? t.gpsArgs : t.args, t.env, t.load))
+      .rejects.toThrow(/프롤로그/);
+    expect(t.source).toEqual(before);
+  });
+
+  it("preserves authored wall GPS in a full course without substituting predefined coordinates", async () => {
+    const t = gpsSetup();
+    const wall = t.source.content.stages.find((stage) => stage.id === "wall")!;
+    wall.arrival = { ...wall.arrival, confirmed: true, lat: 37.5, lng: 127.5, radiusM: 12, noticeM: 30 };
+    const before = structuredClone(t.source);
+
+    const { course } = await prepareReviewSeed([...t.gpsArgs, "--wall-mode", "tribute"], t.env, t.load);
+
+    expect(course.stages.every((stage) => hasGpsArrival(stage.arrival))).toBe(true);
+    expect(course.stages.find((stage) => stage.id === "wall")!.arrival).toEqual(wall.arrival);
+    expect(course.stages.every((stage) => !gpsArrivalPending(course, stage))).toBe(true);
+    expect(t.source).toEqual(before);
+  });
+
   it("preserves the same tribute content and source GPS, allowing only the wall to wait for coordinates", async () => {
     const t = gpsSetup();
     const { course } = await prepareReviewSeed([...t.gpsArgs, "--wall-mode", "tribute"], t.env, t.load);
@@ -62,6 +107,7 @@ describe("private content dev review registration preparation", () => {
       completion: { type: "tribute" },
       arrival: { mode: "gps", require: "all", confirmed: false, lat: null, lng: null },
     });
+    expect(gpsArrivalPending(course, course.stages.find((stage) => stage.id === "wall")!)).toBe(true);
     expect(t.source).toEqual(t.before);
   });
 

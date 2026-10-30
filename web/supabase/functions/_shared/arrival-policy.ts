@@ -21,3 +21,11 @@ export function hasGpsArrival(arrival: Stage["arrival"]) {
     typeof arrival.radiusM === "number" && Number.isFinite(arrival.radiusM) && arrival.radiusM > 0 &&
     arrival.dwellSec === 5;
 }
+
+export function gpsArrivalPending(
+  course: { id: string; demo: boolean },
+  stage: Pick<Stage, "kind" | "arrival">,
+) {
+  return isGpsReviewCourse(course) && stage.kind !== "prologue" &&
+    !hasGpsArrival(stage.arrival);
+}

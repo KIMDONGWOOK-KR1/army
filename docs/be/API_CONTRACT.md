@@ -39,6 +39,8 @@
 
 2026-10-09 UI 복원 추가: `game.completion`, `self.journal`, 완료된 장소의 선택형 공개 사초 보상을 추가했다. 아래 합성 fixtures 12개에도 반영했다. 로컬 구현과 별개로 기존 Supabase 응답에 적용하려면 Edge 재배포가 필요하다. [UI 복원 안내](../fe/UI_RESTORATION.md)를 참고한다.
 
+2026-10-27 리뷰 보완: 역할별 전체 문제 수 `game.step_total_count`와 완료 유형 `completion_type`을 추가했다. 완료 유형은 `game.completion`, `self.journal[]`, `self.result.stages[]`/`get-result.result.stages[]`, 개방 결과를 반환하는 완료 액션의 `result`에 제공한다. `confirm-stage`·`consent-joint-record`의 결과는 기존 `{confirmed,draft_version}`을 유지한다. 값은 `lock | confirm | tribute | joint-record`이며 UI 분기는 표시 문구 `label`/`completion` 대신 이 값을 사용한다. 이전 Edge 응답에는 두 신규 필드가 없을 수 있어 클라이언트 타입에서는 선택 필드다. 구버전의 헌화 기록·결과만 중앙 호환 함수에서 기존 `헌화 완료` 문구로 판별한다. 새 응답 필드는 Edge 재배포 후 제공되며 DB 마이그레이션·코스 재등록은 필요 없다.
+
 | 항목 | 계약 |
 |---|---|
 | 클라우드 | `POST /functions/v1/game`, Supabase 익명 로그인 Bearer JWT |
@@ -60,8 +62,8 @@ v2 데이터의 저장 버전은 `schemaVersion: 2`, 응답 버전 표시는 `st
 
 | 응답 필드 | 내용 |
 |---|---|
-| `game.completion` | 현재 단계 완료 전 `null`, 완료 후 `{at, method:"field"\|"explained", label}`. 조사·해설 경로 외에 공동 확인·공동 기록 완료를 구분하며, `tribute`의 label은 `헌화 완료`. 새로고침·다른 역할 조회에도 유지 |
-| `self.journal` | 완료 전 `[]`. 완료된 단계별 `{stage_id, name, completed_at, method, label?, sections, entries}`. 바깥 method는 거점 완료 경로다. `tribute`의 label은 `헌화 완료`. entries는 본인 역할만 포함하며 `{step_id, prompt, verified, method, record?, source?, explanation, reward?}`. entry.method는 미수집 시 `null`, 해설 완료 시 `explained`. source는 과거에 저장된 경우에만 `{text, source_id?}`. 정답 배열·해시·숫자·전달 단서는 포함하지 않음 |
+| `game.completion` | 현재 단계 완료 전 `null`, 완료 후 `{at, method:"field"\|"explained", completion_type?, label}`. 조사·해설 경로 외에 공동 확인·공동 기록 완료를 구분하며, `tribute`의 label은 `헌화 완료`. 새로고침·다른 역할 조회에도 유지 |
+| `self.journal` | 완료 전 `[]`. 완료된 단계별 `{stage_id, name, completed_at, method, completion_type?, label?, sections, entries}`. 바깥 method는 거점 완료 경로다. `tribute`의 label은 `헌화 완료`. entries는 본인 역할만 포함하며 `{step_id, prompt, verified, method, record?, source?, explanation, reward?}`. entry.method는 미수집 시 `null`, 해설 완료 시 `explained`. source는 과거에 저장된 경우에만 `{text, source_id?}`. 정답 배열·해시·숫자·전달 단서는 포함하지 않음 |
 | `current_site.sacho`, `course.sites[].sacho`, `game.acquired_sites[].sacho` | 이름·ID에 더해 완료된 장소에만 선택형 `char`, `body` 공개 보상 제공. 개인 자유 기록과 다른 공통 본문이며 미완료 장소에는 공개하지 않음 |
 | `stage` | 현재 단계의 ID·순서·이름·종류·도착 기준·quiet·scoring·공통 나레이션·completion·출처·사초 항목 이름 |
 | `self.mission` | 본인의 `intro`, `scenes`, `steps`, `digit`(완료 숫자를 사용하는지 여부인 boolean), `asset`(있을 때). null이면 해당 역할 문제 없음 |
@@ -70,7 +72,7 @@ v2 데이터의 저장 버전은 `schemaVersion: 2`, 응답 버전 표시는 `st
 | `self.step_progress` | 단계 ID별 `{status, attempts, method?, record?}`. status는 `locked/open/done/explained`. method를 수집하지 않은 직접 완료에는 method를 생략 |
 | `self.hint_level`, `self.hints` | PR-2: 역할별 0~3, 해제된 힌트 본문만. 지휘관도 타 역할의 본문을 받지 않는다 |
 | `self.explanations`, `self.rewards` | PR-2: 본인이 공개 조건을 충족한 단계의 본문만. 미공개 항목은 키 자체를 생략 |
-| `game` 신규 필드 | PR-2/3: `stage_id`, `stage_kind`, `stage_phase`, `quiet`, 역할별 `step_done_count`, `hint_level`, `arrival_mask`, `confirm_mask`, `swap` |
+| `game` 신규 필드 | PR-2/3: `stage_id`, `stage_kind`, `stage_phase`, `quiet`, 역할별 `step_done_count`, `step_total_count?`, `hint_level`, `arrival_mask`, `confirm_mask`, `swap` |
 
 역할별 보고·도착·확인 마스크 순서는 `commander, scout, signal, cipher`다. 자물쇠 숫자·locked_mask·correct_mask는 `stage.completion.order` 순이며 정문에서는 같은 순서다. 지휘관은 타인의 도착·진행·보고 ✓를 받으며 타인 문제, 답안 원문, 힌트, 보상을 받지 않는다. 타인 완료 숫자는 구두 전달 후 지휘관이 직접 입력해 맞힌 잠금 칸으로만 복원되며 자동 공유하지 않는다. `answerHash`, 비공개 rubric, QR 토큰은 모든 클라이언트 응답에서 제외한다. 알려진 필드만 복사하는 공개/개인 투영 함수를 사용한다.
 
@@ -132,6 +134,7 @@ v2 데이터의 저장 버전은 `schemaVersion: 2`, 응답 버전 표시는 `st
 | 필드 | mock 구조 / 의미 |
 |---|---|
 | `game.step_done_count`, `game.hint_level` | `Record<Role, number>` / 완료한 문제 수, 역할별 해제한 힌트 단계 |
+| `game.step_total_count?` | `Record<Role, number>` / 현재 거점의 역할별 전체 문제 수. 완료 수와 비교해 해당 역할의 힌트 사용 가능 여부를 판단한다. 타인 문항 내용·단계 ID·정답은 포함하지 않는다. 구버전 Edge에서 누락되면 자기 역할의 전체 수만 `self.mission.steps.length`로 보완하며 다른 역할의 수를 본인 수로 추정하지 않는다 |
 | `game.arrival_mask`, `game.confirm_mask` | boolean 4개 / 도착 여부, 단계 확인 여부. 일반 자물쇠 경로인 정문 예시에서는 확인 마스크가 모두 false |
 | `game.swap` | mock에는 초기 초안의 종료 시각이 남아 있다. 현재 서버 응답은 `{window_ends_at:null, used:false, pending:null}`이며 참가자 간 역할 교환은 금지다. mock 시각으로 교환 UI를 만들지 않음 |
 | `self.step_progress` | 본인 step ID만 키로 사용. 필수 `status`, `attempts`; 이번 mock의 직접 완료에는 `method`를 생략하고 자유 기록 단계만 `record`를 추가 |
@@ -435,7 +438,7 @@ courseId는 소문자로 시작하는 ID, stepId는 `G-03.freq` 형태의 대문
 
 - 공통 `method`·`source`는 생략한다. `confirmed`는 확인 동작의 고정 입력이며 역사 문제의 정답이 아니다. 도착 전에는 제출할 수 없다.
 - 성공하면 본인 단계가 `done`이 되고 `game.report_mask`의 본인 칸이 함께 갱신된다. 여기서 마스크는 **헌화 여부**다. 배열 순서는 commander/scout/signal/cipher이며 화면은 국화 수와 헌화 완료를 표시한다.
-- 네 번째 헌화가 성공하면 사초③를 저장하고 `playing/cleared`, `stage_phase:"done"`이 된다. `game.completion.label`, 완료 응답의 `result.label`, 기록첩의 `label`은 `헌화 완료`다. 완료 뒤 지휘관의 기존 `depart-next-site`로 봉지에 이동한다.
+- 네 번째 헌화가 성공하면 사초③를 저장하고 `playing/cleared`, `stage_phase:"done"`이 된다. `game.completion.label`, 완료 응답의 `result.label`, 기록첩의 `label`은 `헌화 완료`이며 각 객체의 `completion_type`은 `tribute`다. 모든 완료 유형의 즉시 응답·조회·기록첩·결과는 같은 서버 표시 규칙을 사용한다. 완료 뒤 지휘관의 기존 `depart-next-site`로 봉지에 이동한다.
 - 문제 점수·감점·힌트·숫자·자물쇠·별도 `submit-report`·공동 기록·`confirm-stage`를 사용하지 않는다. `request-hint`·`submit-report`·`draft-memorial-record`·`confirm-stage`는 이 타입에서 거절한다. `confirm_mask`나 `memorial_record`를 기다려 완료를 판단하지 않는다.
 - `self.digit`과 `self.lock`은 null이며 개인 단계의 확인 방식은 미수집 상태를 유지한다. `game.completion.method:"field"`는 거점 완료 경로이며 개인이 확인 방식을 입력했다는 뜻이 아니다. 최종 결과의 해당 단계 `completion`도 `헌화 완료`이며 공동 추모 기록은 null이다.
 - 완료 뒤 조용히 머무르기는 선택형 화면 동작이다. 추가 타이머나 확인 액션을 서버 완료 조건으로 만들지 않는다.
@@ -479,7 +482,7 @@ courseId는 소문자로 시작하는 ID, stepId는 `G-03.freq` 형태의 대문
 종료된 팀의 인증 멤버만 `get-result`로 조회한다(쓰기 아님, request_id 불필요). 응답은 Snapshot + `result`이며, 새로고침 복원을 위해 동일한 결과가 **완료 상태의 `self.result`**에도 있다. 종료 전 get-result는 WRONG_PHASE, 타팀은 FORBIDDEN이다. get-stage는 진행 중에만 사용하고 종료 상태에서는 get-game/get-result를 사용한다.
 
 - `investigation:{completed,total}`, `sacho:{completed,total}`: 전체 개발 코스는 각각 3/3. 시작 안내·봉지 회고는 조사·사초 개수에 포함하지 않는다.
-- `stages[]`: stage_id/name/summary/quiet/completion/visit_mode/arrival_method, 역할별 통계 `roles[]`, 공통 `memorial_record` 또는 null. summary는 완료 공개 사초 설명이다.
+- `stages[]`: stage_id/name/summary/quiet/completion_type?/completion/visit_mode/arrival_method, 역할별 통계 `roles[]`, 공통 `memorial_record` 또는 null. summary는 완료 공개 사초 설명이다. completion은 표시 문구이며 UI 유형 판별은 completion_type을 사용한다.
 - `roles[]`: role, completed/total, reported, hint_level, explained, records, cross_checks, methods. records는 자유 기록을 제출한 **문제 수**이며 칸 수가 아니다. cross_checks는 선행 보고 또는 recordFrom 연결이 있는 문제를 **직접 done으로 완료한 수**다. 의미의 적절성을 자동 평가한 점수가 아니다. explained는 교차 확인 건수에서 제외한다.
 - `methods`: field/official_digital/explained/simulated 등 실제 저장된 방식의 중복 없는 목록. 미수집 확인 방식은 목록에서 제외하며 다른 값으로 추정하지 않는다. 새 UI의 직접 완료만 있다면 빈 배열일 수 있다. `arrival_method`는 gps 또는 simulated. `visit_mode`는 onsite/outdoor다.
 - `joint_records[]`: stage_id와 최종 draft_version/words/text/reason/confirm_mask, retro_mask. 개인 본문은 없으며 본인의 회고만 self.retro에서 조회한다.

@@ -1,7 +1,8 @@
-import { ROLE_NAMES, type Role, type RoleMission } from "@/supabase/functions/_shared/types";
+import { ROLE_NAMES, ROLES, type Role, type RoleMission } from "@/supabase/functions/_shared/types";
 
 export type NarrationFrame = {
   key: string;
+  legacyKeys?: string[];
   lines: string[];
   kind: "common" | "personal";
   label?: string;
@@ -29,7 +30,9 @@ export function gateNarrationFrames({
   const scope = `arrive:${stageId}`;
   const common = commonLines.filter((line) => line.trim());
   const frames: NarrationFrame[] = common.length ? [{
-    key: `${scope}:common:${role ?? "unassigned"}`,
+    key: `${scope}:common`,
+    // Common copy stays read when a role arrives or a solo viewer changes seats.
+    legacyKeys: [scope, `${scope}:common:unassigned`, ...ROLES.map((r) => `${scope}:common:${r}`)],
     lines: common,
     kind: "common",
     emphasis: "last-line",
@@ -56,5 +59,5 @@ export function nextNarrationFrame(
   frames: NarrationFrame[],
   seen: (key: string) => boolean,
 ): NarrationFrame | undefined {
-  return frames.find((frame) => !seen(frame.key));
+  return frames.find((frame) => !seen(frame.key) && !frame.legacyKeys?.some(seen));
 }

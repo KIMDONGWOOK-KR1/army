@@ -26,6 +26,35 @@ describe("정문 본인 나레이션 순서", () => {
     expect(next()).toBeUndefined();
   });
 
+  it("예전 정문 읽음 기록은 공통 안내만 건너뛰고 새 개인 안내는 남긴다", () => {
+    for (const role of ROLES) {
+      const queue = gateNarrationFrames({ stageId: "gate", role, commonLines: ["공통"], mission: mission() });
+      expect(nextNarrationFrame(queue, (key) => key === "arrive:gate")?.key)
+        .toBe(`arrive:gate:personal:${role}`);
+      expect(nextNarrationFrame(queue, (key) => key === "arrive:yongbong")?.kind).toBe("common");
+    }
+  });
+
+  it("역할 배정 전에 읽은 공통 안내는 역할 배정 후 반복하지 않는다", () => {
+    const initial = gateNarrationFrames({ stageId: "gate", role: null, commonLines: ["공통"], mission: null });
+    for (const role of ROLES) {
+      const assigned = gateNarrationFrames({ stageId: "gate", role, commonLines: ["공통"], mission: mission() });
+      expect(assigned[0].key).toBe(initial[0].key);
+      expect(nextNarrationFrame(assigned, (key) => key === initial[0].key)?.key)
+        .toBe(`arrive:gate:personal:${role}`);
+    }
+  });
+
+  it("이전 미배정·역할별 공통 읽음 기록도 새 공통 키로 이어진다", () => {
+    for (const savedRole of ["unassigned", ...ROLES]) {
+      for (const role of ROLES) {
+        const queue = gateNarrationFrames({ stageId: "gate", role, commonLines: ["공통"], mission: mission() });
+        expect(nextNarrationFrame(queue, (key) => key === `arrive:gate:common:${savedRole}`)?.key)
+          .toBe(`arrive:gate:personal:${role}`);
+      }
+    }
+  });
+
   it("본인 intro를 우선하고 다른 이벤트의 안내를 미리 섞지 않는다", () => {
     const personal = frames()[1];
     expect(personal.lines).toEqual(["내 안내만 읽는다."]);
@@ -56,7 +85,7 @@ describe("정문 본인 나레이션 순서", () => {
       for (const other of ROLES.filter((candidate) => candidate !== role))
         expect(JSON.stringify(queue)).not.toContain(`${other} 전용 합성 문구`);
     }
-    expect(new Set(keys).size).toBe(ROLES.length * 2);
+    expect(new Set(keys).size).toBe(ROLES.length + 1);
   });
 
   it("mission이 아직 없으면 공통만 보이고 나중에 개인 안내를 이어갈 수 있다", () => {

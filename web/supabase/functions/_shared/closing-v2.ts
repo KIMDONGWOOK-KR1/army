@@ -66,6 +66,7 @@ export function resultV2(game: Game, course: CourseV2) {
     stages: stages.map((s) => {
       const progress = state.progress[s.id];
       return { stage_id: s.id, name: s.name, summary: s.sacho?.body ?? "", quiet: s.quiet,
+        completion_type: s.completion.type,
         completion: completionLabelV2(s, state.completed[s.id]?.method),
         visit_mode: state.altMode?.[s.id] ?? "onsite",
         arrival_method: game.arrivals.some((a) => a.siteId === s.id && a.simulated) ? "simulated" : "gps",
