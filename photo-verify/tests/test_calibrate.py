@@ -153,3 +153,19 @@ def test_logistic_with_negative_inlier_weight_falls_back_to_rule():
     y = np.r_[np.ones(30), np.zeros(30)].astype(int)
     t = fit_site(SiteSamples(s_g, n, y))
     assert t.mode == "rule" and t.tau_n >= 8
+
+
+def test_inlier_floor_uses_negatives_just_below_tau_reject():
+    # 2026-11-06 정문 낮 평가 모양: 오답이 모두 tau_reject 바로 아래라 조기 거절만으로 갈린다.
+    # 그래도 2단계 하한이 무너지면 안 된다(전에는 logistic tau_score 0·tau_n 1).
+    rng = np.random.default_rng(13)
+    s_g = np.r_[rng.uniform(0.93, 0.99, 300), rng.uniform(0.89, 0.923, 39)]
+    n = np.r_[rng.integers(145, 530, 300), rng.integers(0, 30, 39)].astype(float)
+    y = np.r_[np.ones(300), np.zeros(39)].astype(int)
+    s = SiteSamples(s_g, n, y)
+    t = fit_site(s)
+    assert t.tau_reject > s_g[y == 0].max()  # 조기 거절을 넘는 오답이 없는 상황
+    near_n = n[(y == 0) & (s_g >= t.tau_reject - 0.02)]
+    assert len(near_n) > 0 and t.mode == "rule" and t.tau_n > near_n.max()
+    # s_g가 조금 흔들려 바로 아래 오답이 tau_reject를 넘어도 2단계에서 막힌다
+    assert not any(passes(t, t.tau_reject, int(v)) for v in near_n)

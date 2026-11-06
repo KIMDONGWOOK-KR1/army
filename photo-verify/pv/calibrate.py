@@ -13,6 +13,8 @@ from pv.scorer import SiteThresholds, fused_score
 
 MIN_FOR_LOGISTIC = 10
 DEFAULT_TAU_N = 15
+# 2단계 하한 보정에 함께 넣는, tau_reject 바로 아래 오답의 s_g 폭
+NEAR_REJECT_MARGIN = 0.02
 NEVER = 10**9
 
 
@@ -83,7 +85,11 @@ def fit_site(samples: SiteSamples, far: float = 0.01, margin: float = 0.02,
     tau_reject = fit_tau_reject(samples.s_g[pos], far)
     tau_accept = fit_tau_accept(samples.s_g[neg], margin)
     surviving = neg & (samples.s_g >= tau_reject) if early_reject else neg
+    # 2단계 하한은 tau_reject 바로 아래 오답까지 본다. 오답이 적으면 s_g만으로 우연히 다 갈려
+    # 하한이 무너지는데(tau_score 0·tau_n 1), 현장에서는 s_g가 조금만 흔들려도 이 오답들이 넘어온다.
+    near = neg & (samples.s_g >= tau_reject - NEAR_REJECT_MARGIN) if early_reject else neg
     total_neg = int(neg.sum())
+    n_floor = threshold_at_far(samples.n[near], far, total=total_neg)
     if pos.sum() >= MIN_FOR_LOGISTIC and neg.sum() >= MIN_FOR_LOGISTIC:
         x = np.c_[samples.s_g, np.log1p(samples.n)]
         lr = LogisticRegression(class_weight="balanced").fit(x, samples.y)
@@ -96,12 +102,14 @@ def fit_site(samples: SiteSamples, far: float = 0.01, margin: float = 0.02,
         tau_score = max(threshold_at_far(scores[surviving], far, total=total_neg), 0.0)
         # 1.0 초과면 포화된 오답을 막을 수 없고, 가중치가 음수면(inlier가 많을수록 오답 쪽)
         # 순차 중단 규칙이 성립하지 않으므로 규칙 방식으로 떨어진다
-        if tau_score <= 1.0 and w_n > 0 and w_sg >= 0:
+        # 로지스틱이 tau_reject 지점에서 요구하는 inlier 수가 하한보다 작으면 규칙 방식으로 떨어진다
+        if (tau_score <= 1.0 and w_n > 0 and w_sg >= 0
+                and _logistic_tau_n(w_sg, w_n, bias, tau_score, tau_reject) >= n_floor):
             return SiteThresholds(tau_reject=tau_reject, mode="logistic", w_sg=w_sg, w_n=w_n,
                                   bias=bias, tau_score=tau_score,
                                   tau_n=_logistic_tau_n(w_sg, w_n, bias, tau_score, tau_reject),
                                   tau_accept=tau_accept)
-    t_n = threshold_at_far(samples.n[surviving], far, total=total_neg)
+    t_n = n_floor
     tau_n = DEFAULT_TAU_N if total_neg == 0 else max(MIN_POINTS, math.ceil(max(t_n, 0.0)))
     # early_reject=False여도 s_g 하한은 같게 둔다. FAR 예산은 모든 오답 기준 tau_n이 지키므로
     # 두 구성의 차이는 조기 거절 여부뿐이다.
