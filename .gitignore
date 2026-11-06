@@ -10,3 +10,6 @@
 **/data/fixtures/*.csv
 !**/data/fixtures/synthetic_*.csv
 **/결과_*
+
+# 현장 촬영 원본(정답 자료) — 저장소에 올리지 않음
+/촬영사진/
