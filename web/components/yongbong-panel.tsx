@@ -25,14 +25,14 @@ export function YongbongPanel({ snapshot, busy, send }: {
   return <>
     {!!snapshot.stage.altModes?.length && <section className="verify-card verify-stack" data-testid="visit-mode">
       <h3>{snapshot.game.visit?.label ?? "현장 조사"}</h3>
-      <p>실내 관람이 어렵다면 외부에서 건물과 제공된 공식 자료를 확인하라. 자료에서 찾지 못한 항목은 확인 불가로 기록하라.</p>
-      {outdoor ? <p>외부 대체 조사로 기록한다. 이미 작성한 내용은 유지된다.</p>
+      <p>실내 관람이 어렵다면 밖에서 건물과 제공된 공식 자료를 확인해요. 자료에서 찾지 못한 항목은 '확인 불가'로 적어요.</p>
+      {outdoor ? <p>외부 대체 조사로 기록해요. 이미 쓴 내용은 그대로 남아요.</p>
         : snapshot.self.role === "commander" && snapshot.game.site_phase === "mission"
         ? <button type="button" className="button secondary" disabled={busy}
             onClick={() => void send({ action: "select-alt-mode", stage_id: snapshot.stage.id, mode_id: "outdoor" })}>
             외부 대체 모드 선택
           </button>
-        : <p>필요하면 지휘관이 외부 대체 모드를 선택한다.</p>}
+        : <p>필요하면 지휘관이 외부 대체 모드를 골라요.</p>}
     </section>}
     {!!snapshot.self.shared_records?.length && <SharedRecords records={snapshot.self.shared_records} />}
   </>;

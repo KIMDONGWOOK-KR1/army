@@ -34,6 +34,7 @@ import {
   type StopState,
 } from "./field-stop";
 import jnu from "./maps/jnu.json";
+import { campusCollider, moveWithin } from "./field-collide";
 import { closestAlong, pointAlong, projector, type XZ } from "@/lib/geo";
 
 // 실제 축척 캠퍼스 지도 위에서 내 GPS 위치를 따라 걷는 입체 필드.
@@ -43,6 +44,10 @@ import { closestAlong, pointAlong, projector, type XZ } from "@/lib/geo";
 // 도보 경로를 따라 걷는 시연 이동을 보여 준다. 거점 표석은 거점 옆(랜드마크를 가리지 않는
 // 자리)에 서 있다가 도착 반경에 들어서면 받침 위에 기록 액자를 세우고, 누르면 도착을 알린다.
 const MAP = jnu as unknown as MapData;
+// 캐릭터가 건물·모형·추모의 벽을 통과하지 않게(field-collide.ts, 한 번만 만든다)
+const COLLIDER = campusCollider(MAP);
+// 지도를 이보다 멀리(m) 볼 때 내 위치 점·목표 핀을 띄우고, 길 점은 이 거리부터 키운다
+const PIN = { from: 220, dotsFrom: 140 };
 const ON_MAP_M = 1500, // 지도 원점(정문)에서 이보다 멀면 캠퍼스 밖으로 본다
   DEMO_SPEED = 7, // 시연 이동 속도(m/s)
   FAST_SPEED = 16, // 발표용 자동 시연의 이동 속도(m/s)
@@ -78,6 +83,7 @@ export type FieldStatus = {
   accuracy: number | null; // GPS 오차(m)
   loading: boolean; // 블렌더 모형을 받는 중
   failed: boolean; // 이 기기에서 입체 지도를 그리지 못했다
+  free?: boolean; // 사용자가 지도를 끌어 옮겨 캐릭터 따라가기를 멈췄다(내 위치 단추로 돌아온다)
 };
 export type FieldTarget = {
   lat: number | null;
@@ -341,6 +347,7 @@ export function Field3D({
   fast = false,
   simulateMovement = true,
   parked = false,
+  recenter = 0,
   onStatus,
   onMarkerTap,
 }: {
@@ -359,11 +366,15 @@ export function Field3D({
   simulateMovement?: boolean;
   // 도착한 뒤 지도만 볼 때: GPS 위치가 없으면 내 장병을 지금 거점 앞에 세워 둔다(걷지 않는다)
   parked?: boolean;
+  // 값이 바뀌면 옮겨 둔 지도를 내 캐릭터 쪽으로 되돌려 다시 따라간다(내 위치 단추)
+  recenter?: number;
   onStatus?: (status: FieldStatus) => void;
   // 도착 반경 안에서 거점 표석을 눌렀다
   onMarkerTap?: () => void;
 }) {
-  const host = useRef<HTMLDivElement>(null);
+  const host = useRef<HTMLDivElement>(null),
+    pinMe = useRef<HTMLSpanElement>(null),
+    pinGoal = useRef<HTMLSpanElement>(null);
   const live = useRef({
     siteSeq,
     siteName,
@@ -373,6 +384,7 @@ export function Field3D({
     fast,
     simulateMovement,
     parked,
+    recenter,
     onStatus,
     onMarkerTap,
   });
@@ -385,6 +397,7 @@ export function Field3D({
     fast,
     simulateMovement,
     parked,
+    recenter,
     onStatus,
     onMarkerTap,
   };
@@ -512,16 +525,21 @@ export function Field3D({
 
     const camera = new THREE.PerspectiveCamera(40, 1, 2, SKY.radius + 20);
     const controls = new OrbitControls(camera, renderer.domElement);
+    // 지도 앱처럼(hh 2026-10-29): 한 손가락(마우스 왼쪽)으로 끌면 지도가 옮겨지고, 두 손가락으로 벌리고 좁히면
+    // 확대·축소, 두 손가락을 함께 움직이면 돌린다(마우스는 오른쪽 끌기·휠). 멀리 빼면 캠퍼스와 다음 거점이 한눈에 보인다.
     Object.assign(controls, {
-      enablePan: false,
+      enablePan: true,
+      screenSpacePanning: false,
       enableDamping: true,
       dampingFactor: 0.12,
       rotateSpeed: 0.6,
-      zoomSpeed: 0.8,
-      minDistance: 30,
-      maxDistance: 240,
+      zoomSpeed: 0.9,
+      minDistance: VIEW.minDistance,
+      maxDistance: VIEW.maxDistance,
       minPolarAngle: VIEW.minPolar,
       maxPolarAngle: maxPolarFor(0),
+      touches: { ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_ROTATE },
+      mouseButtons: { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE },
     });
 
     const resize = () => {
@@ -571,12 +589,29 @@ export function Field3D({
       insideNow = false,
       quietNow = false;
     const first = fixOnMap();
-    if (first) goal = first;
+    if (first) goal = COLLIDER.resolve(first.x, first.z) ?? first;
     pos.set(goal.x, 0, goal.z);
     // 처음(과 거점이 바뀔 때)에는 캐릭터 뒤에서 거점 쪽을 바라본다
     const R0 = phone ? 74 : 100,
       PHI = VIEW.defaultPolar;
+    // 지도를 끌어 옮기면 따라가기를 멈춘다(free). 내 위치 단추로 되돌리면 부드럽게 캐릭터 쪽으로 미끄러진다(gliding)
+    const pinV = new THREE.Vector3();
+    const placePins = (cam: THREE.Camera, me: THREE.Vector3, goalAt: XZ, show: boolean) => {
+      const put = (elx: HTMLElement | null, x: number, z: number) => {
+        if (!elx) return;
+        pinV.set(x, 2, z).project(cam);
+        const vis = show && pinV.z < 1 && Math.abs(pinV.x) < 1.2 && Math.abs(pinV.y) < 1.2;
+        elx.hidden = !vis;
+        if (vis) elx.style.transform = `translate(${((pinV.x + 1) / 2) * el.clientWidth}px, ${((1 - pinV.y) / 2) * el.clientHeight}px)`;
+      };
+      put(pinMe.current, me.x, me.z);
+      put(pinGoal.current, goalAt.x, goalAt.z);
+    };
+    let free = false,
+      gliding = false,
+      recentered = live.current.recenter;
     const aimCamera = (seq: number) => {
+      free = gliding = false;
       const aim = siteAt(seq),
         back = Math.atan2(pos.x - aim.x, pos.z - aim.z);
       heading = back + Math.PI;
@@ -596,7 +631,11 @@ export function Field3D({
       prewarmSeeThrough(renderer, scene, camera);
     }
     if (probe)
-      window.__field = { renderer, scene, camera, light, controls, setClayRim };
+      window.__field = { renderer, scene, camera, light, controls, setClayRim,
+        // 개발 점검: 지금 캐릭터 자리, 목표 표석 자리, 지금 구간 길(지도 m). 화면 가림 점검에 쓴다
+        player: () => ({ x: pos.x, z: pos.z }),
+        target: () => markerAt(live.current.siteSeq - 1, siteAt(live.current.siteSeq)),
+        route: () => world.legs[legOf(live.current.siteSeq)] };
     // 표석이 조용한 구역(5·18 사적지) 안인가: 코스의 추모 표시나 지도 위 조용한 구역
     const calmAt = (x: number, z: number) => inCalm(world.calm, x, z);
 
@@ -665,7 +704,9 @@ export function Field3D({
         nz = pos.z;
       if (gps) {
         demoV = 0;
-        if (Math.hypot(gps.x - goal.x, gps.z - goal.z) > JITTER_M) goal = gps;
+        // GPS가 건물·모형 안으로 튀면 목표도 가장 가까운 바깥 자리로
+        const safe = COLLIDER.resolve(gps.x, gps.z) ?? gps;
+        if (Math.hypot(safe.x - goal.x, safe.z - goal.z) > JITTER_M) goal = safe;
       } else if (live.current.simulateMovement) {
         const k = legOf(seq),
           stop = Math.max(0, world.legLength[k] - radius * 0.5),
@@ -680,15 +721,19 @@ export function Field3D({
         dz = goal.z - pos.z,
         d = Math.hypot(dx, dz);
       if (d > 150) {
-        nx = goal.x;
-        nz = goal.z;
+        // 아주 멀리 튀면(처음 위치 등) 바로 옮기되 장애물 밖에 세운다
+        const safe = COLLIDER.resolve(goal.x, goal.z) ?? goal;
+        nx = safe.x;
+        nz = safe.z;
       } else if (d > 0.01) {
         const v = gps
           ? Math.min(MAX_SPEED, d * 1.1)
           : Math.max(demoV * 1.2, Math.min(MAX_SPEED, d * 2.2));
         const step = Math.min(d, v * dt);
-        nx += (dx / d) * step;
-        nz += (dz / d) * step;
+        // 잘게 나눠 움직이며 벽을 따라 미끄러지고, 막히면 제자리(떨림 없이)
+        const moved = moveWithin(COLLIDER, pos, { x: pos.x + (dx / d) * step, z: pos.z + (dz / d) * step });
+        nx = moved.x;
+        nz = moved.z;
       }
       const mx = nx - pos.x,
         mz = nz - pos.z,
@@ -760,8 +805,10 @@ export function Field3D({
       accRing.group.position.set(pos.x, 0.5, pos.z);
       accRing.setRadius(Math.min(80, Math.max(3, acc)));
       ripple.update(t, pos.x, pos.z, calmAt(pos.x, pos.z));
-      // 거점까지 남은 길: 지금 다리(정문→용봉관 등)에서 캐릭터와 가장 가까운 지점부터
-      const leg = world.legs[legOf(seq)];
+      // 거점까지 남은 길: 지금 다리(정문→용봉관 등)에서 캐릭터와 가장 가까운 지점부터.
+      // 지도를 멀리 볼수록 점을 크게·성기게 찍어 화면에서 같은 크기로 보이게 한다
+      const leg = world.legs[legOf(seq)],
+        viewD = camera.position.distanceTo(controls.target);
       dots.mesh.visible = !inside;
       if (!inside)
         dots.update(
@@ -769,26 +816,54 @@ export function Field3D({
           (s) => pointAlong(leg, s),
           closestAlong(leg, pos.x, pos.z),
           world.legLength[legOf(seq)],
+          Math.max(1, viewD / PIN.dotsFrom),
         );
 
       // 카메라는 사용자가 돌리고 당긴 그대로 캐릭터를 따라가고,
-      // 빠르게 걸을수록 조금 물려서 앞길을 더 보여 준다
+      // 빠르게 걸을수록 조금 물려서 앞길을 더 보여 준다. 지도를 끌어 옮긴 동안(free)은 따라가지 않는다.
+      if (live.current.recenter !== recentered) {
+        recentered = live.current.recenter;
+        free = false;
+        gliding = true;
+      }
       follow.set(pos.x, 4, pos.z);
-      camera.position.add(offset.subVectors(follow, controls.target));
-      controls.target.copy(follow);
-      extra +=
-        (Math.min(26, Math.max(0, speed - 3) * 1.6) - extra) *
-        Math.min(1, dt * 1.5);
-      offset.subVectors(camera.position, controls.target);
-      offset.setLength(
-        Math.max(controls.minDistance, offset.length() - extraShown + extra),
-      );
-      extraShown = extra;
-      camera.position.copy(controls.target).add(offset);
-      // 멀리 당길수록 위에서 내려다본다(지도 앱처럼). 안개는 캐릭터까지 거리만큼 밀어 둔다.
+      if (!free) {
+        const k = gliding ? Math.min(1, dt * 5) : 1;
+        offset.subVectors(follow, controls.target).multiplyScalar(k);
+        camera.position.add(offset);
+        controls.target.add(offset);
+        if (gliding && controls.target.distanceTo(follow) < 0.3) gliding = false;
+        extra +=
+          (Math.min(26, Math.max(0, speed - 3) * 1.6) - extra) *
+          Math.min(1, dt * 1.5);
+        offset.subVectors(camera.position, controls.target);
+        offset.setLength(
+          Math.max(controls.minDistance, offset.length() - extraShown + extra),
+        );
+        extraShown = extra;
+        camera.position.copy(controls.target).add(offset);
+      }
+      // 멀리 당길수록 위에서 내려다본다(지도 앱처럼). 안개는 보는 곳까지 거리만큼 밀어 둔다.
       const camD = camera.position.distanceTo(controls.target);
       controls.maxPolarAngle = maxPolarFor(camD);
       controls.update();
+      // 손가락으로 지도를 옮겼으면(보는 곳이 캐릭터에서 벗어남) 따라가기를 멈춘다. 지도 밖으로는 나가지 않는다
+      if (!free && !gliding && controls.target.distanceTo(follow) > 0.5) free = true;
+      if (free) {
+        offset.set(
+          THREE.MathUtils.clamp(controls.target.x, -VIEW.panLimit, VIEW.panLimit) - controls.target.x,
+          0,
+          THREE.MathUtils.clamp(controls.target.z, -VIEW.panLimit, VIEW.panLimit) - controls.target.z,
+        );
+        camera.position.add(offset);
+        controls.target.add(offset);
+      }
+      // 멀리 볼 때도 땅이 잘리지 않게 보이는 거리를 늘린다(하늘 공은 그 안에 그대로)
+      const far = Math.max(SKY.radius + 20, camera.position.distanceTo(controls.target) + VIEW.beyond);
+      if (Math.abs(camera.far - far) > 5) {
+        camera.far = far;
+        camera.updateProjectionMatrix();
+      }
       sky.position.copy(camera.position);
       const fog = scene.fog as THREE.Fog,
         f = fogFor(camera.position.distanceTo(controls.target));
@@ -824,8 +899,11 @@ export function Field3D({
           accuracy: gps ? Math.round(acc) : null,
           loading: false,
           failed: false,
+          free,
         });
       }
+      // 멀리 볼 때는 내 위치 점과 목표 핀을 화면 위에 같은 크기로 띄운다(지도 앱처럼)
+      placePins(camera, pos, siteAt(seq), camera.position.distanceTo(controls.target) > PIN.from);
       renderer.render(scene, camera);
       probe?.record(
         renderer,
@@ -867,9 +945,12 @@ export function Field3D({
       ref={host}
       className="field-3d"
       role="img"
-      aria-label={`실제 축척 캠퍼스 지도. ${siteName}까지 걸어가는 내 캐릭터가 보인다`}
+      aria-label={`실제 축척 캠퍼스 지도. ${siteName}까지 걸어가는 내 캐릭터가 보여요`}
     >
       <span className="field-credit">{MAP.credit}</span>
+      {/* 지도를 멀리 볼 때만 보이는 내 위치 점과 목표 핀(화면 위 같은 크기) */}
+      <span ref={pinMe} className="field-pin field-pin-me" hidden aria-hidden="true" />
+      <span ref={pinGoal} className="field-pin field-pin-goal" hidden aria-hidden="true"><b>{siteName}</b></span>
     </div>
   );
 }

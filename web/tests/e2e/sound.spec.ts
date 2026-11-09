@@ -65,7 +65,7 @@ test("sound cues follow the scenes and the mute toggle persists", async ({
   await expect.poll(() => heard(page)).toContain("digit-reveal");
 
   for (const [role, fill] of [
-    ["정찰원", async () => page.getByPlaceholder("현장에서 찾은 답을 입력하라").fill("1")],
+    ["정찰원", async () => page.getByPlaceholder("현장에서 찾은 답 입력").fill("1")],
     [
       "통신원",
       async () =>

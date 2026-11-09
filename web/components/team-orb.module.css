@@ -1,0 +1,44 @@
+/* 우측 상단 원형 단추 묶음(함께 모으기 · 기록첩 · 지도). 지도와 문제를 가리지 않는 것이 먼저다.
+   단추 모양은 작아도 누르는 자리는 48px 이상, 아래 짧은 이름(12px)으로 기능을 알린다. */
+.side { position:relative; display:grid; justify-items:center; gap:8px; pointer-events:auto; }
+.item { display:grid; justify-items:center; gap:3px; }
+.orb, .round { position:relative; width:52px; height:52px; display:grid; place-items:center; padding:0; border:0; border-radius:50%; background:#fffdf5; color:#2c4841; box-shadow:0 3px 0 #2c484126, 0 6px 14px #263a3726; cursor:pointer; }
+.round { width:48px; height:48px; color:#256956; }
+.label { padding:1px 7px; border-radius:999px; background:#fffdf5e6; color:#2c4841; font:600 12px/1.4 var(--sans); white-space:nowrap; box-shadow:0 1px 0 #2c48411a; }
+.ring { position:absolute; inset:0; border-radius:50%; -webkit-mask:radial-gradient(circle, transparent 0 58%, #000 60%); mask:radial-gradient(circle, transparent 0 58%, #000 60%); }
+.core { position:relative; display:grid; place-items:center; color:#347c66; }
+.orb[data-waiting="true"] .core { color:#8a6514; }
+.badge { position:absolute; right:-6px; top:-4px; padding:0 6px; border-radius:999px; background:#2c4841; color:#fffdf5; font:700 12px/1.6 var(--sans); font-variant-numeric:tabular-nums; white-space:nowrap; }
+.orb:focus-visible, .round:focus-visible, .close:focus-visible { outline:3px solid #305c88; outline-offset:3px; }
+.srOnly { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+.side[data-quiet="true"] .core { color:#6b6a5e; }
+/* 문제 풀이 중: 작고 옅게(누르는 자리는 그대로) */
+.side[data-dim="true"] .orb, .side[data-dim="true"] .round { width:44px; height:44px; box-shadow:0 2px 0 #2c48411a; }
+.side[data-dim="true"] .orb::after, .side[data-dim="true"] .round::after { content:""; position:absolute; inset:-4px; }
+.side[data-dim="true"] .label { background:transparent; box-shadow:none; color:#536048; }
+/* 문제·기록 화면: 가로 한 줄(세로로 쌓으면 문제 카드를 덮는다) */
+.side[data-dim="true"] { grid-auto-flow:column; align-items:start; gap:8px; }
+/* 넓은 화면: 단추 왼쪽 작은 팝오버 */
+.pop { position:absolute; top:0; right:64px; width:min(260px, calc(100vw - 100px)); display:grid; gap:8px; padding:12px 12px 14px 14px; border-radius:18px; background:#fffdf5; border:1px solid #c4d6c5; box-shadow:0 8px 22px #263a3733; color:#263a37; text-align:left; z-index:2; animation:orb-pop .18s ease-out; }
+.scrim { display:none; }
+@keyframes orb-pop { from { opacity:0; transform:translateX(6px) scale(.97); } }
+.popHead { display:flex; align-items:flex-start; gap:6px; }
+.head { flex:1 1 auto; display:flex; flex-wrap:wrap; align-items:baseline; justify-content:space-between; gap:2px 8px; margin:4px 0 0; font:400 16px/1.35 var(--game); }
+.head em { font:700 12px/1.5 var(--sans); font-style:normal; color:#265f50; }
+.close { flex:0 0 auto; width:44px; height:44px; margin:-8px -6px 0 0; display:grid; place-items:center; border:0; border-radius:50%; background:none; color:#536048; cursor:pointer; }
+.action { margin:0; font:400 15px/1.55 var(--sans); color:#3d4c43; word-break:keep-all; }
+.members { display:grid; grid-template-columns:1fr 1fr; gap:6px 8px; margin:0; padding:0; list-style:none; }
+.members li { display:flex; align-items:center; gap:6px; min-width:0; font:400 14px/1.3 var(--sans); color:#536048; }
+.members li[data-done="true"] { color:#263a37; }
+.avatar { position:relative; flex:0 0 auto; width:26px; height:26px; display:grid; place-items:center; border-radius:50%; border:2px solid var(--member-color); color:var(--member-color); background:#fffdf5; }
+.members li[data-done="true"] .avatar { background:var(--member-color); color:#fffdf5; }
+.avatar>svg:nth-child(2) { position:absolute; right:-4px; bottom:-4px; width:12px; height:12px; padding:1px; border-radius:50%; background:#2c4841; color:#fffdf5; }
+/* 좁은 화면(폰): 아래에서 올라오는 시트, 뒤는 아주 살짝만 어둡게(위 목표·지도가 그대로 읽히게). 바깥을 누르면 닫힌다 */
+@media (max-width: 560px) {
+  .scrim { display:block; position:fixed; inset:0; z-index:60; background:#1f2b2829; }
+  .pop { position:fixed; z-index:61; top:auto; right:0; left:0; bottom:0; width:auto; max-width:none; padding:14px 16px calc(18px + env(safe-area-inset-bottom, 0px)); border-radius:22px 22px 0 0; border-width:1px 0 0; animation:orb-sheet .2s ease-out; }
+  @keyframes orb-sheet { from { transform:translateY(24px); opacity:.4; } }
+}
+/* 넓은 화면의 문제·기록 화면: 팝오버는 가로 단추 줄 아래로 */
+@media (min-width: 561px) { .side[data-dim="true"] .pop { top:calc(100% + 8px); right:0; } }
+@media (prefers-reduced-motion: reduce) { .pop { animation:none; } }

@@ -75,7 +75,7 @@ export function createMockPhotoGateClient(options: {
   const receipts = new Map<string, Receipt>();
 
   const reply = (requestId: string | null, result: PhotoGateResult): PhotoGateReply => ({
-    source: "mock",
+    source: options.judge ? "server" : "mock",
     requestId,
     state: structuredClone(state),
     result: structuredClone(result),

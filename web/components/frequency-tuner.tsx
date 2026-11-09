@@ -75,12 +75,12 @@ const FREQUENCY_PATTERN = "\\d{1,3}(\\.\\d)?";
 const strictFrequency = new RegExp(`^(?:${FREQUENCY_PATTERN})$`);
 
 function frequencyError(value: string, min: number, max: number) {
-  if (!value) return "주파수를 입력하라.";
+  if (!value) return "주파수를 입력해 주세요.";
   if (!strictFrequency.test(value))
-    return "숫자로 입력하고 소수점은 한 자리까지만 사용하라.";
+    return "숫자로 입력하고 소수점은 한 자리까지만 써 주세요.";
   const frequency = Number(value);
   return frequency < min || frequency > max
-    ? `${min}~${max} MHz 범위로 입력하라.`
+    ? `${min}~${max} MHz 범위로 입력해 주세요.`
     : "";
 }
 
@@ -382,7 +382,7 @@ export function FrequencyTuner({
       </div>
       {strictInput && (
         <div className={s.validation}>
-          <p id={helpId}>{min}~{max} MHz 범위에서 숫자를 0.1 단위로 입력하라. 소수점은 한 자리까지 허용한다.</p>
+          <p id={helpId}>{min}~{max} MHz 범위에서 숫자를 0.1 단위로 입력해 주세요. 소수점은 한 자리까지 쓸 수 있어요.</p>
           {error && <p id={errorId} className={s.error}>{error}</p>}
         </div>
       )}

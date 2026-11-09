@@ -39,7 +39,7 @@ test("four sessions solve the v1 Yongbong questions on screen without leaking an
     }
     const solve: Record<Role, (p: Page) => Promise<void>> = {
       commander: (p) => p.getByRole("button", { name: /대학의 역사와 오월의 기록/ }).click(),
-      scout: (p) => p.getByPlaceholder("현장에서 찾은 답을 입력하라").fill("용봉관"),
+      scout: (p) => p.getByPlaceholder("현장에서 찾은 답 입력").fill("용봉관"),
       signal: (p) => p.locator("[data-frequency-input]").first().fill("19.9"),
       cipher: (p) => p.getByRole("button", { name: /鳳/ }).click(),
     };
@@ -52,8 +52,9 @@ test("four sessions solve the v1 Yongbong questions on screen without leaking an
       if (role !== "commander") await expect(p.locator("body")).not.toContainText("19.9");
       await solve[role](p);
       await p.getByLabel("확인 방식").selectOption("simulated");
-      await p.getByRole("button", { name: "문제 제출" }).click();
-      await expect(p.getByText("조사를 기록했다.")).toBeVisible();
+      await p.getByRole("button", { name: "맞춰 보기" }).click();
+      // 답한 뒤에는 결과 한 줄이 먼저 보인다(hh 2026-10-28)
+      await expect(p.getByText("맞았어요 · 조사 완료")).toBeVisible();
     }
     for (const role of ["scout", "signal", "cipher", "commander"] as const) await call(forRole(role), "submit-report");
     const order: Role[] = ["commander", "scout", "signal", "cipher"];

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const fetchMock = vi.fn<typeof fetch>();
 const seats = { commander: 2, scout: 0, signal: 3, cipher: 1 };
 let storage: Map<string, string>;
+let tabStorage: Map<string, string>;
 
 beforeEach(() => {
   vi.resetModules();
@@ -10,6 +11,11 @@ beforeEach(() => {
   fetchMock.mockReset();
   vi.stubGlobal("fetch", fetchMock);
   storage = new Map();
+  tabStorage = new Map();
+  vi.stubGlobal("sessionStorage", {
+    getItem: (key: string) => tabStorage.get(key) ?? null,
+    setItem: (key: string, value: string) => tabStorage.set(key, value),
+  });
   vi.stubGlobal("localStorage", {
     getItem: (key: string) => storage.get(key) ?? null,
     setItem: (key: string, value: string) => storage.set(key, value),
@@ -39,6 +45,28 @@ describe("local solo transport", () => {
     fetchMock.mockResolvedValueOnce(Response.json(snapshot));
     await client.requestGameAny({ action: "get-game", game_id: "mock-four-player" });
     expect(fetchMock).toHaveBeenLastCalledWith("/api/game", expect.anything());
+  });
+
+  it("restores this tab's room and role after another tab overwrites shared storage", async () => {
+    const client = await import("../lib/client");
+    client.saveSoloSession({ game: "wall-room", seats, role: "commander" });
+    storage.set("hoguk:solo", JSON.stringify({ game: "gate-room", seats, role: "cipher" }));
+    vi.resetModules(); // A reload drops the module's memory cache.
+    const reloaded = await import("../lib/client");
+    expect(reloaded.soloFor("wall-room")).toEqual({ game: "wall-room", seats, role: "commander" });
+    const command = { action: "get-game", game_id: "wall-room" };
+    fetchMock.mockResolvedValueOnce(Response.json({ game: { id: "wall-room" } }));
+    await reloaded.requestGameAny(command);
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body)).seat).toBe(seats.commander);
+  });
+
+  it("migrates a legacy shared solo room into this tab before another room replaces it", async () => {
+    storage.set("hoguk:solo", JSON.stringify({ game: "old-room", seats, role: "scout" }));
+    const client = await import("../lib/client");
+    expect(client.soloFor("old-room")?.role).toBe("scout");
+    storage.set("hoguk:solo", JSON.stringify({ game: "other-room", seats, role: "cipher" }));
+    vi.resetModules();
+    expect((await import("../lib/client")).soloFor("old-room")?.role).toBe("scout");
   });
 
   it("keeps solo platform throttling and retries the unchanged request id without automatic resubmission", async () => {

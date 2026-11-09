@@ -1,5 +1,6 @@
-// 호국실록 캠퍼스 사운드(음원 파일) 재생. public/sound/의 mp3 9개를 장면에 맞춰 튼다.
-// 파일을 못 불러오면 lib/sound.ts가 지금까지의 합성 배경음·효과음으로 대신 낸다.
+// 호국실록 캠퍼스 사운드(음원 파일) 재생. 2026-11-08 01~04·07~09를 새 곡으로 바꾸고 크기를 다시 맞췄다(hh 고름, 믹싱 표는 manifest _mix). public/sound/의 mp3 9개를 장면에 맞춰 튼다.
+// 파일을 못 불러오면 2·6·15초 뒤 다시 받아 본다(RETRY_SECONDS). 그래도 안 되면 반복 곡은 조용히 두고,
+// 보직 공개·사초는 lib/sound.ts가 합성 효과음으로 대신 낸다.
 //
 // - 반복 곡(01·03·04·05·08)은 한 번 디코딩해 AudioBufferSourceNode loop로 튼다. 반복 끝점은
 //   manifest 길이(seconds)에 맞춘다(디코더가 끝에 덧붙인 표본이 있어도 틈 없이 돈다).
@@ -13,18 +14,19 @@
 // 표는 public/sound/manifest.json과 같아야 한다(tests/sound-files.test.ts가 맞춰 본다).
 
 export const TRACKS = {
-  "01": { file: "hoguk-01-lobby.mp3", seconds: 80, loop: true, webkitWav: true },
-  "02": { file: "hoguk-02-role-reveal.mp3", seconds: 6.8, loop: false },
-  "03": { file: "hoguk-03-walk.mp3", seconds: 96, loop: true, webkitWav: true },
-  "04": { file: "hoguk-04-mission.mp3", seconds: 80, loop: true },
+  "10": { file: "hoguk-memorial-remembrance.mp3", seconds: 30, loop: true, webkitWav: true },
+  "01": { file: "hoguk-01-lobby.mp3", seconds: 73.632, loop: true, webkitWav: true },
+  "02": { file: "hoguk-02-role-reveal.mp3", seconds: 4.119, loop: false },
+  "03": { file: "hoguk-03-walk.mp3", seconds: 87.690667, loop: true, webkitWav: true },
+  "04": { file: "hoguk-04-mission.mp3", seconds: 78.336, loop: true, webkitWav: true },
   "05": { file: "hoguk-05-memorial.mp3", seconds: 72, loop: true, webkitWav: true },
   "06": { file: "hoguk-06-silence.mp3", seconds: 10, loop: false },
-  "07": { file: "hoguk-07-record.mp3", seconds: 3.6, loop: false },
-  "08": { file: "hoguk-08-bongji.mp3", seconds: 80, loop: true, webkitWav: true },
-  "09": { file: "hoguk-09-results.mp3", seconds: 24, loop: false },
+  "07": { file: "hoguk-07-record.mp3", seconds: 4.68, loop: false },
+  "08": { file: "hoguk-bongji-afternoon.mp3", seconds: 76.8, loop: true, webkitWav: true },
+  "09": { file: "hoguk-09-results.mp3", seconds: 29.732, loop: false },
 } as const;
 export type Track = keyof typeof TRACKS;
-export type LoopTrack = "01" | "03" | "04" | "05" | "08";
+export type LoopTrack = "01" | "03" | "04" | "05" | "08" | "10";
 export type CueTrack = "02" | "06" | "07" | "09";
 export const SOUND_BASE = "/sound/";
 export const FIRST: Track[] = ["01", "02"];
@@ -32,23 +34,27 @@ export const FIRST: Track[] = ["01", "02"];
 export const NEXT: Record<Track, Track[]> = {
   "01": ["02", "03"],
   "02": ["03"],
-  "03": ["04", "05"],
+  "03": ["04", "05", "10"],
   "04": ["07", "03", "05"],
   "05": ["06", "07", "03", "08"],
   "06": ["07"],
   "07": ["03", "05", "08"],
   "08": ["09"],
   "09": [],
+  "10": ["07", "08"],
 };
 // hh 2026-10-11: 미션 곡(04)이 문제 풀 때 거슬린다 → 크기를 줄인다. 바람·침묵(05·06)이 별로다 →
 // 정문·추모 구역·추모의 벽·묵념은 음악 없이 조용히(팀 결정 DECISIONS.md의 '추모 단계 무음'과도 같다).
 // 다시 켜려면 MEMORIAL_SOUND = true, 크기는 TRACK_GAIN에서.
+// 기존 자연음 05·단발음 06 설정. 새 묵념곡 10은 독립적으로 선택한다.
 export const MEMORIAL_SOUND = false;
-export const TRACK_GAIN: Partial<Record<LoopTrack, number>> = { "01": 0.8, "03": 0.85, "04": 0.3, "08": 0.7 };
+// hh 2026-11-08: 문제 풀 때는 아주 작은 새 바탕음(04, 이동 곡보다 약 7dB 작게). 끄려면 MISSION_SOUND = false.
+export const MISSION_SOUND = true;
+export const TRACK_GAIN: Partial<Record<LoopTrack, number>> = { "01": 0.8, "03": 0.85, "04": 0.35, "08": 0.7 };
 export const FADE_OUT = 0.6;
 export const FADE_IN = 1.5;
-// 단발 곡이 나는 동안 배경음을 이만큼 낮춘다
-const CUE_DUCK = 0.35;
+// 단발 곡이 나는 동안 배경음을 이만큼 낮춘다(2026-11-08 믹싱: 0.35는 곡이 뚝 꺼져 단발 곡이 튀었다)
+const CUE_DUCK = 0.6;
 
 export type SceneSound = {
   scene: string;
@@ -69,14 +75,15 @@ export function trackForScene({ scene, reverent = false, hushed = false, epilogu
     case "travel":
       return hushed ? memorial() : "03";
     case "memorial":
-      return memorial();
+      // 사용자 요청: 묵념 장면만 전용 추모곡. 정문·조용한 이동 구역은 기존 설정 유지.
+      return "10";
     case "mission":
     case "report":
     case "waiting":
     case "lock":
     case "sacho":
     case "done":
-      return epilogue ? "08" : reverent ? memorial() : "04";
+      return epilogue ? "08" : reverent ? memorial() : MISSION_SOUND ? "04" : null;
     default:
       // 첫 화면·입장·대기실·보직·장비
       return "01";
@@ -123,9 +130,16 @@ function decode(ctx: BaseAudioContext, data: ArrayBuffer): Promise<AudioBuffer> 
 }
 
 // 반복 끝점: manifest 길이. 디코딩 길이가 그보다 짧으면 디코딩 길이.
+// 둘이 5ms 안쪽으로 같으면(소수점 반올림 차이) 디코딩 길이를 그대로 쓴다: 표본 몇 개만 잘려도
+// 크로스페이드로 맞춘 이음매가 어긋나 반복마다 딸깍 소리가 난다(2026-11-09, 08에서 16표본).
+// 디코더가 덧붙인 틈(mp3는 보통 24ms 넘게)은 그보다 길어서 여전히 manifest 길이에서 자른다.
 export function loopEndFor(track: Track, decodedSeconds: number) {
-  return Math.min(TRACKS[track].seconds, decodedSeconds);
+  const seconds = TRACKS[track].seconds;
+  return Math.abs(decodedSeconds - seconds) < 0.005 ? decodedSeconds : Math.min(seconds, decodedSeconds);
 }
+// 못 받았거나 못 풀었을 때 다시 해 볼 간격(초). 폰 망이 잠깐 끊기거나 메모리가 모자라 한 번 실패해도
+// 그 곡을 버리지 않는다(2026-11-09: 한 번 실패하면 그 접속 내내 예전 합성 배경음이 대신 났다).
+export const RETRY_SECONDS = [2, 6, 15];
 
 export type FileDeck = {
   /** 반복 곡을 바꾼다. 같은 곡이면 아무 일도 하지 않는다. 바뀌면 true */
@@ -149,11 +163,14 @@ export function createFileDeck(
   const buffers = new Map<Track, AudioBuffer>();
   const loading = new Map<Track, Promise<AudioBuffer | null>>();
   const broken = new Set<Track>();
+  // 곡마다 연달아 실패한 횟수(다시 받기 간격을 고른다)
+  const misses = new Map<Track, number>();
   const duck = ctx.createGain();
   duck.connect(out);
   let want: LoopTrack | null = null;
   let calmOn = false;
-  let playing: { track: LoopTrack; src: AudioBufferSourceNode; gain: GainNode; filter: BiquadFilterNode } | null = null;
+  let nextStartAt = 0;
+  let playing: { at: number; track: LoopTrack; src: AudioBufferSourceNode; gain: GainNode; filter: BiquadFilterNode } | null = null;
 
   const load = (track: Track): Promise<AudioBuffer | null> => {
     const have = buffers.get(track);
@@ -166,10 +183,21 @@ export function createFileDeck(
         .then((buf) => {
           loading.delete(track);
           // 디코딩한 뒤에는 받은 파일 바이트를 버린다(다시 필요하면 브라우저 캐시에서 받는다)
+          bytes.delete(track);
           if (buf) {
             buffers.set(track, buf);
-            bytes.delete(track);
+            misses.delete(track);
+            broken.delete(track);
+            return buf;
           }
+          // 실패: 받은 결과를 버리고(다음에 새로 받는다) 잠시 뒤 다시 해 본다. 지금 원하는 반복 곡이면 받는 대로 튼다.
+          const n = (misses.get(track) ?? 0) + 1;
+          misses.set(track, n);
+          const wait = RETRY_SECONDS[n - 1];
+          if (wait !== undefined && typeof window !== "undefined")
+            window.setTimeout(() => {
+              if (track === want && !playing) void load(track).then((b) => startIfWanted(track as LoopTrack, b));
+            }, wait * 1000);
           else if (!broken.has(track)) {
             broken.add(track);
             hooks.onFail?.(track);
@@ -181,25 +209,31 @@ export function createFileDeck(
     return p;
   };
   // 지금 곡과 다음 단계 곡만 디코딩해 두고 나머지는 버린다(단발 곡 02·07은 작아서 남긴다)
-  const next = (track: Track) => NEXT[track].filter((t) => MEMORIAL_SOUND || (t !== "05" && t !== "06"));
+  const next = (track: Track) => NEXT[track].filter((t) => (MEMORIAL_SOUND || (t !== "05" && t !== "06")) && (MISSION_SOUND || t !== "04"));
   const keepOnly = (track: Track) => {
     const keep = new Set<Track>([track, ...next(track), "02", "07"]);
     for (const t of [...buffers.keys()]) if (!keep.has(t)) buffers.delete(t);
     for (const t of next(track)) void load(t);
   };
   const filterFreq = () => (calmOn ? 650 : 20000);
+  // 받는 사이에 다른 곡으로 바뀌었거나 이미 틀고 있으면 틀지 않는다
+  const startIfWanted = (track: LoopTrack, buf: AudioBuffer | null) => {
+    if (!buf || want !== track || playing) return;
+    start(track, buf);
+  };
 
   const fadeOut = (p: NonNullable<typeof playing>, at: number) => {
     try {
       const g = p.gain.gain;
       g.cancelScheduledValues(at);
-      g.setValueAtTime(g.value, at);
+      g.setValueAtTime(p.at > at ? 0 : g.value, at);
       g.linearRampToValueAtTime(0, at + FADE_OUT);
       p.src.stop(at + FADE_OUT + 0.05);
+      nextStartAt = Math.max(nextStartAt, at + FADE_OUT + 0.05);
     } catch {}
   };
   const start = (track: LoopTrack, buf: AudioBuffer) => {
-    const at = ctx.currentTime + 0.02;
+    const at = Math.max(ctx.currentTime + 0.02, nextStartAt);
     const src = ctx.createBufferSource();
     src.buffer = buf;
     src.loop = true;
@@ -213,7 +247,7 @@ export function createFileDeck(
     gain.gain.linearRampToValueAtTime((track === "05" && calmOn ? 0.7 : 1) * (TRACK_GAIN[track] ?? 1), at + FADE_IN);
     src.connect(filter).connect(gain).connect(duck);
     src.start(at, 0);
-    playing = { track, src, gain, filter };
+    playing = { at, track, src, gain, filter };
     hooks.onStart?.(track);
   };
 
@@ -231,12 +265,10 @@ export function createFileDeck(
         playing = null;
       }
       if (!track) return true;
+      // 장면이 이 곡을 새로 부르면 예전에 실패했어도 처음부터 다시 받아 본다
+      if (broken.delete(track)) misses.delete(track);
       keepOnly(track);
-      void load(track).then((buf) => {
-        // 받는 사이에 다른 곡으로 바뀌었으면 틀지 않는다
-        if (!buf || want !== track || playing) return;
-        start(track, buf);
-      });
+      void load(track).then((buf) => startIfWanted(track, buf));
       return true;
     },
     cue(track, gain = 1) {

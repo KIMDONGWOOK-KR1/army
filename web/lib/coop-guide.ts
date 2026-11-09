@@ -13,8 +13,10 @@ export function coopGuide(s: V2Response) {
   const draft = closing ? self.joint_record : confirming ? self.memorial_record : undefined;
   const consent = !!draft && (closing ? !!game.retro_mask?.every(Boolean) : confirming && game.report_mask.every(Boolean));
   const mask = complete ? ROLES.map(() => true) : traveling ? game.arrival_mask
-    : consent ? draft!.confirm_mask : closing ? game.retro_mask ?? [] : game.report_mask;
-  const label = complete ? "함께 완료" : traveling ? "도착 확인" : tribute ? "헌화" : consent ? "공동 기록 동의" : closing ? "회고 저장" : "조사 보고";
+    : consent ? draft!.confirm_mask : closing ? game.retro_mask ?? []
+    // 추모의 벽: 지금 열린 15초 창에서 추모한 사람(창이 지나면 다시 비어 있다)
+    : tribute ? game.tribute?.pressed ?? game.report_mask : game.report_mask;
+  const label = complete ? "함께 완료" : traveling ? "도착 확인" : tribute ? "추모" : consent ? "공동 기록 동의" : closing ? "회고 저장" : "조사 보고";
   const next = s.course.sites.find(site => site.seq > stage.seq);
   // 기다리는 이유: 아직 끝내지 않은 동료의 보직 이름만 쓴다(단서·본문은 읽지 않는다)
   const others = ROLES.filter((role, i) => role !== self.role && !mask[i]).map(role => ROLE_NAMES[role]).join("·");
@@ -27,9 +29,9 @@ export function coopGuide(s: V2Response) {
   else if (traveling) action = mask[mine]
     ? `내 도착은 확인됐어요. ${waitFor("도착") || "곧 다음 장면이 열려요."}`
     : "목적지로 걸어가 내 도착을 확인해요. 동료와 주변도 살펴요.";
-  else if (tribute) action = mask[mine]
-    ? `국화를 올렸어요. ${others ? `${others}이 마음을 전하는 동안` : "잠시"} 조용히 머물러요.`
-    : "장소의 이야기를 읽고, 내 국화 한 송이를 올려요.";
+  else if (tribute) action = game.tribute?.started_at
+    ? "네 사람이 함께 15초 동안 계속 누르고 있어요. 손을 떼면 시간이 초기화돼요."
+    : mask[mine] ? `누르고 있어요. ${waitFor("참여")}` : "각자 버튼을 누른 채 기다려요. 네 사람이 모이면 15초를 셉니다.";
   else if (closing) action = !self.retro ? "오늘 기억에 남은 순간을 내 회고에 남겨요. 본문은 나만 볼 수 있어요."
     : !game.retro_mask?.every(Boolean) ? `내 회고를 저장했어요. ${waitFor("회고")}`
     : !draft ? self.role === "commander" ? "네 사람의 회고가 모였어요. 공동 문장과 근거를 작성해요." : "지휘관이 공동 문장을 작성하면 함께 읽고 동의해요."
@@ -58,7 +60,7 @@ export function coopGuide(s: V2Response) {
   // 접힌 한 줄에 들어가도록 짧게 쓴다(장소 이름은 화면 위에 이미 있다)
   const goal = complete ? "기록 완성"
     : traveling ? "다 함께 모이기"
-    : tribute ? "국화 올리기"
+    : tribute ? "함께 추모하기"
     : consent ? "공동 기록 동의"
     : closing ? "회고 모으기"
     : confirming ? "공동 기록 확인"
@@ -66,7 +68,7 @@ export function coopGuide(s: V2Response) {
   const dest = next?.name ?? "결과";
   const until = game.status === "done" ? "" : complete ? next ? `지휘관이 출발을 알리면 ${dest}${toward(dest)} 이동해요` : "모두의 기록이 결과에 남아요"
     : traveling ? "네 사람 모두 도착하면 조사가 열려요"
-    : tribute ? "네 사람 모두 국화를 올리면 다음으로 이어져요"
+    : tribute ? "네 사람이 15초 동안 함께 누르면 추모가 시작돼요"
     : consent ? "네 사람 모두 같은 버전에 동의하면 탐방이 끝나요"
     : closing ? "네 회고가 모이면 지휘관이 공동 문장을 써요"
     : confirming ? "네 사람 모두 확인하면 다음으로 이어져요"
@@ -82,7 +84,7 @@ export function coopGuide(s: V2Response) {
       const member = game.members.find(m => m.role === role);
       return { role, nickname: member?.nickname ?? "합류 대기", me: role === self.role,
         done: !!mask[i], online: !!member?.online, joined: !!member,
-        status: complete ? "함께 완료" : mask[i] ? `${label} 완료` : traveling ? "이동 중" : tribute ? "마음 전하는 중" : consent ? "문장 읽는 중" : closing ? "회고 중" : "조사 중" };
+        status: complete ? "함께 완료" : mask[i] ? `${label} 완료` : traveling ? "이동 중" : tribute ? "마음 모으는 중" : consent ? "문장 읽는 중" : closing ? "회고 중" : "조사 중" };
     }),
   };
 }

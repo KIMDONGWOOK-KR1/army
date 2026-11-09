@@ -1,3 +1,4 @@
+import { HOLD_MS, holdView, updateHold } from "./tribute-hold.ts";
 import { answerHashV2, normalizeTextV2 } from "./answer-v2.ts";
 import { allowsSimulatedArrival, hasGpsArrival } from "./arrival-policy.ts";
 import { DomainError, sha256, validateNickname } from "./game-core.ts";
@@ -150,6 +151,8 @@ export function siteInfoV2(stage: Stage, completed = false): SiteInfo {
     },
   };
 }
+export const TRIBUTE_WINDOW_MS = HOLD_MS;
+const tributeViewV2 = holdView;
 export function projectGameV2(
   game: Game,
   course: CourseV2,
@@ -262,6 +265,17 @@ export function projectGameV2(
       ...(stage.altModes?.length ? { visit: visitV2(stage, state) } : {}),
       ...(stage.completion.type === "joint-record" ? {
         retro_mask: ROLES.map((r) => !!state.retros?.[stage.id]?.[r]),
+        // User-directed public paper boats. Mission records remain role-filtered.
+        plaza_boats: [
+          ...game.members.flatMap(m => {
+            const r = m.role && state.retros?.[stage.id]?.[m.role];
+            return r ? [{ id: `reflection-${m.id}`, memberId: m.id, nickname: m.nickname, text: r.text, at: r.at, kind: "reflection" as const }] : [];
+          }),
+          ...(state.plazaMessages?.[stage.id] ?? []).map(b => ({ ...b, nickname: game.members.find(m => m.id === b.memberId)?.nickname ?? "동료", kind: "message" as const })),
+        ],
+      } : {}),
+      ...(stage.completion.type === "tribute" ? {
+        tribute: tributeViewV2(state.tributes?.[stage.id], !!completed, now),
       } : {}),
       step_done_count: Object.fromEntries(
         ROLES.map(
@@ -555,7 +569,7 @@ async function execute(
     }
     return result;
   }
-  if (game.status === "done") {
+  if (game.status === "done" && !(cmd.action === "submit-retro" && cmd.boat_kind === "message")) {
     fail("WRONG_PHASE", "종료된 작전은 변경할 수 없다.");
   }
   if (stage.completion.type !== "lock" && ["confirm-explanation", "open-after-explanation", "open-lock"].includes(cmd.action)) {
@@ -615,7 +629,21 @@ async function execute(
       break;
     }
     case "submit-retro": {
-      stageAction(); phase("playing", "mission");
+      stageAction();
+      if (cmd.boat_kind !== undefined && !["reflection", "message"].includes(cmd.boat_kind)) fail("BAD_RECORD", "종이배 종류를 확인하라.");
+      if (cmd.boat_kind === "message") {
+        if (stage.kind !== "epilogue" || stage.completion.type !== "joint-record" || !["playing","done"].includes(game.status) || !["mission","cleared"].includes(game.phase)) fail("WRONG_PHASE", "봉지에서 메시지를 보낼 수 있다.");
+        let text: string;
+        try { text = normalizeTextV2(cmd.text, 600); } catch { return fail("BAD_RECORD", "메시지를 1~600자로 작성하라."); }
+        const boats = (state.plazaMessages ??= {})[stage.id] ??= [];
+        const previous = [...boats].reverse().find(b => b.memberId === member!.id);
+        if (previous && now - previous.at < 2000) fail("RATE_LIMITED", "잠시 뒤 새 종이배를 띄워라.");
+        boats.push({ id: `message-${member!.id}-${cmd.request_id}`, memberId: member!.id, text, at: now });
+        if (boats.length > 40) boats.splice(0, boats.length - 40);
+        result = { saved: true, boat_id: boats.at(-1)!.id };
+        break;
+      }
+      phase("playing", "mission");
       if (stage.completion.type !== "joint-record") fail("WRONG_PHASE", "회고 단계가 아니다.");
       let text: string;
       try { text = normalizeTextV2(cmd.text, 600); }
@@ -729,14 +757,39 @@ async function execute(
     }
     case "submit-step": {
       stageAction();
-      phase("playing", "mission");
       const role = member!.role!;
       const step = stage.roles[role]?.steps.find((s) => s.id === cmd.step_id) ??
         fail("NO_STEP", "본인 문제를 찾을 수 없다.");
+      // Completion can reach another phone before its next heartbeat/release response.
+      if (stage.completion.type === "tribute" && game.phase === "cleared") {
+        result = { step_id: step.id, accepted: true, status: "done" }; break;
+      }
+      phase("playing", "mission");
       const privateStage = prepared(course, stage),
         p = progress[role].steps[step.id];
       if (!requirements(step, progress)) {
         fail("STEP_LOCKED", "선행 문제 또는 보고를 완료하라.");
+      }
+      if (stage.completion.type === "tribute") {
+        const t = (state.tributes ??= {})[stage.id] ??= { startedAt: null, presses: {}, round: 0 };
+        const verdict = updateHold(t, role, cmd.answer, now);
+        const all = verdict.complete;
+        const view = holdView(t, false, now);
+        result = { step_id: step.id, accepted: all, status: all ? "done" : p.status,
+          gathered: view.pressed.filter(Boolean).length, ends_at: view.ends_at };
+        metadata = { step_id: step.id, accepted: all };
+        if (all) {
+          t.completedAt = now;
+          for (const r of ROLES) {
+            for (const q of Object.values(progress[r].steps)) {
+              q.status = "done";
+              q.lastAt = now;
+            }
+            progress[r].reported = true;
+          }
+          result = { ...result, ...finish(game, course, now, "field") };
+        }
+        break;
       }
       if (done(p)) {
         result = { step_id: step.id, accepted: true, status: p.status };
@@ -777,12 +830,6 @@ async function execute(
       unlock(stage, progress);
       result = { step_id: step.id, accepted, status: p.status };
       metadata = { step_id: step.id, accepted, ...(method !== undefined ? { method } : {}) };
-      if (accepted && stage.completion.type === "tribute") {
-        progress[role].reported = true;
-        if (ROLES.every((r) => progress[r].reported && Object.values(progress[r].steps).every(done))) {
-          result = { ...result, ...finish(game, course, now, "field") };
-        }
-      }
       break;
     }
     case "request-hint": {

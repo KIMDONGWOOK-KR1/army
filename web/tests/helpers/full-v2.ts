@@ -13,24 +13,29 @@ export async function fullTeam(options: { evidence?: boolean; wallMode?: "tribut
   const events: GameEvent[] = [];
   const callUser = (user: string, cmd: Command) => dispatch(game, course, user, {
     request_id: `full-${seq++}`, stage_id: course.stages[game.v2!.stageIndex].id, ...cmd,
-  }, now += 1100, salt, events);
+  }, now += course.stages[game.v2!.stageIndex].completion.type === "tribute" && cmd.action === "submit-step" ? 0 : 1100, salt, events);
   for (const [i, user] of ["two", "three", "four"].entries()) await callUser(user, { action: "join-game", nickname: `연습${i + 2}` });
   await callUser("one", { action: "start-game" }); now += 4000;
   for (const m of game.members) await callUser(m.userId, { action: "set-ready" });
   const user = (role: Role) => game.members.find((m) => m.role === role)!.userId;
   const call = (role: Role, cmd: Command) => callUser(user(role), cmd);
   const view = (role: Role) => projectGameV2(game, course, user(role), now);
+  // 시계만 앞으로 돌린다(추모의 벽 15초 창 시험)
+  const advance = (ms: number) => { now += ms; };
   const arrive = async () => { for (const role of ROLES) await call(role, { action: "report-arrival", method: "simulated" }); };
   const solve = async (role: Role) => {
     const stage = course.stages[game.v2!.stageIndex];
     for (const step of stage.roles[role]!.steps) {
-      const answer = step.grading === "confirm" ? "confirmed" : input.stages[stage.id].steps[step.id].answer ?? (step.fields
+      const answer = stage.completion.type === "tribute" ? `start:${role}` : step.grading === "confirm" ? "confirmed" : input.stages[stage.id].steps[step.id].answer ?? (step.fields
         ? Object.fromEntries(step.fields.map((f) => [f.id, `[합성] ${stage.id}-${role} 비공개 ${f.id}`])) : "[합성] 자유 기록");
       await call(role, { action: "submit-step", step_id: step.id, answer,
         ...(options.evidence === false ? {} : { method: "official_digital" as const,
           source: { text: `[합성] ${stage.id}-${role} 비공개 출처` } }) });
     }
     if (stage.completion.type !== "tribute") await call(role, { action: "submit-report" });
+    else if (view(role).game.tribute?.pressed.every(Boolean)) {
+      for(let i=0;i<15;i++) { advance(1000); for(const r of ROLES) await call(r,{action:"submit-step",step_id:stage.roles[r]!.steps[0].id,answer:`hold:${r}`}); }
+    }
   };
   const depart = () => call("commander", { action: "depart-next-site" });
   const wallReady = async () => { for (const role of ["scout", "signal", "cipher", "commander"] as const) await solve(role); };
@@ -54,5 +59,5 @@ export async function fullTeam(options: { evidence?: boolean; wallMode?: "tribut
     await call("commander", { action: "open-lock", digits: stage.completion.order.map((r) => input.stages[stage.id].roles[r]!.digit!) });
     await depart();
   }
-  return { course, game, input, events, call, callUser, view, arrive, solve, depart, draft, wallReady, wallComplete };
+  return { course, game, input, events, call, callUser, view, advance, arrive, solve, depart, draft, wallReady, wallComplete };
 }

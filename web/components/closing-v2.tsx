@@ -13,7 +13,7 @@ import type { CSSProperties } from "react";
 
 type Props = { snapshot: V2Response; busy: boolean; send: (command: Command) => Promise<GameResponse | null> };
 
-export function SharedDraftPanel({ snapshot, busy, send }: Props) {
+export function SharedDraftPanel({ snapshot, busy, send, embedded = false }: Props & { embedded?: boolean }) {
   const { self, game, stage } = snapshot;
   const memorial = stage.completion.type === "confirm";
   const draft = memorial ? self.memorial_record : self.joint_record;
@@ -36,9 +36,9 @@ export function SharedDraftPanel({ snapshot, busy, send }: Props) {
     setWords(draft?.words ?? Array<string>(template.wordCount).fill(""));
     setVersion(draft?.draft_version ?? 0); setEditing(true);
   };
-  return <section className={styles.card} data-testid={memorial ? "memorial-record" : "joint-record"}>
-    <h3>{memorial ? "추모의 벽 공동 기록" : "봉지 공동 기록"}</h3>
-    <p>개인 본문은 본인에게만 보인다. 이 공동 문장과 근거는 팀 전체가 읽는다.</p>
+  return <section className={`${styles.card} ${embedded ? styles.embedded : ""}`} data-testid={memorial ? "memorial-record" : "joint-record"}>
+    <h3>{memorial ? "추모의 벽 공동 기록" : embedded ? "함께 남기는 한 문장" : "봉지 공동 기록"}</h3>
+    {memorial && <p>개인 본문은 본인에게만 보인다. 이 공동 문장과 근거는 팀 전체가 읽는다.</p>}
     {draft ? <>
       <p>기록 버전 {draft.draft_version}</p>
       <p>{draft.words.map(plain).join(" · ")}</p>
@@ -59,7 +59,7 @@ export function SharedDraftPanel({ snapshot, busy, send }: Props) {
       if (next) setEditing(false);
     }}>
       <p>{plain(template.prompt)}</p>
-      {version !== (draft?.draft_version ?? 0) && <p role="alert">기록이 바뀌었다. 작성을 취소하고 최신 내용을 다시 열어라.</p>}
+      {version !== (draft?.draft_version ?? 0) && <p role="alert">기록이 바뀌었어요. 작성을 취소하고 최신 내용을 다시 열어 주세요.</p>}
       {words.map((w, i) => <label className={styles.field} key={i}><span>낱말 {i + 1}</span>
         <select aria-label={`낱말 ${i + 1}`} required value={w} onChange={(e) => setWords(words.map((v, n) => n === i ? e.target.value : v))}>
           <option value="">선택</option>{template.wordChoices.map((v) => <option key={v} value={v}>{plain(v)}</option>)}
@@ -69,7 +69,7 @@ export function SharedDraftPanel({ snapshot, busy, send }: Props) {
         <blockquote aria-label="공동 문장 미리보기" aria-live="polite">{preview}</blockquote>
       </div> : <label className={styles.field}><span>공동 문장</span><textarea aria-label="공동 문장" required maxLength={600} value={text} onChange={(e) => setText(e.target.value)} /></label>}
       <label className={styles.field}><span>공동 근거</span><textarea aria-label="공동 근거" required maxLength={600} value={reason} onChange={(e) => setReason(e.target.value)} /></label>
-      <p>내용이 바뀌면 기존 확인은 초기화된다.</p>
+      {!embedded && <p>내용이 바뀌면 기존 확인은 초기화된다.</p>}
       <button className="button primary" disabled={busy || version !== (draft?.draft_version ?? 0)}>공동 기록 저장</button>
       <button type="button" className="button secondary" onClick={() => setEditing(false)}>작성 취소</button>
     </form>}

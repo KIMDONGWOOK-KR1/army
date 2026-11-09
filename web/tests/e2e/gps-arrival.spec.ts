@@ -72,7 +72,7 @@ test("four GPS arrivals unlock missions; outside, denied, stale and noisy fixes 
       await new Promise(resolve => setTimeout(resolve, 1050));
     }
     expect(arrivals).toEqual([0, 0, 0, 0]);
-    await expect(pages[3].locator(".hud-gps")).toContainText("위치 권한이 꺼져 있다");
+    await expect(pages[3].locator(".hud-gps")).toContainText("위치 권한이 꺼져 있어요");
     await expect(pages[0].locator(".hud-distance")).not.toContainText("도착 범위 안");
     await pages[0].screenshot({ path: ".demo-data/gps-travel-public.png" });
     // Three participants enter. The fourth still waits outside.

@@ -3,26 +3,26 @@ import { serializeAnswerV2 } from "@/supabase/functions/_shared/answer-v2";
 
 // Presentation only. Questions, choices, records and judgements come from the server.
 export const STORY_TOOLS: Record<Role, { name: string; handoff: string }> = {
-  commander: { name: "지휘 보드", handoff: "동료의 근거를 듣고 기록을 완성하세요." },
-  scout: { name: "탐색 수첩", handoff: "관찰한 내용을 동료에게 말로 전하세요." },
-  signal: { name: "통신기", handoff: "확인한 단서를 동료에게 말로 전하세요." },
-  cipher: { name: "해독판", handoff: "수정한 내용과 그 근거를 지휘관에게 전하세요." },
+  commander: { name: "지휘 보드", handoff: "동료의 근거를 듣고 기록을 완성해요." },
+  scout: { name: "탐색 수첩", handoff: "관찰한 내용을 동료에게 말로 전해요." },
+  signal: { name: "통신기", handoff: "확인한 단서를 동료에게 말로 전해요." },
+  cipher: { name: "해독판", handoff: "고친 내용과 그 근거를 지휘관에게 전해요." },
 };
 
 const inputCopy: Record<StepType, { title: string; action: string }> = {
   truefalse: { title: "보고에 판정 도장을", action: "판정 보내기" },
-  order: { title: "흩어진 사건을 이어라", action: "시간선 확인" },
-  match: { title: "자료와 근거를 연결하라", action: "연결 확인" },
-  classification: { title: "보고를 분류하라", action: "분류 확인" },
-  choice: { title: "단서를 대조하라", action: "선택 확인" },
-  "multi-choice": { title: "해당하는 단서를 모아라", action: "선택 확인" },
-  frequency: { title: "끊어진 신호를 연결하라", action: "신호 연결" },
-  words: { title: "낱말을 모아라", action: "낱말 전송" },
-  "spot-correct": { title: "기록의 빈틈을 바로잡아라", action: "수정 기록 확인" },
-  text: { title: "판단의 근거를 남겨라", action: "기록 저장" },
-  observation: { title: "현장의 단서를 찾아라", action: "관찰 확인" },
+  order: { title: "흩어진 사건 잇기", action: "시간선 확인" },
+  match: { title: "자료와 근거 연결하기", action: "연결 확인" },
+  classification: { title: "보고 분류하기", action: "분류 확인" },
+  choice: { title: "단서 대조하기", action: "선택 확인" },
+  "multi-choice": { title: "해당하는 단서 모으기", action: "선택 확인" },
+  frequency: { title: "끊어진 신호 잇기", action: "신호 연결" },
+  words: { title: "낱말 모으기", action: "낱말 전송" },
+  "spot-correct": { title: "기록의 빈틈 바로잡기", action: "수정 기록 확인" },
+  text: { title: "판단의 근거 남기기", action: "기록 저장" },
+  observation: { title: "현장의 단서 찾기", action: "관찰 확인" },
   "record-form": { title: "발견을 수첩에", action: "기록 저장" },
-  "fill-blank": { title: "기록의 빈칸을 채워라", action: "기록 확인" },
+  "fill-blank": { title: "기록의 빈칸 채우기", action: "기록 확인" },
   confirm: { title: "함께 확인한 기록", action: "내용 확인" },
 };
 

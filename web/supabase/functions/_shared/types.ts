@@ -110,6 +110,7 @@ export type Command = {
   source?: { text: string; source_id?: string };
   mode_id?: string;
   text?: string;
+  boat_kind?: "reflection" | "message";
   reason?: string;
   words?: string[];
   draft_version?: number;
@@ -371,6 +372,10 @@ export type GameV2State = {
   memorialRecords?: Record<string, SharedDraftV2>;
   jointRecords?: Record<string, SharedDraftV2>;
   retros?: Record<string, Partial<Record<Role, { text: string; at: number }>>>;
+  plazaMessages?: Record<string, { id: string; memberId: string; text: string; at: number }[]>;
+  // 추모의 벽 동시 추모(hh 2026-11-09): 첫 추모가 15초 창을 열고, 그 안에 네 보직이 모두 눌러야 국화가 올라간다.
+  // 창이 지나면 다음 추모가 새 창(round)을 연다. 점수·감점은 없다.
+  tributes?: Record<string, { startedAt: number | null; presses: Partial<Record<Role, number>>; holds?: Partial<Record<Role, { id: string; at: number }>>; round: number; completedAt?: number }>;
   sacho: Record<string, {
     completedAt: number;
     eventOrder: { stepId: string; method: VerifyMethod | null; verified: boolean }[];

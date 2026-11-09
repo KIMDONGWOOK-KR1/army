@@ -1,0 +1,29 @@
+/* 문제를 맞힌 순간 머리의 내 장병 옆에 뜨는 짧은 말풍선(끄덕임과 같은 2.6초) */
+:global(.mission-emblem):has(> .say) {
+  position: relative;
+}
+.say {
+  position: absolute;
+  right: calc(100% - 2px);
+  top: 26px;
+  z-index: 2;
+  padding: 5px 10px;
+  border-radius: 12px 3px 12px 12px;
+  background: #fffdf5;
+  border: 2px solid #2c4841;
+  color: #2c4841;
+  font: 400 15px/1.2 var(--game);
+  white-space: nowrap;
+  box-shadow: 0 3px 0 #2c484126;
+  pointer-events: none;
+  animation: say 2.6s ease-out both;
+}
+@keyframes say {
+  0% { opacity: 0; transform: translateY(6px) scale(0.8); }
+  10% { opacity: 1; transform: none; }
+  82% { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translateY(-4px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .say { animation: none; }
+}

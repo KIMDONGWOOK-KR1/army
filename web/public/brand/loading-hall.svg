@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="220" viewBox="0 0 600 220" fill="none"><title>B — 용봉관의 오후</title><defs>
+<g id="tree"><path d="M0 4C-8 18-10 23-9 30C-19 36-19 47-12 51C-24 61-21 73-14 76C-23 89-18 101 0 103C18 101 23 89 14 76C21 73 24 61 12 51C19 47 19 36 9 30C10 23 8 18 0 4Z" fill="#bfceaa"/><path d="M0 22V116M0 55L-9 48M0 72L10 64M0 89L-11 80" stroke="#9caf8d" stroke-width="2" stroke-linecap="round"/><path d="M0 12C3 32 8 42 6 55C14 66 13 78 8 86C13 99 7 104 0 103Z" fill="#a9be97" opacity=".45"/></g>
+<g id="bush"><path d="M-27 0C-33-14-19-20-13-13C-12-30 9-30 11-15C22-24 36-12 28 0Z" fill="#bccba3"/><path d="M-10-8L-8-3M14-9L12-4" stroke="#9caf89" stroke-width="1.5" stroke-linecap="round"/></g>
+<g id="flower"><path d="M0 0V-8" stroke="#afbe91" stroke-width="1.4"/><circle cx="0" cy="-10" r="3.5" fill="#e1c88d"/><circle cx="0" cy="-10" r="1" fill="#c0aa78"/></g>
+</defs>
+<path d="M0 191Q140 177 237 187Q372 176 600 190V220H0Z" fill="#e1e6c8"/>
+<path d="M250 220L279 182H321L352 220" fill="#eee5c9"/><path d="M272 196H328M260 211H340" stroke="#d8cfb4" stroke-width="1.3"/>
+<use href="#tree" transform="translate(83 54) scale(1.18)"/><use href="#tree" transform="translate(518 69) scale(1.05)"/>
+<use href="#tree" transform="translate(126 103) scale(.72)" opacity=".72"/><use href="#tree" transform="translate(566 116) scale(.63)" opacity=".8"/>
+<!-- The symmetrical brick frontage and clock tower define Yongbong Hall. -->
+<g stroke="#ad9d87" stroke-width="1.2" stroke-linejoin="round">
+<path d="M160 112H266V185H160Z" fill="#cdb29a"/>
+<path d="M334 112H440V185H334Z" fill="#cdb29a"/>
+<path d="M262 100H338V185H262Z" fill="#c4a58f"/>
+<path d="M278 55H322V100H278Z" fill="#c4a58f"/>
+</g>
+<!-- Light stone cornices and a stepped roofline. -->
+<path d="M158 109H264V115H158ZM336 109H442V115H336ZM260 98H340V104H260ZM275 52H325V57H275ZM282 47H318V52H282ZM290 43H310V47H290Z" fill="#e8dfc1"/>
+<path d="M162 139H261V143H162ZM339 139H438V143H339Z" fill="#e7dbc1"/>
+<path d="M162 164H261V168H162ZM339 164H438V168H339Z" fill="#e7dbc1"/>
+<!-- Tall light-colored strips around the central windows. -->
+<path d="M278 108H285V165H278ZM296 108H303V165H296ZM314 108H321V165H314Z" fill="#f0e8cf"/>
+<path d="M285 111H296V162H285ZM303 111H314V162H303Z" fill="#9eaf9e"/>
+<path d="M285 127H296M285 144H296M303 127H314M303 144H314" stroke="#d6dec2" stroke-width="2"/>
+<g fill="#a6b4a1" stroke="#e8dfc6" stroke-width="2.3">
+<path d="M175 123h10v13h-10Z"/><path d="M175 150h10v13h-10Z"/><path d="M175 174h10v10h-10Z"/><path d="M200 123h10v13h-10Z"/><path d="M200 150h10v13h-10Z"/><path d="M200 174h10v10h-10Z"/><path d="M225 123h10v13h-10Z"/><path d="M225 150h10v13h-10Z"/><path d="M225 174h10v10h-10Z"/><path d="M350 123h10v13h-10Z"/><path d="M350 150h10v13h-10Z"/><path d="M350 174h10v10h-10Z"/><path d="M375 123h10v13h-10Z"/><path d="M375 150h10v13h-10Z"/><path d="M375 174h10v10h-10Z"/><path d="M400 123h10v13h-10Z"/><path d="M400 150h10v13h-10Z"/><path d="M400 174h10v10h-10Z"/>
+</g>
+<!-- Clock face, entrance portico and two columns. -->
+<rect x="288" y="63" width="24" height="24" rx="1.5" fill="#eae3c9"/>
+<circle cx="300" cy="75" r="8.3" fill="#f5efd8" stroke="#adaf94" stroke-width="1"/>
+<path d="M300 69V75L305 78" stroke="#8e9f8c" stroke-width="1.4" stroke-linecap="round"/>
+<path d="M297 88H299V96H297ZM302 88H304V96H302Z" fill="#a49e88"/>
+<path d="M266 163H334V169H266ZM270 169H276V187H270ZM324 169H330V187H324Z" fill="#ede4c9"/>
+<path d="M287 170H313V184H287Z" fill="#a0ae99"/><path d="M300 170V184" stroke="#dedfc3" stroke-width="1.4"/>
+<path d="M266 185H334V189H266ZM260 189H340V193H260Z" fill="#d7ceb0"/>
+<use href="#bush" transform="translate(177 194) scale(.88)"/><use href="#bush" transform="translate(423 194) scale(.88)"/>
+<use href="#bush" transform="translate(52 201) scale(.8)" opacity=".6"/><use href="#flower" transform="translate(207 199)"/><use href="#flower" transform="translate(396 199)"/>
+<path d="M102 202H145M451 201H492M27 211H65M529 210H579" stroke="#bdcba4" stroke-width="2" stroke-linecap="round"/>
+</svg>

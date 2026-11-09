@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiError, getSupabase, requestGame, requestGameAny, requestGameV2, backend } from "@/lib/client";
 import type { Snapshot, Command } from "@/supabase/functions/_shared/types";
+import { bindPlazaChannel } from "@/lib/plaza-channel";
 import { requestId } from "@/lib/request-id";
 import { isV2Response, type GameResponse, type V2Response } from "@/lib/game-snapshot";
 
@@ -72,6 +73,7 @@ function useGameSession<S extends Snapshot>(
     current.current = next;
     setSnapshot(next);
     setOnline(true);
+    sessionStorage.setItem(gameKey, next.game.id);
     localStorage.setItem(gameKey, next.game.id);
     if (isV2Response(next)) {
       sessionStorage.removeItem(pendingKey);
@@ -115,6 +117,7 @@ function useGameSession<S extends Snapshot>(
     try {
       const id =
         current.current?.game.id ??
+        sessionStorage.getItem(gameKey) ??
         localStorage.getItem(gameKey) ??
         undefined;
       // The local session cookie can restore a room even without a saved id.
@@ -138,6 +141,7 @@ function useGameSession<S extends Snapshot>(
       ) {
         setOnline(true);
         if (!current.current) {
+          sessionStorage.removeItem(gameKey);
           localStorage.removeItem(gameKey);
           if (
             ["NETWORK", "SERVER_ERROR", "REQUEST_THROTTLED"].includes(errorCode.current) &&
@@ -150,7 +154,7 @@ function useGameSession<S extends Snapshot>(
       } else {
         errorCode.current = e instanceof ApiError ? e.code : "NETWORK";
         setOnline(!(e instanceof ApiError) ? false : !["NETWORK", "SERVER_ERROR"].includes(e.code));
-        setError(e instanceof Error ? e.message : "연결을 확인하라.");
+        setError(e instanceof Error ? e.message : "연결을 확인해 주세요.");
       }
     } finally {
       polling.current = false;
@@ -181,7 +185,7 @@ function useGameSession<S extends Snapshot>(
     if (persistPending && sessionStorage.getItem(pendingKey)) {
       errorCode.current = "PENDING";
       setError(
-        "이전 요청의 응답을 확인하지 못했다. 같은 요청으로 다시 연결하라.",
+        "앞선 요청의 응답을 확인하지 못했어요. 같은 요청으로 다시 연결해 주세요.",
       );
     }
   }, [pendingKey, persistPending]);
@@ -210,6 +214,7 @@ function useGameSession<S extends Snapshot>(
           channel = client.channel(`game:${snapshot.game.id}`, {
             config: { private: true, presence: { key: snapshot.self.id } },
           });
+        const plaza = bindPlazaChannel(snapshot.game.id, channel);
         channel
           .on(
             "postgres_changes",
@@ -223,6 +228,7 @@ function useGameSession<S extends Snapshot>(
           )
           .on("broadcast", { event: "stage" }, () => void refresh())
           .subscribe(async (status) => {
+            plaza.ready(status === "SUBSCRIBED");
             if (status === "SUBSCRIBED") {
               await channel.track({ member_id: snapshot.self.id });
               void refresh();
@@ -231,11 +237,12 @@ function useGameSession<S extends Snapshot>(
             }
           });
         cleanup = () => {
+          plaza.close();
           void client.removeChannel(channel);
         };
       } catch (e) {
         setError(
-          e instanceof Error ? e.message : "실시간 연결 설정을 확인하라.",
+          e instanceof Error ? e.message : "실시간 연결 설정을 확인해 주세요.",
         );
       }
     }
@@ -249,7 +256,9 @@ function useGameSession<S extends Snapshot>(
       if (mutation.current || Date.now() < blockedUntil.current) return null;
       mutation.current = true;
       setBusy(true);
-      setError("");
+      // 요청을 보내는 동안 이전 오류 알림을 지우지 않는다(성공하면 아래에서 지운다).
+      // 지웠다가 실패해서 다시 띄우면 알림 높이만큼 장면이 줄었다 늘어나, 첫 화면 3D가
+      // 재시도마다 몇 프레임씩 튀었다(자동 시연이 '열려 있는 작전이 많다'로 반복 실패할 때, hh 2026-10-28 영상).
       const creating = ["create-game", "create-demo", "create-solo", "join-game"].includes(
         command.action,
       );
@@ -278,7 +287,7 @@ function useGameSession<S extends Snapshot>(
         JSON.stringify({ ...a, request_id: undefined }) ===
         JSON.stringify({ ...b, request_id: undefined });
       if (!persist && previous && !equal(previous, cmd)) {
-        setError("이전 요청의 응답을 확인하지 못했다. 먼저 다시 연결을 눌러 같은 요청을 확인하라.");
+        setError("앞선 요청의 응답을 확인하지 못했어요. 먼저 '다시 연결'을 눌러 같은 요청을 확인해 주세요.");
         mutation.current = false;
         changingGame.current = false;
         setBusy(false);
@@ -365,6 +374,7 @@ function useGameSession<S extends Snapshot>(
     setSnapshot(null);
     setError("");
     setRestoring(false);
+    sessionStorage.removeItem(gameKey);
     localStorage.removeItem(gameKey);
     sessionStorage.removeItem(pendingKey);
     sessionStorage.setItem(homeKey, "1");

@@ -36,9 +36,10 @@ describe("cooperative wayfinding uses server progress", () => {
   });
   it("shows quiet tribute and renewed consent after a changed reflection", async () => {
     const t = await fullTeam({ wallMode: "tribute" }); await t.arrive();
-    expect(coopGuide(t.view("scout"))).toMatchObject({quiet:true,label:"헌화"});
+    expect(coopGuide(t.view("scout"))).toMatchObject({quiet:true,label:"추모",goal:"함께 추모하기"});
     await t.solve("scout");
-    expect(coopGuide(t.view("scout")).action).toContain("조용히 머물러요");
+    expect(coopGuide(t.view("scout")).action).toContain("참여를 기다려요");
+    expect(coopGuide(t.view("signal")).action).toContain("네 사람이 모이면 15초");
     for (const role of ROLES.filter(r=>r!=="scout")) await t.solve(role);
     expect(expeditionStops(t.view("scout")).filter(s=>s.status==="complete")).toHaveLength(3);
     await t.depart(); await t.arrive();

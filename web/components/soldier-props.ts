@@ -5,7 +5,7 @@ import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js
 
 import { heroSoldier, type SoldierSocket } from "./field-assets";
 import { ROLE_COLORS } from "./role-style";
-import { SKIN_BASE, SKIN_TONES, type SoldierVariant } from "./soldier-variants";
+import { HAIR_BASE, HAIR_TONES, MOLE_SPOTS, SKIN_BASE, SKIN_TONES, type SoldierVariant } from "./soldier-variants";
 import type { Role } from "@/supabase/functions/_shared/types";
 
 // 네 보직 장병의 점토 소품과 사람마다 다른 모습(soldier-variants.ts)을 C02 장병에 입힌다.
@@ -305,6 +305,31 @@ const SPECS: Record<Role, PropSpec[]> = {
 };
 
 // 평소(걷기·서기) 소품을 넣어 둔 모습. 활동할 때만 위 SPECS의 손에 든 소품(grips 있는 것)으로 바꿔 든다.
+// 소품을 꺼내 든 자세(hh 2026-10-29, pm-design character-lab 시안): 소품을 몸 가까이 낮추고 조금 작게,
+// 팔꿈치는 아래로 굽힌다. 깃발은 가까이 내려 들고, 쌍안경은 얼굴 아래에서 받치고, 무전기는 입과 가슴 사이,
+// 열쇠는 수평에 가깝게 받친다. 손잡이(grips)가 있는 소품만 옮기고 넣어 둔 소품·도장은 그대로다
+const ACTIVITY: Record<Role, { offset: V3; scale: number; rotation?: number; gripOffset?: V3 }> = {
+  commander: { offset: [0.06, 0, 0.06], scale: 1, gripOffset: [0, -0.07, 0] },
+  scout: { offset: [0, -0.115, -0.05], scale: 0.8 },
+  signal: { offset: [-0.12, -0.1, 0], scale: 0.78 },
+  cipher: { offset: [0, 0.035, -0.04], scale: 0.75, rotation: -0.56 },
+};
+const ACTION_SPECS = Object.fromEntries((Object.keys(SPECS) as Role[]).map((r) => {
+  const { offset, scale, rotation = 0, gripOffset = [0, 0, 0] } = ACTIVITY[r];
+  return [r, SPECS[r].map((spec): PropSpec => {
+    if (!spec.grips) return spec;
+    const move = (p: V3): V3 => new THREE.Vector3(...p).sub(new THREE.Vector3(...spec.pivot)).multiplyScalar(scale)
+      .applyAxisAngle(new THREE.Vector3(0, 0, 1), rotation).add(new THREE.Vector3(...spec.pivot)).add(new THREE.Vector3(...offset)).toArray() as V3;
+    const matrix = mat(offset).multiply(mat(spec.pivot)).multiply(mat([0, 0, 0], [0, 0, rotation], [scale, scale, scale])).multiply(mat(spec.pivot.map((v) => -v) as V3));
+    return {
+      ...spec,
+      pivot: move(spec.pivot),
+      parts: () => spec.parts().map((p) => ({ ...p, m: matrix.clone().multiply(p.m ?? new THREE.Matrix4()) })),
+      grips: spec.grips.map((g) => ({ ...g, at: move(g.at).map((v, i) => v + gripOffset[i]) as V3, pole: [g.hand === "left" ? 1 : -1, -2, 0.2] as V3 })),
+    };
+  })];
+})) as Record<Role, PropSpec[]>;
+
 const CARRY: Record<Role, PropSpec[]> = {
   commander: [
     // 등에 비스듬히 꽂은 깃대와 삼각 깃발: 앞에서는 모자 위 오른쪽(장병의 오른쪽)으로 보인다
@@ -474,7 +499,8 @@ const popScale = (t: number) => {
 
 // 팔 뻗기(두 마디): 어깨에서 손목까지 길이를 지키며 손목을 목표로, 팔꿈치는 pole 쪽으로 굽힌다.
 // 모두 월드 좌표에서 계산하고, 뼈의 지역 회전으로 되돌려 넣는다.
-const ARM_SCALE = 1.32;
+// 소품을 든 팔은 원래 길이 그대로(예전 1.32배 늘림은 팔이 길게 펴져 보여 뺐다, hh 2026-10-29 character-lab)
+const ARM_SCALE = 1;
 // 소품을 넣고 꺼내는 시간(초)
 const SWAP = 0.45;
 const ARM_BONES: Record<Hand, [string, string, string]> = {
@@ -554,13 +580,28 @@ export function crewSoldier(
     height,
     {
       face: variant.face,
+      faceRole: role,
       skin: SKIN_TONES[variant.skin] ?? SKIN_BASE,
       skinBase: SKIN_BASE,
       height: variant.height,
       width: variant.width,
+      hair: HAIR_TONES[variant.hair] ?? HAIR_BASE,
+      hairBase: HAIR_BASE,
+      blush: variant.blush,
+      freckles: variant.freckles,
+      mole: MOLE_SPOTS[variant.mole] ?? null,
     },
   );
-  if (variant.glasses) hero.sockets.head.add(propMesh(GLASSES));
+  const glasses = variant.glasses ? propMesh(GLASSES) : null;
+  const glassesAt = glasses?.position.clone();
+  if (glasses) hero.sockets.head.add(glasses);
+  // 보직 얼굴은 눈 자리가 조금 넓고 높아서 안경도 그만큼 넓히고 올린다(로비의 참가자 표정에서는 원래대로)
+  const fitGlasses = (roleFace: boolean) => {
+    if (!glasses || !glassesAt) return;
+    glasses.scale.x = roleFace ? 1.17 : 1;
+    glasses.position.copy(glassesAt);
+    if (roleFace) glasses.position.add(new THREE.Vector3(0.011, 0.012, 0));
+  };
   hero.sockets.hips.add(propMesh(BELT));
   type Kind = "worn" | "carry" | "action";
   let worn: { m: THREE.Mesh; kind: Kind }[] = [],
@@ -592,13 +633,15 @@ export function crewSoldier(
     worn = [];
     shown = next;
     hero.setColor(next ? ROLE_COLORS[next] : NEUTRAL_COLOR);
+    hero.setFace(next);
+    fitGlasses(!!next);
     if (!next) return;
     const add = (spec: PropSpec, kind: Kind) => {
       const m = propMesh(spec);
       hero.sockets[spec.socket].add(m);
       worn.push({ m, kind });
     };
-    for (const spec of SPECS[next]) add(spec, spec.grips ? "action" : "worn");
+    for (const spec of ACTION_SPECS[next]) add(spec, spec.grips ? "action" : "worn");
     for (const spec of CARRY[next]) add(spec, "carry");
     add(BADGES[next], "worn");
     pop = animate ? 0 : 1;
@@ -618,7 +661,7 @@ export function crewSoldier(
   const hold = () => {
     if (shown !== gripRole) {
       gripRole = shown;
-      grips = shown ? SPECS[shown].flatMap((spec) => (spec.grips ?? []).map((g) => ({ ...g, socket: hero.sockets[spec.socket] }))) : [];
+      grips = shown ? ACTION_SPECS[shown].flatMap((spec) => (spec.grips ?? []).map((g) => ({ ...g, socket: hero.sockets[spec.socket] }))) : [];
       holding = new Set(grips.map((g) => g.hand));
     }
     const k = act * act * (3 - 2 * act);
@@ -680,7 +723,10 @@ export function crewSoldier(
       emoteLeft = Math.max(0, emoteLeft - dt);
       const want = !calm && (acting || emoteLeft > 0) ? 1 : 0;
       const before = act;
-      act = want > act ? Math.min(1, act + dt / SWAP) : Math.max(0, act - dt / SWAP);
+      // 같으면 그대로 둔다(예전에는 다 든 뒤에도 한 장면 내렸다가 다음 장면 다시 올려, 소품과
+      // 쥔 손이 프레임마다 두 자리를 오가며 지지직거렸다)
+      if (want > act) act = Math.min(1, act + dt / SWAP);
+      else if (want < act) act = Math.max(0, act - dt / SWAP);
       if (pop < 1) pop = Math.min(1, pop + dt / 0.45);
       if (pop < 1 || act !== before) sizeProps();
       hold();

@@ -10,7 +10,7 @@ export function getSupabase() {
   if (backend !== "supabase") return null;
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL,
     key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key) throw new Error("Supabase 연결 설정을 확인하라.");
+  if (!url || !key) throw new Error("Supabase 연결 설정을 확인해 주세요.");
   return (supabase ??= createClient(url, key, {
     auth: {
       persistSession: true,
@@ -26,7 +26,7 @@ function token() {
     if (data.session) return data.session.access_token;
     const { data: created, error } = await client.auth.signInAnonymously();
     if (error || !created.session)
-      throw new Error("익명 세션을 만들지 못했다. 연결을 확인하라.");
+      throw new Error("익명 세션을 만들지 못했어요. 연결을 확인해 주세요.");
     return created.session.access_token;
   })().finally(() => {
     authentication = null;
@@ -49,7 +49,7 @@ function requestThrottle(response: Response) {
     : header ? Date.parse(header) : NaN;
   return new ApiError(
     "REQUEST_THROTTLED",
-    "서버 요청이 잠시 몰렸다. 잠시 기다린 뒤 다시 연결하라. 입력한 내용은 유지된다.",
+    "서버 요청이 잠시 몰렸어요. 조금 기다린 뒤 다시 연결해 주세요. 입력한 내용은 그대로 남아요.",
     Number.isFinite(deadline) ? Math.max(now + 1000, deadline) : now + 2000,
   );
 }
@@ -61,25 +61,33 @@ let memorySolo: SoloSeats | null = null;
 export function soloFor(gameId?: string | null): SoloSeats | null {
   if (backend !== "local" || !gameId) return null;
   if (memorySolo?.game === gameId) return memorySolo;
-  if (typeof localStorage === "undefined") return null;
-  try {
-    const v = JSON.parse(localStorage.getItem(SOLO_KEY) ?? "null") as SoloSeats | null;
-    return v?.game === gameId && ROLES.includes(v.role) &&
-      ROLES.every((r) => [0, 1, 2, 3].includes(v.seats?.[r])) &&
-      new Set(ROLES.map((r) => v.seats[r])).size === 4 ? v : null;
-  } catch {
-    return null;
+  // Tabs may run different demos. Prefer this tab's seats over the shared last-used room.
+  for (const name of ["sessionStorage", "localStorage"] as const) {
+    try {
+      const storage = globalThis[name];
+      if (!storage) continue;
+      const v = JSON.parse(storage.getItem(SOLO_KEY) ?? "null") as SoloSeats | null;
+      if (v?.game === gameId && ROLES.includes(v.role) &&
+        ROLES.every((r) => [0, 1, 2, 3].includes(v.seats?.[r])) &&
+        new Set(ROLES.map((r) => v.seats[r])).size === 4) {
+        saveSoloSession(v);
+        return v;
+      }
+    } catch { /* Try the other storage if unavailable or malformed. */ }
+  }
+  return null;
+}
+export function saveSoloSession(value: SoloSeats) {
+  memorySolo = value;
+  for (const name of ["sessionStorage", "localStorage"] as const) {
+    try { globalThis[name]?.setItem(SOLO_KEY, JSON.stringify(value)); } catch { /* Memory still works. */ }
   }
 }
+
 export function setSoloRole(gameId: string, role: Role) {
   const v = soloFor(gameId);
   if (!v) return;
-  memorySolo = { ...v, role };
-  try {
-    localStorage.setItem(SOLO_KEY, JSON.stringify(memorySolo));
-  } catch {
-    // 저장소를 사용할 수 없어도 이번 탭에서는 선택한 자리를 유지한다.
-  }
+  saveSoloSession({ ...v, role });
 }
 
 async function requestSnapshot(command: Command): Promise<GameResponse> {
@@ -105,7 +113,8 @@ async function requestSnapshot(command: Command): Promise<GameResponse> {
         ? { setup: true, request_id: command.request_id }
         : solo
           ? { seat: solo.seats[solo.role], command,
-              team: command.action === "report-arrival" && command.method === "simulated" }
+              team: (command.action === "report-arrival" && command.method === "simulated") ||
+                (command.action === "submit-step" && command.simulated === true) }
           : command),
       cache: "no-store",
       credentials: backend === "local" ? "same-origin" : "omit",
@@ -113,7 +122,7 @@ async function requestSnapshot(command: Command): Promise<GameResponse> {
   } catch {
     throw new ApiError(
       "NETWORK",
-      "연결이 끊겼다. 화면은 유지된다. 다시 연결하라.",
+      "연결이 끊겼어요. 화면은 그대로 두고 다시 연결해 주세요.",
     );
   }
   let data: GameResponse & { code?: string; message?: string; retry_at?: number };
@@ -123,7 +132,7 @@ async function requestSnapshot(command: Command): Promise<GameResponse> {
     if (response.status === 429) throw requestThrottle(response);
     throw new ApiError(
       "NETWORK",
-      "응답을 확인하지 못했다. 같은 요청으로 다시 시도하라.",
+      "응답을 확인하지 못했어요. 같은 요청으로 다시 시도해 주세요.",
     );
   }
   // Game cooldowns are intentional rules; only platform throttling gets backoff.
@@ -136,17 +145,12 @@ async function requestSnapshot(command: Command): Promise<GameResponse> {
   if (!response.ok)
     throw new ApiError(
       data.code ?? "SERVER_ERROR",
-      data.message ?? "연결을 확인하라.",
+      data.message ?? "연결을 확인해 주세요.",
       data.retry_at,
     );
   if (creatingSolo && "solo" in data) {
     const { solo: seats, ...snapshot } = data as GameResponse & { solo: { seats: Record<Role, number> } };
-    memorySolo = { game: snapshot.game.id, seats: seats.seats, role: "commander" };
-    try {
-      localStorage.setItem(SOLO_KEY, JSON.stringify(memorySolo));
-    } catch {
-      // 저장소를 사용할 수 없어도 이번 탭에서는 네 자리를 유지한다.
-    }
+    saveSoloSession({ game: snapshot.game.id, seats: seats.seats, role: "commander" });
     return snapshot;
   }
   return data;
@@ -155,7 +159,7 @@ async function requestSnapshot(command: Command): Promise<GameResponse> {
 export async function requestGame(command: Command): Promise<Snapshot> {
   const data = await requestSnapshot(command);
   if (isV2Response(data))
-    throw new ApiError("SCHEMA_MISMATCH", "이 방은 v2 코스다. /verify 확인 화면에서 연결하라.");
+    throw new ApiError("SCHEMA_MISMATCH", "이 방은 v2 코스예요. /verify 확인 화면에서 연결해 주세요.");
   return data;
 }
 
@@ -167,6 +171,6 @@ export function requestGameAny(command: Command): Promise<GameResponse> {
 export async function requestGameV2(command: Command): Promise<V2Response> {
   const data = await requestSnapshot(command);
   if (!isV2Response(data))
-    throw new ApiError("SCHEMA_MISMATCH", "현재 방은 v1 코스다. 기존 화면을 이용하거나 v2 합성 코스 설정을 확인하라.");
+    throw new ApiError("SCHEMA_MISMATCH", "지금 방은 v1 코스예요. 기존 화면을 이용하거나 v2 합성 코스 설정을 확인해 주세요.");
   return data;
 }

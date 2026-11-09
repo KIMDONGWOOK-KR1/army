@@ -66,11 +66,10 @@ export function ExpeditionPassport({ snapshot }: {snapshot: V2Response}) {
   return <section className={styles.passport} data-testid="expedition-passport" aria-label="우리의 탐방 기록첩">
     <span className={styles.eyebrow}>우리의 탐방 기록첩</span>
     <h2>네 개의 시선이 남긴 발자국</h2>
-    <p>함께 마친 장소 {count}/{stops.length} · 기록은 아래에서 다시 읽어요.</p>
+    <p>함께 마친 장소 {count}/{stops.length}</p>
     <ol>{stops.map((site, i) => <li key={site.id} data-state={site.status} aria-current={site.status === "current" ? "step" : undefined}>
       <span className={styles.stamp}>{site.status === "complete" ? <Check size={22} aria-hidden="true" /> : String(i+1).padStart(2,"0")}</span>
       <div><b>{site.name}</b><span>{site.status === "complete" ? "함께 남긴 기록" : site.status === "current" ? "지금 이곳" : "앞으로 만날 이야기"}</span></div>
     </li>)}</ol>
-    <p className={styles.privacy}>함께 마친 장소의 기록이 차곡차곡 남아요.</p>
   </section>;
 }

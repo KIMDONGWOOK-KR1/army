@@ -1,4 +1,5 @@
 "use client";
+import { SceneArt } from "./scene-art";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import * as THREE from "three";
 
@@ -59,11 +60,15 @@ declare global {
   }
 }
 
-export function HomeHero({ fallback }: { fallback: ReactNode }) {
+// onSettled: 입체 첫 장면을 그렸거나 평면 그림으로 남기로 했을 때 한 번 알린다(첫 로딩 화면을 걷는 신호)
+export function HomeHero({ fallback, onSettled }: { fallback: ReactNode; onSettled?: () => void }) {
   const host = useRef<HTMLDivElement>(null);
   const credit = useRef<HTMLSpanElement>(null);
   const [failed, setFailed] = useState(false);
   const [ready, setReady] = useState(false);
+  useEffect(() => {
+    if (ready || failed) onSettled?.();
+  }, [ready, failed, onSettled]);
   // WebGL 문맥을 잃었다 되찾으면 올려 새 렌더러로 다시 띄운다
   const [epoch, setEpoch] = useState(0);
   const [assets, setAssets] = useState<FieldAssets | null>(null);
@@ -356,7 +361,7 @@ export function HomeHero({ fallback }: { fallback: ReactNode }) {
   return (
     <div className={`home-hero ${ready ? "ready" : ""}`}>
       <div className="home-hero-poster" aria-hidden={ready}>
-        {fallback}
+        {ready ? fallback : <SceneArt loading />}
       </div>
       <div
         ref={host}

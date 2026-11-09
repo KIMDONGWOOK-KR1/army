@@ -5,7 +5,7 @@
 // 3번 틀리면 '사진 검증 실패 후 통과'로 사진 단계만 넘어가고, 뒤 문제와 보고는 그대로 남는다.
 // 판정은 PR #17의 모의 판정기다(개발 서버 전용). NEXT_PUBLIC_PHOTO_VERIFY=local이면 로컬 사진 판정 서버가 실제로 판정한다.
 // 어둡거나 흔들려 판정하지 못한 사진(다시 찍기)은 실패로 세지 않는다.
-import { type RefObject, useEffect, useRef, useState } from "react";
+import { type CSSProperties, type RefObject, useEffect, useRef, useState } from "react";
 import { BookOpen, Camera, CameraOff, ScanSearch, X } from "lucide-react";
 import type { PhotoGateState, PhotoOutcome, PhotoUnavailableReason } from "@/lib/scout-photo/contract";
 import { capturePhoto, stopPhotoStream } from "@/lib/scout-photo/capture";
@@ -18,7 +18,7 @@ type Intent =
   | { kind: "photo"; requestId: string; photo: Blob }
   | { kind: "unavailable"; requestId: string; reason: PhotoUnavailableReason };
 
-const FOUND_MS = 2600;
+const FOUND_MS = 3300;
 // 흔들림 없이 이만큼 멈추면 알아서 찍는다. 작은 화면(40×30)의 밝기 차이로만 보고, 사진을 따로 남기지 않는다.
 const STEADY_MS = 1200;
 const STEADY_DIFF = 5.5;
@@ -26,10 +26,29 @@ const RING = 2 * Math.PI * 40;
 // 둥근 받침 위 불꽃(정문 표지석의 청동 불꽃을 단순하게 그린 모양). 실루엣·조준선·빛나는 윤곽에 같이 쓴다.
 const FLAME = "M42 10C61 15 70 31 64 47C77 55 86 72 86 92C86 116 70 132 50 132C29 132 14 116 14 94C14 71 31 56 43 45C49 32 47 19 42 10Z";
 const TONGUE = "M51 122C40 111 39 94 50 80C60 93 62 110 51 122Z";
+const SPOTS = ["둥근 돌", "가운데 구멍", "위로 솟은 불꽃"];
+// 찾은 순간 불꽃에서 오르는 불티(자리·늦춤·흔들림은 고정값이라 그릴 때마다 같다)
+const EMBERS = Array.from({ length: 14 }, (_, i) => ({
+  x: 50 + Math.sin(i * 2.1) * 16, delay: (i % 7) * 0.11, drift: Math.cos(i * 1.7) * 26, size: 4 + (i % 3) * 2,
+}));
 
 export function FlameMark({ variant, className, blur = 0 }: {
-  variant: "silhouette" | "outline"; className?: string; blur?: number;
+  variant: "silhouette" | "outline" | "fire"; className?: string; blur?: number;
 }) {
+  if (variant === "fire") return (
+    <svg className={className} viewBox="0 0 100 152" aria-hidden="true" focusable="false">
+      <defs>
+        <radialGradient id="scan-fire" cx=".5" cy=".72" r=".7">
+          <stop offset="0" stopColor="#fff6d8" />
+          <stop offset=".35" stopColor="#ffd36a" />
+          <stop offset=".75" stopColor="#f08a2c" />
+          <stop offset="1" stopColor="#c4471c" />
+        </radialGradient>
+      </defs>
+      <path d={FLAME} fill="url(#scan-fire)" />
+      <path d={TONGUE} fill="#fff6d8" opacity=".75" />
+    </svg>
+  );
   return (
     <svg className={className} viewBox="0 0 100 152" aria-hidden="true" focusable="false"
       style={blur ? { filter: `blur(${blur}px)` } : undefined}>
@@ -136,6 +155,16 @@ export function ScoutScan({ site, scope, onSettled }: {
   const settled = useRef(onSettled);
   settled.current = onSettled;
   const progress = useSteady(video, phase === "camera", () => void shoot());
+  // 현장에서 눈으로 찾을 특징 세 가지: 찾을 때마다 눌러 표시한다(이 폰에서만, 판정과 무관)
+  const [spotted, setSpotted] = useState([false, false, false]);
+  const ready = spotted.every(Boolean);
+  const spot1 = (i: number) => {
+    setSpotted((prev) => {
+      const next = prev.map((v, j) => (j === i ? !v : v));
+      try { navigator.vibrate?.(next.every(Boolean) ? [20, 40, 20] : 12); } catch { /* 진동 없음 */ }
+      return next;
+    });
+  };
 
   const closeCamera = () => {
     generation.current += 1;
@@ -286,17 +315,34 @@ export function ScoutScan({ site, scope, onSettled }: {
   return (
     <section className={styles.scan} data-phase={phase} data-testid="scout-scan" aria-labelledby="scout-scan-title">
       <div className={styles.head}>
-        <h3 id="scout-scan-title"><ScanSearch size={19} aria-hidden="true" /> 사진으로 찾기</h3>
+        <h3 id="scout-scan-title"><ScanSearch size={19} aria-hidden="true" /> 불꽃 정찰</h3>
         <span className={styles.count} aria-label={`사진 확인 실패 ${failures}번, 3번이면 사진 없이 넘어가요`}>실패 {failures} / 3</span>
       </div>
 
       {(phase === "clue" || phase === "camera") && (
-        <div className={styles.clue}>
-          <FlameMark variant="silhouette" className={styles.silhouette} blur={blur} />
+        <div className={styles.clue} data-compact={phase === "camera" || undefined}>
+          {/* 정찰 레이더: 실루엣 둘레를 빛줄기가 돌고, 틀릴수록 실루엣이 또렷해진다 */}
+          <div className={styles.radar} data-ready={ready || undefined} aria-hidden="true">
+            <span className={styles.sweep} />
+            <span className={styles.ping} />
+            <FlameMark variant="silhouette" className={styles.silhouette} blur={blur} />
+            <b className={styles.mystery}>{ready ? "!" : "?"}</b>
+          </div>
           <div className={styles.clueText}>
             <p className={styles.riddle}>{site.riddle}</p>
-            {failures >= 1 && <p className={styles.hint}><b>힌트 1</b>{site.hints[0]}</p>}
-            {failures >= 2 && <p className={styles.hint}><b>힌트 2</b>{site.hints[1]}</p>}
+            {phase === "clue" && (
+              <ul className={styles.spots} aria-label="현장에서 찾을 특징 세 가지(찾으면 눌러요)">
+                {SPOTS.map((spot, i) => (
+                  <li key={spot}>
+                    <button type="button" aria-pressed={spotted[i]} onClick={() => spot1(i)} data-testid={`scout-spot-${i}`}>
+                      <i aria-hidden="true">{spotted[i] ? "✓" : i + 1}</i>{spot}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {failures >= 1 && <p className={styles.hint}><b>단서 2</b>{site.hints[0]}</p>}
+            {failures >= 2 && <p className={styles.hint}><b>단서 3</b>{site.hints[1]}</p>}
           </div>
         </div>
       )}
@@ -311,7 +357,24 @@ export function ScoutScan({ site, scope, onSettled }: {
             />
           ) : <img src={photoUrl!} alt="방금 비춘 장면" />}
           <span className={styles.dim} aria-hidden="true" />
+          {/* 조준경: 멈춰 있을수록 네 모서리가 안쪽으로 좁혀 들고, 반을 넘으면 금빛이 된다 */}
+          <span className={styles.brackets} aria-hidden="true"
+            data-hot={progress >= 0.5 || phase !== "camera" || undefined}
+            style={{ "--lock": phase === "camera" ? progress : 1 } as CSSProperties}>
+            <i /><i /><i /><i />
+          </span>
+          {phase === "camera" && <span className={styles.scanline} aria-hidden="true" />}
+          {phase === "camera" && <span className={styles.hud} aria-hidden="true">조준 {Math.round(progress * 100)}%</span>}
           <FlameMark variant="outline" className={styles.guideFlame} />
+          {phase === "found" && (
+            <span className={styles.ignite} aria-hidden="true">
+              <span className={styles.glow} />
+              <FlameMark variant="fire" className={styles.fire} />
+              {EMBERS.map((e, i) => (
+                <i key={i} style={{ "--x": `${e.x}%`, "--d": `${e.delay}s`, "--dx": `${e.drift}px`, "--s": `${e.size}px` } as CSSProperties} />
+              ))}
+            </span>
+          )}
           <svg className={styles.ring} viewBox="0 0 100 100" aria-hidden="true" focusable="false">
             <circle cx="50" cy="50" r="40" className={styles.ringTrack} />
             <circle cx="50" cy="50" r="40" className={styles.ringFill}
@@ -344,8 +407,8 @@ export function ScoutScan({ site, scope, onSettled }: {
             {retry?.kind === "photo" ? (
               <button type="button" className="button primary" onClick={() => void submit(retry)}>같은 사진으로 다시 확인</button>
             ) : (
-              <button type="button" className="button primary" disabled={opening} onClick={() => void openCamera()}>
-                {opening ? "카메라 여는 중…" : failures ? "다시 비추기" : "카메라로 비추기"} <Camera size={17} aria-hidden="true" />
+              <button type="button" className="button primary" data-ready={ready || undefined} disabled={opening} onClick={() => void openCamera()}>
+                {opening ? "카메라 여는 중…" : failures ? "다시 비추기" : ready ? "찾았어요! 카메라로 비추기" : "카메라로 비추기"} <Camera size={17} aria-hidden="true" />
               </button>
             )}
             <button type="button" className={styles.textButton} onClick={() => { setUnavailable(!unavailable); setRetry(null); }}>
@@ -372,7 +435,7 @@ export function ScoutScan({ site, scope, onSettled }: {
 
       {/* 판정 서버와 잇기 전까지 쓰는 개발용 모의 판정(개발 서버에서만 보인다). 실제 판정을 쓰면 숨긴다 */}
       {session.real ? (
-        <p className={styles.privacy} data-testid="scout-scan-real">로컬 사진 판정 서버로 확인해요(개발용 임시 기준).</p>
+        <p className={styles.privacy} data-testid="scout-scan-real">불꽃 문양과 아래 명판이 함께 보이게 비춰 주세요.</p>
       ) : <fieldset className={styles.dev} disabled={judging}>
         <legend>시연 판정 · 판정 서버 미연결</legend>
         {([["match", "맞게"], ["no_match", "다르게"], ["retake", "다시 찍기"], ["service_error", "연결 오류"]] as const).map(([value, label]) => (
@@ -392,7 +455,7 @@ export function ScanResult({ site, state }: { site: ScoutScanSite; state: PhotoG
   const verified = state.photo.verified;
   return (
     <div className={styles.result} data-verified={verified} data-testid="scout-scan-result">
-      <FlameMark variant="silhouette" className={styles.resultMark} />
+      <FlameMark variant={verified ? "fire" : "silhouette"} className={styles.resultMark} />
       <p>
         <b>{verified ? "사진으로 찾음" : "사진 검증 실패 후 통과"}</b>
         {verified ? `${site.target}. ${site.next}` : "사진 확인은 성공으로 기록되지 않아요. 문제는 그대로 풀어요."}

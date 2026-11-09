@@ -4583,3 +4583,15 @@ select {
 .hud-action-area { max-width: calc(100% - 88px); left: 12px; transform: none; }
 .hud-round { border: 1px solid var(--line); box-shadow: 0 3px 8px #263a3726; }
 .scene-travel .field-credit { bottom: calc(var(--hud-bottom, 12px) + 144px); }
+
+/* 정문 미션은 주소창을 제외한 동적 화면 높이 안에서 조작한다. */
+.game-scene.scene-mission.gate-focus { overflow: hidden; }
+.game-scene.scene-mission.gate-focus > .mission-stage {
+  display: flex; flex-direction: column; flex: 1 1 0; min-height: 0; max-height: none;
+  width: min(720px, 100%); margin: 0 auto; padding: 10px 14px;
+  overflow: hidden; border: 0; border-radius: 0; box-shadow: none; background: var(--paper);
+}
+.demo-role-menu { margin: 0; padding: 8px; border: 1px solid var(--line); border-radius: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.demo-role-menu legend { padding: 0 6px; font-size: 16px; }
+.demo-role-menu button { min-height: 44px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); font-size: 16px; }
+.demo-role-menu button[aria-pressed="true"] { background: #2c4841; color: #fff; }

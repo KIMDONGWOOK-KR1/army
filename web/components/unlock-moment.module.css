@@ -1,0 +1,196 @@
+/* 자물쇠가 열리는 순간(약 2.6초). 0~1초: 자물쇠와 네 보직 칸 → 1초 무렵: 도장 → 1.2초부터: 사초 글 */
+.seal {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+.lock {
+  position: absolute;
+  inset: -28px -60px -16px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 10px;
+  pointer-events: none;
+  animation: lock-out 0.26s ease-in 1s both;
+}
+.lockArt {
+  width: 100px;
+  height: 117px;
+  overflow: visible;
+  filter: drop-shadow(0 5px 0 #e5c477);
+  animation: lock-in 0.3s cubic-bezier(0.3, 1.4, 0.5, 1) both;
+}
+.shackle {
+  fill: none;
+  stroke: #8d98b5;
+  stroke-width: 11;
+  stroke-linecap: round;
+  transform-box: fill-box;
+  transform-origin: 100% 100%;
+  animation: shackle-open 0.34s cubic-bezier(0.3, 1.35, 0.5, 1) 0.72s both;
+}
+.body {
+  fill: #2f3f66;
+  stroke: #ffc53e;
+  stroke-width: 4;
+  animation: body-glow 0.3s ease-out 0.72s both;
+}
+.hole {
+  fill: #ffd166;
+}
+.pips {
+  display: flex;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.pips li {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #f3e6c4;
+  border: 2px solid #dcc88f;
+  color: #b8a679;
+  animation: pip-on 0.24s ease-out calc(0.16s + var(--i) * 0.13s) both;
+}
+.caption {
+  margin: 2px 0 0;
+  font: 400 16px/1.4 var(--game);
+  color: #314167;
+  white-space: nowrap;
+  animation: rise 0.24s ease-out 0.08s both;
+}
+.ink {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 170px;
+  height: 170px;
+  margin: -85px 0 0 -85px;
+  border-radius: 50%;
+  border: 3px solid #b62c1740;
+  background: radial-gradient(circle, #ffd16633, transparent 70%);
+  pointer-events: none;
+  animation: ink 0.7s ease-out 1.08s both;
+}
+.char {
+  animation: stamp 0.34s cubic-bezier(0.3, 1.4, 0.5, 1) 1.02s both;
+}
+/* 도장이 닿을 때 종이가 살짝 눌리고, 사초 글은 그 뒤에 차례로 */
+.reveal {
+  animation: thump 0.2s ease-out 1.3s;
+}
+.reveal > :not(.seal) {
+  animation: rise 0.42s ease-out 1.36s both;
+}
+.reveal > :global(h1) {
+  animation-delay: 1.22s;
+}
+.reveal > :global(.sacho-reward) {
+  animation-delay: 1.6s;
+}
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@keyframes lock-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.86);
+  }
+}
+@keyframes lock-out {
+  to {
+    opacity: 0;
+    transform: scale(1.14);
+  }
+}
+@keyframes shackle-open {
+  45% {
+    transform: translateY(-17px);
+    stroke: #ffc53e;
+  }
+  to {
+    transform: translateY(-12px) rotate(-24deg);
+    stroke: #ffc53e;
+  }
+}
+@keyframes body-glow {
+  to {
+    fill: #3e5c97;
+  }
+}
+@keyframes pip-on {
+  45% {
+    transform: scale(1.24);
+    background: var(--c);
+    border-color: var(--c);
+    color: #fff;
+  }
+  to {
+    transform: none;
+    background: var(--c);
+    border-color: var(--c);
+    color: #fff;
+  }
+}
+@keyframes stamp {
+  from {
+    opacity: 0;
+    transform: rotate(-16deg) scale(2.1);
+  }
+  60% {
+    opacity: 1;
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes ink {
+  from {
+    opacity: 0.9;
+    transform: scale(0.5);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.5);
+  }
+}
+@keyframes thump {
+  40% {
+    transform: translateY(2px);
+  }
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lock,
+  .ink {
+    display: none;
+  }
+  .char,
+  .reveal,
+  .reveal > :not(.seal) {
+    animation: none;
+  }
+}

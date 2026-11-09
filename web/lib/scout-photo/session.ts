@@ -18,7 +18,7 @@ export const scanEnabled = () => process.env.NODE_ENV === "development" &&
 export function scanSession(key: string, site: ScoutScanSite): Session {
   let session = sessions.get(key);
   if (!session) {
-    const real = localVerifyEnabled();
+    const real = site.stageId === "gate" && localVerifyEnabled();
     session = {
       client: createMockPhotoGateClient({
         mission: scanMission(site),

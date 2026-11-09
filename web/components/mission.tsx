@@ -63,15 +63,9 @@ export function Mission({
         <div className="round-icon success">
           <Check />
         </div>
-        <span className="eyebrow">REPORT COMPLETE</span>
-        <h3>단서를 기록했다.</h3>
-        <p>이 숫자를 지휘관에게 말로 전하라.</p>
+        <h3>단서를 기록했어요.</h3>
+        <p>이 숫자를 지휘관에게 말로 전해 주세요.</p>
         <div className="private-digit">{self.digit}</div>
-        <p className="subtle">
-          자신의 기기에만 보이는 숫자다.
-          <br />
-          다른 기기에는 보고 완료 표시만 전달된다.
-        </p>
       </div>
     );
   return (
@@ -112,7 +106,6 @@ export function Mission({
                 setWrong(false);
               }}
             >
-              <span>{String(i + 1).padStart(2, "0")}</span>
               {choice}
             </button>
           ))}
@@ -127,14 +120,14 @@ export function Mission({
               setAnswer(e.target.value);
               setWrong(false);
             }}
-            placeholder="현장에서 찾은 답을 입력하라"
+            placeholder="현장에서 찾은 답 입력"
             autoComplete="off"
           />
         </label>
       )}
       {wrong && (
         <p role="status" className="inline-error">
-          단서를 다시 살펴라. 보고 오답에는 감점이 없다.
+          단서를 다시 살펴봐요. 보고 오답에는 감점이 없어요.
         </p>
       )}
       <button
@@ -185,8 +178,8 @@ export function LockPanel({
     if (next) {
       setFeedback(
         next.result?.ok
-          ? "기록을 복원했다."
-          : "맞은 칸은 잠겼다. 틀린 칸을 다시 확인하라.",
+          ? "기록을 복원했어요."
+          : "맞은 칸은 잠겼어요. 틀린 칸을 다시 확인해 봐요.",
       );
     }
   };

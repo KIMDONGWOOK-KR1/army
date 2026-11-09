@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState, type ReactNode, type CSSProperties } from "react";
-import { ArrowRight, Footprints, LocateFixed, Navigation } from "lucide-react";
+import { ArrowRight, Footprints, LocateFixed } from "lucide-react";
 import {
   ROLE_NAMES,
   type Role,
@@ -9,10 +9,15 @@ import {
 import type { FieldStatus } from "./field-3d";
 import { ROLE_COLORS, ROLE_ICONS } from "./role-style";
 
-// 이동 화면: 목적지·거리·협동 상태를 위에, 도착 행동과 내 정보는 아래에 둔다.
-const PORTRAIT = "/hud/c02.webp";
-// 초상 그림이 없으면(404) 장면이 바뀔 때마다 다시 받지 않는다
-let portraitMissing = false;
+// 이동 화면: 지도가 주인공. 거점·거리 한 줄은 위에, 동그란 단추는 오른쪽 위에, 도착 단추 하나만 아래에 둔다.
+
+// '정문으로', '용봉관으로', '봉지로': 받침(ㄹ 제외)이 있으면 '으로'
+const towardJosa = (name: string) => {
+  const c = name.charCodeAt(name.length - 1) - 0xac00;
+  if (c < 0 || c > 11171) return "(으)로";
+  const jong = c % 28;
+  return jong === 0 || jong === 8 ? "로" : "으로";
+};
 
 const meters = (d: number) =>
   d >= 1000 ? `${(d / 1000).toFixed(1)}km` : `${Math.round(d)}m`;
@@ -35,8 +40,6 @@ export function TravelHud({
   site,
   sites,
   currentSeq,
-  acquired,
-  nickname,
   role,
   field,
   location,
@@ -47,13 +50,12 @@ export function TravelHud({
   onDemoArrival,
   onManualArrival,
   onMenu,
+  onRecenter,
   cooperation,
 }: {
   site: SiteInfo;
   sites: SiteInfo[];
   currentSeq: number;
-  acquired: number;
-  nickname: string;
   role: Role | null;
   field: FieldStatus | null;
   location: Location;
@@ -65,6 +67,8 @@ export function TravelHud({
   onDemoArrival: () => void;
   onManualArrival: () => void;
   onMenu: () => void;
+  // 지도를 끌어 옮긴 뒤 내 캐릭터 쪽으로 되돌린다
+  onRecenter?: () => void;
   cooperation?: ReactNode;
 }) {
   const ready = !!field && !field.loading && !field.failed;
@@ -75,79 +79,79 @@ export function TravelHud({
   const color = ROLE_COLORS[role ?? "commander"];
   const total = Math.max(1, sites.length);
 
-  // 남은 거리 칸이 좁아 긴 거점 이름은 '목적지'로 줄여 쓴다(거점 이름은 왼쪽 위에 있다)
-  const target = site.name.length > 6 ? "목적지" : site.name;
   let main: string, sub: string;
   if (gpsRequired) {
     main = v2Arrival.arrived ? "내 GPS 도착 확인됨" : location.distance === null
       ? "GPS 위치 확인 필요"
-      : inRange ? "도착 범위 안 · 5초 유지 중" : `${target}까지 ${meters(location.distance)}`;
-    sub = `반경 ${site.radiusM}m · 전원 도착 ${v2Arrival.count}/4`;
+      : inRange ? "도착 범위 안 · 5초" : meters(location.distance);
+    sub = `반경 ${site.radiusM}m`;
   } else if (!field || field.loading) {
     main = "지도 불러오는 중";
     sub = "";
   } else if (field.failed) {
-    main =
-      location.distance !== null
-        ? `${target}까지 ${meters(location.distance)}`
-        : `${target}까지 이동하라`;
+    main = location.distance !== null ? meters(location.distance) : "이동 중";
     sub = location.status;
   } else {
-    main = field.inRange
-      ? "도착 범위 안"
-      : `${target}까지 ${meters(field.distance)}`;
+    main = field.inRange ? "도착 범위 안" : meters(field.distance);
     sub = modeLine(field);
   }
-  const gpsLine = `${location.status}${
-    location.distance !== null
-      ? ` · 약 ${Math.round(location.distance)}m / ${location.dwell.toFixed(0)}초`
-      : ""
-  }`;
+  // 위치 상태는 거리와 겹치지 않게 상태 말만 아주 작게(시연 이동이면 숨김)
+  const gpsLine = location.status;
+  // 좌측 상단 현재 목표: 행동을 먼저, 한 줄로(hh 2026-10-28)
+  const arrived = !!v2Arrival?.arrived;
+  const objective = arrived
+    ? v2Arrival!.count < 4 ? "동료 도착 기다리는 중" : "모두 도착했어요"
+    : inRange
+      ? gpsRequired ? "도착 범위 · 그대로 5초" : "도착했어요 · 아래에서 확인"
+      : `${site.name}${towardJosa(site.name)} 이동`;
 
+  // 지도 중심(hh 2026-10-28): 위는 거점·거리 한 줄, 오른쪽 위에 동그란 단추(팀·기록첩·내 위치),
+  // 아래는 도착 단추 하나. 캐릭터 카드와 記 단추는 빼고 메뉴는 머리줄 단추로 연다.
   return (
     <div
-      className={`travel-hud ${site.reverent ? "calm" : ""}`}
+      className={`travel-hud map-first ${site.reverent ? "calm" : ""}`}
       style={{ "--role": color } as CSSProperties}
     >
-      {/* 위 줄: 거점 이름과 남은 거리. 좁거나 글자가 크면 거리 칸이 다음 줄로 내려간다(잘리지 않게).
-          좁은 폰에서는 '다음 거점' 칸도 이 줄 아래로 올려 이름이 한 줄에 들어가게 한다 */}
       <div className="hud-top">
-        <div className="hud-site">
-          <span className="hud-site-seq">거점 {currentSeq}/{total}</span>
-          <h1 data-scene-heading tabIndex={-1}>
-            {site.name}
-          </h1>
+        <div className="hud-pill hud-distance" data-in-range={inRange}>
+          <span className="hud-site-seq" aria-label={`거점 ${currentSeq}/${total}`}>{currentSeq}/{total}</span>
+          <h1 data-scene-heading tabIndex={-1}>{objective}</h1>
+          {!arrived && !inRange && <span className="hud-distance-text">
+            <b>{main}</b>
+            {gpsRequired && <small>{sub}</small>}
+          </span>}
+          {gpsRequired && (arrived || inRange) && <span className="hud-distance-text"><small>{arrived ? `${v2Arrival!.count}/4` : sub}</small></span>}
         </div>
-        <div className="hud-top-right">
-          <div className="hud-distance" data-in-range={inRange}>
-            <span className="hud-distance-icon" aria-hidden="true">
-              <Navigation size={15} strokeWidth={2.6} />
-            </span>
-            <span className="hud-distance-text">
-              <b>{main}</b>
-              {sub && <small>{sub}</small>}
-            </span>
-          </div>
-          {!demo && <p className="hud-gps">{gpsLine}</p>}
-        </div>
-        {/* 말풍선도 위 줄 묶음 안에 두어 이름·거리·다음 거점 칸 아래로 흘러가게 한다(겹치지 않게) */}
-        {cooperation ?? <SpeechCard
+        {gpsRequired && <p className="hud-gps">{gpsLine}</p>}
+        {!cooperation && <SpeechCard
           key={site.id}
           text={
             site.seq === 1
-              ? "첫 번째 기억의 흔적을 찾아 정문으로 이동하라."
+              ? "첫 번째 기억의 흔적을 찾아 정문으로 이동하기"
               : site.reverent && site.seq > 2
                 ? "걸음을 늦추고, 열사들을 기리는 벽으로 조용히 걸어가자."
                 : site.seq > 3
                   ? "모은 기록을 품고 봉지로 가서 함께 돌아보자."
-                  : "증언의 사초를 품고, 용봉관에 겹친 시간을 찾아라."
+                  : "증언의 사초를 품고, 용봉관에 겹친 시간 찾기"
           }
         />}
       </div>
+      {/* 우측 상단: 부가 기능(함께 모으기·기록첩) 원형 단추 묶음 */}
+      <div className="hud-side">
+        {cooperation}
+        {!cooperation && <button className="hud-round" aria-label="작전 메뉴 열기" onClick={onMenu}>
+          <span className="hud-main-seal" aria-hidden="true">記</span>
+        </button>}
+      </div>
+      {/* 하단 오른쪽: 이동 조작(내 위치) */}
+      {/* 지도를 손가락으로 옮겼으면(따라가기 멈춤) 단추가 강조되고, 누르면 내 캐릭터 쪽으로 돌아온다 */}
+      <button className="hud-round hud-locate" aria-label={field?.free ? "내 위치로 돌아가기" : "위치 확인"} title="내 위치로"
+        data-free={!!field?.free} onClick={() => { onRecenter?.(); location.start(); }}>
+        <LocateFixed size={21} aria-hidden="true" />
+      </button>
       <span className="hud-sr" role="status">
-        {inRange ? "도착 범위에 들어섰다." : ""}
+        {inRange ? "도착 범위에 들어왔어요." : ""}
       </span>
-
 
       <div className="hud-action-area">
         {v2Arrival?.arrived ? (
@@ -192,69 +196,10 @@ export function TravelHud({
             <ArrowRight size={18} aria-hidden="true" />
           </button>
         ) : (
-          <span className="hud-note">{v2Arrival ? "본인 GPS 도착 확인을 기다리라." : "도착 신호를 기다리라."}</span>
+          <span className="hud-note">{v2Arrival ? "본인 GPS 도착 확인을 기다려요." : "도착 신호를 기다려요."}</span>
         )}
       </div>
-
-      <button
-        className="hud-round hud-locate"
-        aria-label="위치 확인"
-        onClick={location.start}
-      >
-        <LocateFixed size={22} aria-hidden="true" />
-      </button>
-
-      <div className="hud-player">
-        <Portrait role={role} />
-        <div className="hud-player-plate">
-          <b>{nickname}</b>
-          <span className="hud-player-role">
-            <i aria-hidden="true" />
-            {role ? ROLE_NAMES[role] : "보직 대기"}
-          </span>
-          <span
-            className="hud-xp"
-            role="progressbar"
-            aria-label="모은 사초"
-            aria-valuemin={0}
-            aria-valuemax={total}
-            aria-valuenow={acquired}
-            aria-valuetext={`${total}장 중 ${acquired}장`}
-          >
-            <i style={{ width: `${(acquired / total) * 100}%` }} />
-          </span>
-        </div>
-      </div>
-
-      <button className="hud-main" aria-label="작전 메뉴" onClick={onMenu}>
-        <span className="hud-main-seal" aria-hidden="true">
-          記
-        </span>
-      </button>
-
     </div>
-  );
-}
-
-// 보직 색 고리를 두른 둥근 초상. 그림이 없으면 보직 아이콘을 보직 색 위에 둔다.
-function Portrait({ role }: { role: Role | null }) {
-  const [missing, setMissing] = useState(portraitMissing);
-  const Icon = ROLE_ICONS[role ?? "commander"];
-  return (
-    <span className="hud-portrait">
-      <Icon size={40} strokeWidth={2.2} aria-hidden="true" />
-      {!missing && (
-        <img
-          src={PORTRAIT}
-          alt=""
-          draggable={false}
-          onError={() => {
-            portraitMissing = true;
-            setMissing(true);
-          }}
-        />
-      )}
-    </span>
   );
 }
 
