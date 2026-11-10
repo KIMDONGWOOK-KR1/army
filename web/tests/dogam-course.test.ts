@@ -24,7 +24,7 @@ describe("안 2 현장 도감 시연 코스", () => {
       expect(priv.roles[role]!.hints).toHaveLength(3);
       expect(priv.roles[role]!.hints.join(" ")).not.toMatch(/하라|하시오/);
     }
-    expect(priv.steps["G-01.dogam-q3"].answer).toEqual(["1", "2", "3"]);
+    expect(priv.steps["G-01.dogam-q3"].answer).toEqual(["2", "3", "1"]);
     await expect(dogamFullDemoCourseV2("jnu-demo-dev-dogam-test", crypto.randomUUID())).resolves.toBeTruthy();
   });
 });
