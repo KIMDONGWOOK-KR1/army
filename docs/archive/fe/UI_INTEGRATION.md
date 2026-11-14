@@ -24,12 +24,12 @@ PR #8의 메인 디자인과 PR #9의 정문 v2 API를 연결하는 브랜치다
 
 | 파일 | 역할 |
 |---|---|
-| [game-app.tsx](../../web/components/game-app.tsx) | 기존 장면을 유지하며 v1/v2 미션·도착·완료 흐름 분기 |
-| [mission-v2.tsx](../../web/components/mission-v2.tsx) | 역할별 문제·보고·힌트·읽음 확인과 별도 자물쇠 화면 |
-| [legacy-mission-input.tsx](../../web/components/legacy-mission-input.tsx) | dev `v1-gate`의 기존 선택 버튼·관찰 입력·무전기·달력 표시. 판정과 보고는 v2 사용 |
-| [verify-input.tsx](../../web/components/verify-input.tsx) | 두 UI가 공유하는 타입별 입력. 주파수는 한 자리 이하 소수 문자열 |
-| [use-game.ts](../../web/components/use-game.ts) | 메인 `useGameAny`, 확인 UI `useGameV2`, 기존 `useGame`. 상태 재조회·Realtime·재시도 |
-| [client.ts](../../web/lib/client.ts), [game-snapshot.ts](../../web/lib/game-snapshot.ts) | 인증·HTTP 공통 전송과 실제 응답의 버전 판별 |
+| [game-app.tsx](../../../web/components/game-app.tsx) | 기존 장면을 유지하며 v1/v2 미션·도착·완료 흐름 분기 |
+| [mission-v2.tsx](../../../web/components/mission-v2.tsx) | 역할별 문제·보고·힌트·읽음 확인과 별도 자물쇠 화면 |
+| [legacy-mission-input.tsx](../../../web/components/legacy-mission-input.tsx) | dev `v1-gate`의 기존 선택 버튼·관찰 입력·무전기·달력 표시. 판정과 보고는 v2 사용 |
+| [verify-input.tsx](../../../web/components/verify-input.tsx) | 두 UI가 공유하는 타입별 입력. 주파수는 한 자리 이하 소수 문자열 |
+| [use-game.ts](../../../web/components/use-game.ts) | 메인 `useGameAny`, 확인 UI `useGameV2`, 기존 `useGame`. 상태 재조회·Realtime·재시도 |
+| [client.ts](../../../web/lib/client.ts), [game-snapshot.ts](../../../web/lib/game-snapshot.ts) | 인증·HTTP 공통 전송과 실제 응답의 버전 판별 |
 
 `game.demo`만으로 v1 혼자 체험 기능을 켜지 않는다. v2 합성 코스도 `demo:true`지만 네 참가자 각각의 동작이 필요하다. v1 자동 시연·보직 전환은 v1에서만 유지한다.
 
@@ -54,10 +54,10 @@ PR #8의 메인 디자인과 PR #9의 정문 v2 API를 연결하는 브랜치다
 
 ## 검증 범위와 남은 항목
 
-`tests/e2e/integrated-v2.spec.ts`는 실제 `/`에서 네 역할의 정상 자물쇠·해설 개방, 역할별 정보 격리, 문제와 보고 분리, 잠긴 칸 복원, 응답 유실 재시도와 중복 감점 방지, 브라우저 저장소·콘솔 노출을 검사한다. `integrated-v2-layout.spec.ts`는 공개 mock으로 네 역할의 360·390·430px 배치와 목업 전환 시 미제출 숫자 저장 금지를 확인한다. 실행 결과는 [검증 기록](../../web/docs/VALIDATION.md)에 기록한다. `/verify` 회귀와 기존 v1 E2E는 별도로 실행한다.
+`tests/e2e/integrated-v2.spec.ts`는 실제 `/`에서 네 역할의 정상 자물쇠·해설 개방, 역할별 정보 격리, 문제와 보고 분리, 잠긴 칸 복원, 응답 유실 재시도와 중복 감점 방지, 브라우저 저장소·콘솔 노출을 검사한다. `integrated-v2-layout.spec.ts`는 공개 mock으로 네 역할의 360·390·430px 배치와 목업 전환 시 미제출 숫자 저장 금지를 확인한다. 실행 결과는 [검증 기록](../../../web/docs/VALIDATION.md)에 기록한다. `/verify` 회귀와 기존 v1 E2E는 별도로 실행한다.
 
-실제 Supabase private Realtime·Vercel 배포·iOS/Android 실기기·현장 GPS 검증은 배포 후 필요하다. 실제 시나리오 미확정 사항과 점수·랭킹 결정 대기는 [DECISIONS.md](../be/DECISIONS.md)를 따른다. API와 합성 mock은 [API_CONTRACT.md](../be/API_CONTRACT.md)를 기준으로 사용한다.
+실제 Supabase private Realtime·Vercel 배포·iOS/Android 실기기·현장 GPS 검증은 배포 후 필요하다. 실제 시나리오 미확정 사항과 점수·랭킹 결정 대기는 [DECISIONS.md](../../be/DECISIONS.md)를 따른다. API와 합성 mock은 [API_CONTRACT.md](../../be/API_CONTRACT.md)를 기준으로 사용한다.
 
 아래는 공개 fixture로 표시한 390px 지휘관 화면이다. 단서 값은 생략한 표시용 예시이며 실제 코스 화면이 아니다.
 
-![공개 합성 mock을 사용한 지휘관 미션](../../web/docs/screenshots/ui-v2-public-mock.png)
+![공개 합성 mock을 사용한 지휘관 미션](../../../web/docs/screenshots/ui-v2-public-mock.png)

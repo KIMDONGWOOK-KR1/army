@@ -7,7 +7,7 @@ import { prepareDemoSeed } from "../scripts/seed-demo-course";
 import { assertEdgeCourseAllowed } from "../supabase/functions/_shared/deployment";
 import { ROLES, type Command } from "../supabase/functions/_shared/types";
 import { judgeArrival } from "../lib/arrival";
-import source from "../../codex-handoff-v2/data/courses/jnu-v2.course.json";
+import source from "../../docs/planning/data/courses/jnu-v2.course.json";
 
 async function gpsTeam() {
   const t = await team({ arrive: false });

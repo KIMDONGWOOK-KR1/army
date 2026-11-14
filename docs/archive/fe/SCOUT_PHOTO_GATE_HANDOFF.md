@@ -78,16 +78,16 @@ mock 상태는 브라우저 메모리에서만 유지한다. 새로고침으로 
 
 | 파일 | 용도 |
 |---|---|
-| [개발용 페이지](../../web/app/dev/scout-photo/page.tsx) | 개발 환경에서만 미리보기 노출 |
-| [미리보기 컴포넌트](../../web/components/scout-photo-preview.tsx) | 개인 단서·촬영·판정·객관식 흐름의 최소 UI |
-| [미리보기 스타일](../../web/app/dev/scout-photo/scout-photo.css) | 개발용 화면의 모바일 레이아웃·버튼·상태 스타일 |
-| [계약 타입](../../web/lib/scout-photo/contract.ts) | mock과 미래 실제 어댑터가 맞출 입력·응답 구조 |
-| [합성 fixture](../../web/lib/scout-photo/fixture.ts) | 정찰원 미션·일반 choice 문항과 미확정 설정 |
-| [mock 어댑터](../../web/lib/scout-photo/mock.ts) | 모의 판정·횟수·객관식 상태 전이 |
-| [촬영 도우미](../../web/lib/scout-photo/capture.ts) | 카메라 이미지의 브라우저 메모리 처리 |
-| [Next 설정](../../web/next.config.ts) | 개발용 사진 경로에만 카메라 접근 허용. 실제 게임 통합 시 대상 경로의 정책 확인 필요 |
+| [개발용 페이지](../../../web/app/dev/scout-photo/page.tsx) | 개발 환경에서만 미리보기 노출 |
+| [미리보기 컴포넌트](../../../web/components/scout-photo-preview.tsx) | 개인 단서·촬영·판정·객관식 흐름의 최소 UI |
+| [미리보기 스타일](../../../web/app/dev/scout-photo/scout-photo.css) | 개발용 화면의 모바일 레이아웃·버튼·상태 스타일 |
+| [계약 타입](../../../web/lib/scout-photo/contract.ts) | mock과 미래 실제 어댑터가 맞출 입력·응답 구조 |
+| [합성 fixture](../../../web/lib/scout-photo/fixture.ts) | 정찰원 미션·일반 choice 문항과 미확정 설정 |
+| [mock 어댑터](../../../web/lib/scout-photo/mock.ts) | 모의 판정·횟수·객관식 상태 전이 |
+| [촬영 도우미](../../../web/lib/scout-photo/capture.ts) | 카메라 이미지의 브라우저 메모리 처리 |
+| [Next 설정](../../../web/next.config.ts) | 개발용 사진 경로에만 카메라 접근 허용. 실제 게임 통합 시 대상 경로의 정책 확인 필요 |
 
-이 계약은 **새 사진 UI를 위한 초안**이다. 현재 배포된 [API 계약](../be/API_CONTRACT.md)에 이 액션들이 이미 존재한다는 뜻이 아니다. 화면은 어댑터를 호출하고 반환된 상태를 표시하도록 유지한다. UI 안에서 모델 호출·게임 점수 계산·서버 권한 판정을 직접 구현하지 않는다.
+이 계약은 **새 사진 UI를 위한 초안**이다. 현재 배포된 [API 계약](../../be/API_CONTRACT.md)에 이 액션들이 이미 존재한다는 뜻이 아니다. 화면은 어댑터를 호출하고 반환된 상태를 표시하도록 유지한다. UI 안에서 모델 호출·게임 점수 계산·서버 권한 판정을 직접 구현하지 않는다.
 
 ```text
 사진·객관식 UI

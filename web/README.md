@@ -1,17 +1,17 @@
 # 호국실록 웹앱
 
-PR-5의 `/`·`/verify`는 정문→용봉관→추모의 벽→봉지·결과를 지원한다. 개발용 `full-course` preset, 새 마이그레이션·Edge·웹 적용은 [PR-5 안내](../docs/be/PR_5_APPLY.md)를 따른다. 추모의 벽 GPS와 실제 전체 콘텐츠는 미확정이며 현재 전체 흐름 시험은 합성·모의 도착이다.
+PR-5의 `/`·`/verify`는 정문→용봉관→추모의 벽→봉지·결과를 지원한다. 개발용 `full-course` preset, 새 마이그레이션·Edge·웹 적용은 [PR-5 안내](../docs/archive/be/PR_5_APPLY.md)를 따른다. 추모의 벽 GPS와 실제 전체 콘텐츠는 미확정이며 현재 전체 흐름 시험은 합성·모의 도착이다.
 
 
-숫자 획득·사초·개인 기록첩·정문 결과 및 로컬 시연 연결은 [UI 복원 안내](../docs/fe/UI_RESTORATION.md)를 참고한다. 개인 기록·완료 방식 재조회에는 Edge 재배포가 필요하다.
+숫자 획득·사초·개인 기록첩·정문 결과 및 로컬 시연 연결은 [UI 복원 안내](../docs/archive/fe/UI_RESTORATION.md)를 참고한다. 개인 기록·완료 방식 재조회에는 Edge 재배포가 필요하다.
 
-기존 v1 정문 문제를 v2 통합 화면에서 다시 시연하는 방법은 [v1 정문 dev 이관 안내](../docs/be/LEGACY_GATE_DEV.md)를 참고한다. 새 불변 코스를 등록하는 선택형 preset이며 기존 기본 코스는 유지한다.
+기존 v1 정문 문제를 v2 통합 화면에서 다시 시연하는 방법은 [v1 정문 dev 이관 안내](../docs/archive/be/LEGACY_GATE_DEV.md)를 참고한다. 새 불변 코스를 등록하는 선택형 preset이며 기존 기본 코스는 유지한다.
 
-환희의 전남대 데모와 [PRD](../codex-handoff-v2/PRD.md)를 바탕으로 만든 Next.js 웹앱이다. 기존 원본 자료는 그대로 두었다. 합성 시연 코스로 두 거점을 완주할 수 있으며, 실제 코스는 확정된 공개 자료와 비공개 정답을 Supabase에 등록한다. 실제 클라우드·폰 4대·현장 GPS 검증은 별도로 필요하다.
+환희의 전남대 데모와 [PRD](../docs/planning/PRD.md)를 바탕으로 만든 Next.js 웹앱이다. 기존 원본 자료는 그대로 두었다. 합성 시연 코스로 두 거점을 완주할 수 있으며, 실제 코스는 확정된 공개 자료와 비공개 정답을 Supabase에 등록한다. 실제 클라우드·폰 4대·현장 GPS 검증은 별도로 필요하다.
 
 ## 바로 실행
 
-메인 `/` 화면은 서버 응답에 따라 기존 v1과 정문 v2를 구분한다. PR #8의 디자인에 PR #9의 다단계 미션·힌트·보고·자물쇠를 연결했다. **[통합 실행 안내](../docs/fe/UI_INTEGRATION.md)**와 [API 계약](../docs/be/API_CONTRACT.md)을 먼저 본다. 기본 로컬 실행은 계속 v1 데모다.
+메인 `/` 화면은 서버 응답에 따라 기존 v1과 정문 v2를 구분한다. PR #8의 디자인에 PR #9의 다단계 미션·힌트·보고·자물쇠를 연결했다. **[통합 실행 안내](../docs/archive/fe/UI_INTEGRATION.md)**와 [API 계약](../docs/be/API_CONTRACT.md)을 먼저 본다. 기본 로컬 실행은 계속 v1 데모다.
 
 정식 디자인 전에 정문을 시험할 수 있는 **[/verify 확인용 UI](../docs/fe/VERIFY_UI.md)**도 제공한다. 로컬 v2 실행 설정과 4인 정상/해설 개방 확인 순서는 해당 안내를 따른다. 자동 브라우저 검증은 `npm run test:e2e:v2`다.
 
@@ -36,16 +36,16 @@ npm run dev
 1. PM이 외부 클라우드 사용·계정 명의·보관 정책을 확인한다. 이 PR은 운영 배포를 수행하지 않는다.
 2. Supabase 프로젝트에서 `supabase/migrations/202610060001_game.sql`을 적용하고 익명 로그인을 활성화한다. Realtime의 private channel과 DB 변경 구독을 사용한다. 공개 Realtime 채널 접근을 허용하지 않는 설정으로 운영한다.
 3. `.env.example`을 `.env.local`로 복사한다. `NEXT_PUBLIC_BACKEND=supabase`, URL, anon key를 입력한다. **service role key와 ANSWER_SALT에는 NEXT_PUBLIC_ 접두사를 붙이지 않는다.** seed를 실행하는 로컬 환경에만 비밀키를 설정한다.
-4. 공개 코스 JSON은 기존 `codex-handoff-v2/data/courses/jnu.json`의 구조를 사용한다. 코스와 각 단서의 `confirmed=true`, 현장에서 확인한 좌표·반경·문항·선택지·사초 본문(`sacho.body`)을 채운다. 문항에는 `type`, `title`, `question`, `hint`, 선택형의 `choices`, 주파수의 `min/max`를 사용한다. 기존 `target`도 관찰형 질문으로 변환된다. 선택 답은 1부터 시작하는 번호, 달력은 요일 이름, 주파수는 소수 첫째 자리 문자열이다.
+4. 공개 코스 JSON은 기존 `docs/planning/data/courses/jnu.json`의 구조를 사용한다. 코스와 각 단서의 `confirmed=true`, 현장에서 확인한 좌표·반경·문항·선택지·사초 본문(`sacho.body`)을 채운다. 문항에는 `type`, `title`, `question`, `hint`, 선택형의 `choices`, 주파수의 `min/max`를 사용한다. 기존 `target`도 관찰형 질문으로 변환된다. 선택 답은 1부터 시작하는 번호, 달력은 요일 이름, 주파수는 소수 첫째 자리 문자열이다.
 5. 비공개 `jnu.answers.local.json`은 기존 예시의 `{siteId: {role: {answer, digit}}}` 형식으로 만든다. 실제 정답·좌표 측위 기록을 Git에 추가하지 않는다. `ANSWER_SALT`는 32자 이상 무작위 비밀값으로 만들고 Edge와 seed에 같은 값을 설정한다.
 
 ```powershell
-npm run seed:course -- ..\codex-handoff-v2\data\courses\jnu.json ..\codex-handoff-v2\data\courses\jnu.answers.local.json
+npm run seed:course -- ..\docs\planning\data\courses\jnu.json ..\docs\planning\data\courses\jnu.answers.local.json
 ```
 
 시드는 미확정 좌표, 중복 거점, 빈 문항, 잘못된 선택 번호, 빠진 역할, 범위 밖 숫자·주파수, 짧은 salt를 거절한다. 정답 원문은 저장하지 않고 해시를 저장한다. 숫자와 역할별 단서는 서버 전용 코스에만 저장한다. 기존 코스를 덮어쓰지 않으며 변경 시 새로운 `courseId`로 리비전을 등록한다. 진행 중 게임은 원래 코스를 사용한다.
 
-v2 콘텐츠·입력·응답 형식은 [BE v2 API 계약](../docs/be/API_CONTRACT.md)에 정리했다. 통합 브랜치의 `/`는 v2를 지원하며 `/verify`도 유지한다. **새 마이그레이션·Edge·v2 합성 코스·웹 배포 준비를 맞춘 뒤 ACTIVE_COURSE_ID를 전환한다.** 적용 순서는 [PR-2 적용 안내](../docs/be/PR_2_APPLY.md)를 따른다. 저장소의 실제 v2 콘텐츠 초안은 미확정 자료가 있어 운영 시드에서 거절한다.
+v2 콘텐츠·입력·응답 형식은 [BE v2 API 계약](../docs/be/API_CONTRACT.md)에 정리했다. 통합 브랜치의 `/`는 v2를 지원하며 `/verify`도 유지한다. **새 마이그레이션·Edge·v2 합성 코스·웹 배포 준비를 맞춘 뒤 ACTIVE_COURSE_ID를 전환한다.** 적용 순서는 [PR-2 적용 안내](../docs/archive/be/PR_2_APPLY.md)를 따른다. 저장소의 실제 v2 콘텐츠 초안은 미확정 자료가 있어 운영 시드에서 거절한다.
 
 6. Edge 함수의 비밀 환경변수 `ANSWER_SALT`, `ACTIVE_COURSE_ID`, `ALLOWED_ORIGIN`(정확한 HTTPS 웹앱 출처)을 설정하고 `game` 함수를 배포한다. `SUPABASE_URL`과 `SUPABASE_SERVICE_ROLE_KEY`는 Supabase 함수 환경에서 제공된다. `verify_jwt=false`는 인증 생략이 아니다. 함수가 매 요청의 Bearer JWT를 `auth.getUser()`로 검증한다.
 

@@ -1,6 +1,6 @@
 # 현장 사진 판정 (photo-verify)
 
-기준 사진과 참가자 사진이 같은 장소·대상인지 판정한다. 설계: [스펙](../docs/superpowers/specs/2026-10-12-photo-verify-design.md)
+기준 사진과 참가자 사진이 같은 장소·대상인지 판정한다. 설계: [스펙](../docs/design/specs/2026-10-12-photo-verify-design.md)
 
 ## 구조
 전처리·품질 → DINOv2+GeM 전역 유사도 → (낮으면 조기 거절) → ALIKED+LightGlue+MAGSAC inlier → 거점별 임계값

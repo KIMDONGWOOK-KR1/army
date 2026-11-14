@@ -2,7 +2,7 @@
 
 2026-10-27 갱신 · FE: 이환희 / BE·Infra: 김종연 / 리뷰·머지: 김동욱
 
-**PR #18 통합:** 서버 계약은 유지한다. 사진 찾기는 로컬 모의 UI이고 사진 판정용 Edge 액션을 추가하지 않는다. 로컬 혼자 시연과 화면별 통합 기준은 [FE 통합 안내](../fe/PR18_INTEGRATION.md)를 따른다. 아래 입력 간소화·역할별 공개·GPS·헌화 규칙이 이전 FE 문서보다 우선한다.
+**PR #18 통합:** 서버 계약은 유지한다. 사진 찾기는 로컬 모의 UI이고 사진 판정용 Edge 액션을 추가하지 않는다. 로컬 혼자 시연과 화면별 통합 기준은 [FE 통합 안내](../archive/fe/PR18_INTEGRATION.md)를 따른다. 아래 입력 간소화·역할별 공개·GPS·헌화 규칙이 이전 FE 문서보다 우선한다.
 
 **이 문서는 현재 작업 브랜치의 서버 구현 계약이다.** 기준은 [v2 엔진](../../web/supabase/functions/_shared/engine-v2.ts)과 [응답 투영](../../web/supabase/functions/_shared/project-course-v2.ts)이다. 로컬 `/api/game`과 Supabase Edge `game`이 같은 엔진을 사용한다. 문서 갱신은 GitHub 병합·클라우드 배포 완료를 뜻하지 않으며 실제 접속 환경은 배포한 코드와 방에 연결된 코스 리비전을 따른다.
 
@@ -18,11 +18,11 @@
 
 **FE는 현재 방의 `get-stage` 응답으로 문항을 구성한다.** `self.mission.steps`의 `type`, `grading`, `choices`, `statements`, `fields`, `requires`, `requiresReports`와 `self.step_progress`를 따른다. 기존 합성 fixtures의 문항 종류·개수·문구를 정식 코스에 고정하지 않는다. 응답의 문제·나레이션은 코스 콘텐츠이고, 이 API 계약과 예제는 형식을 설명한다. 실제 시나리오 문구·정답은 이 계약의 예제와 공개 mock에 넣지 않는다. 사용자가 GitHub 공유를 요청한 [최신 시나리오](../scenario/GPS_MINO_1st_scenario_current.md)는 별도 공동 검토 문서이며, 전체 문서를 앱에 import하거나 API로 반환하지 않는다.
 
-**2026-10-11 선택 통합:** 메인 정문 화면의 단서 봉투·단계 탭·입력 도구는 코스명이나 ID 접두사가 아닌 `stage.id:"gate"`와 서버 `Step.type`으로 선택한다. `.legacy` 문항은 기존 입력 UI를 유지한다. 이 화면 변경은 문항·채점·별도 보고·역할별 공개 범위를 바꾸지 않으며 용봉관과 봉지의 기존 UI·BE 계약을 유지한다. 추모의 벽은 현재 방의 `completion.type`으로 새 헌화형과 기존 공동 확인형을 구분한다. [정문·헌화 선택 통합 적용 안내](../fe/GATE_TRIBUTE_INTEGRATION.md)를 따른다.
+**2026-10-11 선택 통합:** 메인 정문 화면의 단서 봉투·단계 탭·입력 도구는 코스명이나 ID 접두사가 아닌 `stage.id:"gate"`와 서버 `Step.type`으로 선택한다. `.legacy` 문항은 기존 입력 UI를 유지한다. 이 화면 변경은 문항·채점·별도 보고·역할별 공개 범위를 바꾸지 않으며 용봉관과 봉지의 기존 UI·BE 계약을 유지한다. 추모의 벽은 현재 방의 `completion.type`으로 새 헌화형과 기존 공동 확인형을 구분한다. [정문·헌화 선택 통합 적용 안내](../archive/fe/GATE_TRIBUTE_INTEGRATION.md)를 따른다.
 
 화면 연결 절차는 [FE 인수인계 README](../fe/README.md), 실제 API 확인용 `/verify`는 [확인용 UI 안내](../fe/VERIFY_UI.md)를 참고한다. 장면 순서와 연출은 [최신 시나리오](../scenario/GPS_MINO_1st_scenario_current.md)를 기준으로 확인하며 이 계약의 필드만으로 검정 화면 수·분량·레이아웃이 결정되지는 않는다. 현재 나레이션 표시 동작은 2절에 구분해 적었다.
 
-적용 이력·수동 절차는 [정문](PR_2_APPLY.md), [용봉관](YONGBONG_APPLY.md), [추모·봉지](PR_5_APPLY.md), [정식 콘텐츠](OFFICIAL_CONTENT_APPLY.md) 안내로 구분한다. 기존 v1 `Snapshot`, 엔진, 데모는 유지한다.
+적용 이력·수동 절차는 [정문](../archive/be/PR_2_APPLY.md), [용봉관](../archive/be/YONGBONG_APPLY.md), [추모·봉지](../archive/be/PR_5_APPLY.md), [정식 콘텐츠](../archive/be/OFFICIAL_CONTENT_APPLY.md) 안내로 구분한다. 기존 v1 `Snapshot`, 엔진, 데모는 유지한다.
 
 ### 2026-10-09 GPS 도착 계약
 
@@ -30,14 +30,14 @@
 - `report-arrival`: `{action:"report-arrival", game_id, stage_id, request_id, method:"gps"}`. 본인만 기록하며 네 명 모두 도착해야 문제·힌트·보고·자물쇠가 열린다. 응답 형식은 기존 Snapshot과 동일하며 `game.arrival_mask`와 `game.site_phase`로 진행을 확인한다.
 - `manual`, `manual:true`, `qr`는 `FORBIDDEN`. 확정 GPS 코스의 `simulated`도 `FORBIDDEN`. GPS 좌표·전원 조건·반경·5초 설정이 유효하지 않으면 `CONTENT_UNCONFIRMED`. 도착 전 미션 액션은 `WRONG_PHASE`.
 - `method:"simulated"`는 기존 dev ID의 `demo:true`이면서 `arrival.confirmed:false`인 실내 개발 시연에만 남긴다. `v1-gate-gps`는 문항이 시연용이어도 `arrival.confirmed:true`이므로 모의 도착을 허용하지 않는다.
-- 최신 콘텐츠의 GPS 검수 ID `jnu-demo-dev-review-gps-*`는 미확정 거점에서도 `simulated`를 허용하지 않는다. 추모의 벽 좌표가 `null`이면 GPS 도착은 `CONTENT_UNCONFIRMED`, 수동·QR·모의 도착은 `FORBIDDEN`이다. FE는 해당 거점에서 좌표 등록 대기 안내를 표시하며 지도·도착 버튼을 숨긴다. 등록 방법은 [최신 콘텐츠 GPS 적용](../fe/GATE_TRIBUTE_INTEGRATION.md#최신-콘텐츠의-gps-검수-적용)을 따른다.
+- 최신 콘텐츠의 GPS 검수 ID `jnu-demo-dev-review-gps-*`는 미확정 거점에서도 `simulated`를 허용하지 않는다. 추모의 벽 좌표가 `null`이면 GPS 도착은 `CONTENT_UNCONFIRMED`, 수동·QR·모의 도착은 `FORBIDDEN`이다. FE는 해당 거점에서 좌표 등록 대기 안내를 표시하며 지도·도착 버튼을 숨긴다. 등록 방법은 [최신 콘텐츠 GPS 적용](../archive/fe/GATE_TRIBUTE_INTEGRATION.md#최신-콘텐츠의-gps-검수-적용)을 따른다.
 - 도착 기록은 재접속 시 유지된다. 이번 조건은 미션 최초 개방 조건이며 도착 후 반경을 벗어날 때 미션을 다시 잠그는 기능은 아니다.
 - 브라우저가 GPS를 판정하고 서버가 인증된 사용자의 도착 보고를 신뢰한다. 직접 API 호출·위치 조작을 서버에서 물리적으로 인증하는 방식은 아니다.
-- 확정 좌표·현장 시험 및 새 코스 리비전 적용은 [GPS 적용 안내](GPS_APPLY.md)를 따른다. 합성 fixtures는 계속 합성 좌표·상태를 사용한다.
+- 확정 좌표·현장 시험 및 새 코스 리비전 적용은 [GPS 적용 안내](../archive/be/GPS_APPLY.md)를 따른다. 합성 fixtures는 계속 합성 좌표·상태를 사용한다.
 
 ## 1. 전송·권한·재접속
 
-2026-10-09 UI 복원 추가: `game.completion`, `self.journal`, 완료된 장소의 선택형 공개 사초 보상을 추가했다. 아래 합성 fixtures 12개에도 반영했다. 로컬 구현과 별개로 기존 Supabase 응답에 적용하려면 Edge 재배포가 필요하다. [UI 복원 안내](../fe/UI_RESTORATION.md)를 참고한다.
+2026-10-09 UI 복원 추가: `game.completion`, `self.journal`, 완료된 장소의 선택형 공개 사초 보상을 추가했다. 아래 합성 fixtures 12개에도 반영했다. 로컬 구현과 별개로 기존 Supabase 응답에 적용하려면 Edge 재배포가 필요하다. [UI 복원 안내](../archive/fe/UI_RESTORATION.md)를 참고한다.
 
 2026-10-27 리뷰 보완: 역할별 전체 문제 수 `game.step_total_count`와 완료 유형 `completion_type`을 추가했다. 완료 유형은 `game.completion`, `self.journal[]`, `self.result.stages[]`/`get-result.result.stages[]`, 개방 결과를 반환하는 완료 액션의 `result`에 제공한다. `confirm-stage`·`consent-joint-record`의 결과는 기존 `{confirmed,draft_version}`을 유지한다. 값은 `lock | confirm | tribute | joint-record`이며 UI 분기는 표시 문구 `label`/`completion` 대신 이 값을 사용한다. 이전 Edge 응답에는 두 신규 필드가 없을 수 있어 클라이언트 타입에서는 선택 필드다. 구버전의 헌화 기록·결과만 중앙 호환 함수에서 기존 `헌화 완료` 문구로 판별한다. 새 응답 필드는 Edge 재배포 후 제공되며 DB 마이그레이션·코스 재등록은 필요 없다.
 
@@ -100,7 +100,7 @@ v2 데이터의 저장 버전은 `schemaVersion: 2`, 응답 버전 표시는 `st
 
 `requires`는 같은 거점의 `{role,stepId}` 참조다. `requiresReports`는 지정 역할의 **보고 완료** 조건이며 `requires`와 AND로 적용한다. 배열 배치 자체는 선행 조건이 아니므로 실제 조건을 명시한다. 지휘관 첫 판정은 나머지 세 역할의 보고 뒤 열린다. 통신원 단어 단계는 본인 주파수 단계 뒤 열리며 정찰원 보고를 선행 조건으로 삼지 않는다. 정찰원 보고는 해당 나레이션만 제어한다.
 
-위 단계 구성은 기본 정문 시나리오 기준이다. 별도 dev용 [`v1-gate` preset](LEGACY_GATE_DEV.md)은 기존 v1처럼 역할별 한 문제를 병렬로 풀며 지휘관 문제에 `requiresReports`를 두지 않는다. FE는 문제 ID·개수·선행 조건을 고정하지 않고 응답의 `mission.steps`와 진행 상태를 따른다. 자물쇠의 전원 보고 조건은 동일하다.
+위 단계 구성은 기본 정문 시나리오 기준이다. 별도 dev용 [`v1-gate` preset](../archive/be/LEGACY_GATE_DEV.md)은 기존 v1처럼 역할별 한 문제를 병렬로 풀며 지휘관 문제에 `requiresReports`를 두지 않는다. FE는 문제 ID·개수·선행 조건을 고정하지 않고 응답의 `mission.steps`와 진행 상태를 따른다. 자물쇠의 전원 보고 조건은 동일하다.
 
 ## 3. get-stage
 
@@ -286,7 +286,7 @@ const snapshot = structuredClone(signalAfterHint);
 
 **참가자 간 역할 교환 금지:** 최초 배정 역할을 유지한다. `propose-swap`/`respond-swap`은 구현 목록에서 제외했고 현재 v2 서버도 지원하지 않는다(`INVALID_ACTION`). `game.swap`은 비활성 호환 필드로 유지한다. 로컬 v1 혼자 시연의 보직 전환과 구분한다.
 
-**2026-10-09 구현 변경:** 실제 4인 코스는 전원 GPS 도착이 필수다. v2 수동·QR 대체 요청은 서버에서 거절한다. 방 합류 QR과 GPS 미확정 dev 코스의 모의 도착은 별개다. GPS 필수 적용·미도착 상태의 API 접근 범위를 구현하고 검증했다. 클라우드 적용은 [GPS 적용 안내](GPS_APPLY.md)를 따른다.
+**2026-10-09 구현 변경:** 실제 4인 코스는 전원 GPS 도착이 필수다. v2 수동·QR 대체 요청은 서버에서 거절한다. 방 합류 QR과 GPS 미확정 dev 코스의 모의 도착은 별개다. GPS 필수 적용·미도착 상태의 API 접근 범위를 구현하고 검증했다. 클라우드 적용은 [GPS 적용 안내](../archive/be/GPS_APPLY.md)를 따른다.
 
 모든 쓰기에 공통 키 game_id/request_id, 단계 액션에는 stage_id를 보낸다. 응답은 갱신된 Snapshot + result이며 아래는 각 액션의 추가 부분이다.
 
@@ -335,7 +335,7 @@ const snapshot = structuredClone(signalAfterHint);
 
 ## 8. 시드·정규화와 미확정 자료
 
-공개 `codex-handoff-v2/data/courses/jnu-v2.course.json`과 `jnu-v2.private.example.json`은 초기 구조 초안·합성 형식 예시다. 현재 정식 콘텐츠 통합 입력은 Git에서 제외된 `private/official-authoring/course.content.private.local.json`과 `course.answers.private.local.json`이다. 실제 문구·정답이 포함된 작성 파일을 공개 저장소나 FE 번들에 import하지 않는다. FE는 인증된 API가 현재 역할에 제공하는 응답으로 콘텐츠를 받는다.
+공개 `docs/planning/data/courses/jnu-v2.course.json`과 `jnu-v2.private.example.json`은 초기 구조 초안·합성 형식 예시다. 현재 정식 콘텐츠 통합 입력은 Git에서 제외된 `private/official-authoring/course.content.private.local.json`과 `course.answers.private.local.json`이다. 실제 문구·정답이 포함된 작성 파일을 공개 저장소나 FE 번들에 import하지 않는다. FE는 인증된 API가 현재 역할에 제공하는 응답으로 콘텐츠를 받는다.
 
 비공개 정답 입력은 schemaVersion/courseId/synthetic/stages를 갖고, 거점별 roles에 완료 숫자·역할별 힌트 3개·지휘관 전달형 개인 단서, steps에 정답·해설·보상·자유 서술 필수 항목을 둔다. 해시 채점 단계의 seed 결과에는 answer 대신 answerHash를 저장한다. 전달형 단서의 평문 주파수는 승인된 예외이며 통신원 검증 해시와 같은 값인지 seed에서 대조한다.
 
@@ -347,7 +347,7 @@ npm run seed:course -- --validate-only ../private/official-authoring/course.cont
 
 검증 전용은 ANSWER_SALT만 필요하며 DB에 접속하지 않는다. 옵션을 빼면 기존처럼 service role로 courses_private에 불변 리비전을 INSERT한다. 확정한 실제 코스에만 사용한다. seed와 Edge의 ANSWER_SALT는 동일하고 고정 기본값은 없다. 이 운영 명령은 합성 코스의 DB 등록을 거절한다. 개발 코스는 별도 dev 등록 경로와 기본 꺼짐인 Edge 허용 설정을 사용하며 prod에서 허용하지 않는다.
 
-기존 방은 생성 시 선택한 불변 코스 리비전을 계속 사용한다. 새 리비전 등록·활성화 후 새 방에서 확인한다. 현재 정식 작성본의 G-01 근거는 자유 기록이며, 추모 GPS와 작성 파일 확정 전 운영 등록은 차단된다. 사용자 승인 dev 검수용 `seed:review`는 지정 dev 프로젝트에 별도 리비전을 등록해 실제 문항과 전원 모의 도착을 사용한다. 실제 작성 파일을 수정하거나 GPS 현장 검증을 완료 처리하지 않으며, 형식 검증은 유지한다. 정확한 등록·배포 조건은 [정식 콘텐츠 적용 안내](OFFICIAL_CONTENT_APPLY.md)를 따른다.
+기존 방은 생성 시 선택한 불변 코스 리비전을 계속 사용한다. 새 리비전 등록·활성화 후 새 방에서 확인한다. 현재 정식 작성본의 G-01 근거는 자유 기록이며, 추모 GPS와 작성 파일 확정 전 운영 등록은 차단된다. 사용자 승인 dev 검수용 `seed:review`는 지정 dev 프로젝트에 별도 리비전을 등록해 실제 문항과 전원 모의 도착을 사용한다. 실제 작성 파일을 수정하거나 GPS 현장 검증을 완료 처리하지 않으며, 형식 검증은 유지한다. 정확한 등록·배포 조건은 [정식 콘텐츠 적용 안내](../archive/be/OFFICIAL_CONTENT_APPLY.md)를 따른다.
 
 해시는 `sha256(UTF-8(salt + courseId + stepId + canonicalAnswer))`다. v1 해시는 그대로 유지한다.
 
@@ -421,12 +421,12 @@ courseId는 소문자로 시작하는 ID, stepId는 `G-03.freq` 형태의 대문
 
 대체 모드 지원 거점에만 `game.visit:{mode:"onsite"|"outdoor",label}`을 추가한다. 선택 전 label은 `현장 조사`로, 실내 관람 완료를 보장하지 않는다. 외부 모드 label은 `외부 대체 조사 · 실내 관람 아님`이다. 완료 결과·`game.completion.visit`·해당 `self.journal[].visit`에도 표시하고 재접속 후 유지한다. 개방 방식 label(`조사 후 복원`/`해설 확인 후 복원`)과 구분한다.
 
-사초②는 private `v2.sacho.yongbong`에 기존 출처·기록과 함께 `visitMode`, `research:{material,assessment,revision}`을 저장한다. 각각 통신원 자료 정보, 암호해독관 확인 범위·추가 질문, 지휘관 수정 기록이다. 기록 없이 해설 완료한 부분은 null이다. 전체 research를 공개하거나 지휘관 self에 제공하지 않는다. `game_events`에는 `select-alt-mode`의 `mode_id`만 남긴다. [새 마이그레이션·적용 절차](YONGBONG_APPLY.md)를 따른다.
+사초②는 private `v2.sacho.yongbong`에 기존 출처·기록과 함께 `visitMode`, `research:{material,assessment,revision}`을 저장한다. 각각 통신원 자료 정보, 암호해독관 확인 범위·추가 질문, 지휘관 수정 기록이다. 기록 없이 해설 완료한 부분은 null이다. 전체 research를 공개하거나 지휘관 self에 제공하지 않는다. `game_events`에는 `select-alt-mode`의 `mode_id`만 남긴다. [새 마이그레이션·적용 절차](../archive/be/YONGBONG_APPLY.md)를 따른다.
 
 
 ## 12. PR-5 추모의 벽·봉지·결과 — 구현 계약
 
-2026-10-10 사용자 확정: **개인 조사·회고 본문은 본인만**, 공동 낱말·문장·근거는 같은 팀에 공개한다. 아래 기존 공동 확인형 추모·봉지 계약에 적용한다. 용봉관 signal→cipher 명시적 전달 예외는 그대로이며 추모·봉지에는 적용하지 않는다. 이 두 종류의 단계에 recordFrom을 넣으면 seed가 거절하고, 잘못 저장된 기존 선언도 런타임 응답에서 본문 전달을 차단한다. 추모·봉지 상태는 독립 저장소다. 기존 공동 확인형은 [PR-5 적용 안내](PR_5_APPLY.md), 새 헌화형은 [선택 통합 적용 안내](../fe/GATE_TRIBUTE_INTEGRATION.md)를 따른다.
+2026-10-10 사용자 확정: **개인 조사·회고 본문은 본인만**, 공동 낱말·문장·근거는 같은 팀에 공개한다. 아래 기존 공동 확인형 추모·봉지 계약에 적용한다. 용봉관 signal→cipher 명시적 전달 예외는 그대로이며 추모·봉지에는 적용하지 않는다. 이 두 종류의 단계에 recordFrom을 넣으면 seed가 거절하고, 잘못 저장된 기존 선언도 런타임 응답에서 본문 전달을 차단한다. 추모·봉지 상태는 독립 저장소다. 기존 공동 확인형은 [PR-5 적용 안내](../archive/be/PR_5_APPLY.md), 새 헌화형은 [선택 통합 적용 안내](../archive/fe/GATE_TRIBUTE_INTEGRATION.md)를 따른다.
 
 ### 추모의 벽 — 새 헌화형 (`tribute`)
 

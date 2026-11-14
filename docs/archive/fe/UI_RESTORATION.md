@@ -26,7 +26,7 @@ v2 방은 네 참가자의 준비·도착·보고·해설 확인을 계속 요�
 - `self.journal`: 완료된 단계 중 인증된 본인 역할의 기록만 반환한다. 답안 배열·해시·숫자·전달 단서는 넣지 않는다.
 - 완료된 장소의 `sacho.char`, `sacho.body`: 선택형 공개 보상 필드다. 완료 전에는 공개하지 않는다. 사용자 개인 기록과 구분한다.
 
-정확한 형식과 합성 mock은 [API 계약](../be/API_CONTRACT.md)에 있다. 이전 Edge 응답에는 기록첩이 현재 해설을 대신 표시하며, 완료 방식의 재조회에는 새 Edge가 필요하다.
+정확한 형식과 합성 mock은 [API 계약](../../be/API_CONTRACT.md)에 있다. 이전 Edge 응답에는 기록첩이 현재 해설을 대신 표시하며, 완료 방식의 재조회에는 새 Edge가 필요하다.
 
 **새 마이그레이션·비밀값은 없다.** DB CAS·`request_id` 멱등성·기존 감점과 시도 규칙을 유지한다. 사용자가 통합 브랜치의 `web/`에서 다음 순서로 적용한다.
 
@@ -40,7 +40,7 @@ npx.cmd supabase functions deploy game --project-ref <DEV_PROJECT_REF>
 
 4. 기존 Vercel 프로젝트·Root Directory=`web` 구성으로 웹을 배포한다. 새 공개 환경변수는 없다. 새 방에서 네 세션을 확인한다.
 
-변환 코드는 seed에서만 실행한다. 새 웹 런타임 파일은 모두 `web/` 안에 있다. 합성 코스는 dev 전용이며 prod 허용 설정을 추가하지 않는다. 코드 검증 결과는 [검증 기록](../../web/docs/VALIDATION.md)에 별도로 기록한다. 이번 작업은 Supabase/Vercel 적용 완료를 의미하지 않는다.
+변환 코드는 seed에서만 실행한다. 새 웹 런타임 파일은 모두 `web/` 안에 있다. 합성 코스는 dev 전용이며 prod 허용 설정을 추가하지 않는다. 코드 검증 결과는 [검증 기록](../../../web/docs/VALIDATION.md)에 별도로 기록한다. 이번 작업은 Supabase/Vercel 적용 완료를 의미하지 않는다.
 
 ## 확인할 흐름
 

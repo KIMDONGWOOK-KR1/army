@@ -7,8 +7,8 @@ import { prepareSeedCourse } from "../supabase/functions/_shared/prepare-seed-co
 import { projectPublicStageV2 } from "../supabase/functions/_shared/project-course-v2";
 import { answerHashV2 } from "../supabase/functions/_shared/answer-v2";
 import { ROLES, type Command, type CourseV2PrivateInput, type Role, type Stage } from "../supabase/functions/_shared/types";
-import schemaSource from "../../codex-handoff-v2/data/courses/jnu-v2.course.json";
-import schemaExample from "../../codex-handoff-v2/data/courses/jnu-v2.private.example.json";
+import schemaSource from "../../docs/planning/data/courses/jnu-v2.course.json";
+import schemaExample from "../../docs/planning/data/courses/jnu-v2.private.example.json";
 
 const offer = (role: Role, stepId?: string): Command => ({
   action: "submit-step", step_id: stepId ?? { commander: "W-04.tribute", scout: "W-01.tribute", signal: "W-02.tribute", cipher: "W-03.tribute" }[role],

@@ -1,18 +1,18 @@
 # FE 인수인계 — 전체 코스 v2
 
-2026-10-27 PR #18 화면 통합은 [최신 통합 기준](PR18_INTEGRATION.md)을 먼저 확인한다. 기존 BE·개인 나레이션·점수·나가기·429 처리를 유지하며, 사진 찾기는 로컬 모의 시연이다.
+2026-10-27 PR #18 화면 통합은 [최신 통합 기준](../archive/fe/PR18_INTEGRATION.md)을 먼저 확인한다. 기존 BE·개인 나레이션·점수·나가기·429 처리를 유지하며, 사진 찾기는 로컬 모의 시연이다.
 
 2026-10-11 통합 브랜치 갱신 · FE 이환희 / BE·Infra 김종연 / 리뷰·머지 김동욱
 
 **시나리오 기준:** [최신 시나리오 — 현재 구현 반영본](../scenario/GPS_MINO_1st_scenario_current.md)을 사용한다. 이전에 별도로 받은 원본으로 화면·진행 규칙을 되돌리지 않는다. 문항·나레이션·장면 순서는 이 파일, 요청·응답·권한은 [현재 API 계약](../be/API_CONTRACT.md)을 함께 확인한다. 시나리오 수정은 이 경로에서 PR로 남긴다. 문서 수정만으로 서버 코스나 배포 화면이 바뀌지는 않는다.
 
-**2026-10-11 정문·헌화 선택 통합:** 메인 `/`의 정문 문제 UI는 `gate`와 서버 문항 유형을 기준으로 단서 봉투·단계 탭·입력을 구성한다. 코스명·ID 접두사로 별도 시나리오를 선택하지 않으며 `.legacy` 문항은 기존 UI를 유지한다. 새 `completion.type:"tribute"` wall에서는 네 명이 각각 국화를 올려 완료한다. 용봉관 UI·BE와 봉지 규칙은 유지하며, 기존 `confirm` wall도 계속 지원한다. [선택 통합 적용 안내](GATE_TRIBUTE_INTEGRATION.md)에 새 코스 전환과 검증 절차를 구분했다. 이번 작업에서 새 DB 마이그레이션·코스 등록·활성화·클라우드 배포를 수행하지 않았다.
+**2026-10-11 정문·헌화 선택 통합:** 메인 `/`의 정문 문제 UI는 `gate`와 서버 문항 유형을 기준으로 단서 봉투·단계 탭·입력을 구성한다. 코스명·ID 접두사로 별도 시나리오를 선택하지 않으며 `.legacy` 문항은 기존 UI를 유지한다. 새 `completion.type:"tribute"` wall에서는 네 명이 각각 국화를 올려 완료한다. 용봉관 UI·BE와 봉지 규칙은 유지하며, 기존 `confirm` wall도 계속 지원한다. [선택 통합 적용 안내](../archive/fe/GATE_TRIBUTE_INTEGRATION.md)에 새 코스 전환과 검증 절차를 구분했다. 이번 작업에서 새 DB 마이그레이션·코스 등록·활성화·클라우드 배포를 수행하지 않았다.
 
-**2026-10-10 최신 입력 정책:** 문제풀이의 공통 `확인 방식`·`확인한 출처`·`연결할 자료` 입력을 제거한다. 새 FE는 `submit-step`에 공통 `method`·`source`를 보내지 않는다. 문제 본문에 선언된 선택지·기록 필드와 용봉관 통신원→암호해독관 자동 자료 전달은 그대로 사용한다. 기존 코스도 새 Edge에서 동작하며 Edge → 웹 순서로 재배포한다. 이 수정만을 위한 DB 변경·코스 재등록·비밀값 변경은 없다. [최신 API 계약](../be/API_CONTRACT.md#4-submit-step)과 [적용 안내의 후속 수정](../be/PR_5_APPLY.md#후속-수정-문제풀이-공통-확인-옵션-제거)을 따른다.
+**2026-10-10 최신 입력 정책:** 문제풀이의 공통 `확인 방식`·`확인한 출처`·`연결할 자료` 입력을 제거한다. 새 FE는 `submit-step`에 공통 `method`·`source`를 보내지 않는다. 문제 본문에 선언된 선택지·기록 필드와 용봉관 통신원→암호해독관 자동 자료 전달은 그대로 사용한다. 기존 코스도 새 Edge에서 동작하며 Edge → 웹 순서로 재배포한다. 이 수정만을 위한 DB 변경·코스 재등록·비밀값 변경은 없다. [최신 API 계약](../be/API_CONTRACT.md#4-submit-step)과 [적용 안내의 후속 수정](../archive/be/PR_5_APPLY.md#후속-수정-문제풀이-공통-확인-옵션-제거)을 따른다.
 
-**`feat/stage-yongbong`에서는 `/`와 `/verify` 모두 정문→용봉관 v2를 지원한다.** 메인 화면은 서버 응답에 따라 v1/v2를 구분한다. 기존 [UI 통합 안내](UI_INTEGRATION.md)에 더해 [용봉관 계약](../be/API_CONTRACT.md#11-pr-4-용봉관)과 [적용 안내](../be/YONGBONG_APPLY.md)를 확인한다. 아래 정문 계약과 12개 mock은 계속 사용한다. 새 DB·Edge·합성 코스와 웹의 dev 적용을 맞춘 뒤 새 방을 만든다. 이 문서는 배포 완료를 의미하지 않는다.
+**`feat/stage-yongbong`에서는 `/`와 `/verify` 모두 정문→용봉관 v2를 지원한다.** 메인 화면은 서버 응답에 따라 v1/v2를 구분한다. 기존 [UI 통합 안내](../archive/fe/UI_INTEGRATION.md)에 더해 [용봉관 계약](../be/API_CONTRACT.md#11-pr-4-용봉관)과 [적용 안내](../archive/be/YONGBONG_APPLY.md)를 확인한다. 아래 정문 계약과 12개 mock은 계속 사용한다. 새 DB·Edge·합성 코스와 웹의 dev 적용을 맞춘 뒤 새 방을 만든다. 이 문서는 배포 완료를 의미하지 않는다.
 
-**2026-10-10 PR-5 추가:** `feat/stage-wall-bongji`는 병합된 PR #12 다음 작업이다. `/`·`/verify`에 추모의 벽 공동 확인, 봉지 개인 회고·팀 동의, 전체 결과를 연결했다. 사용자 확인으로 용봉관 배포·개발 코스 연결은 완료했다. PR-5는 별도 적용이 필요하며 [API 12절](../be/API_CONTRACT.md#12-pr-5-추모의-벽봉지결과--구현-계약)과 [수동 적용 안내](../be/PR_5_APPLY.md)가 최신 기준이다.
+**2026-10-10 PR-5 추가:** `feat/stage-wall-bongji`는 병합된 PR #12 다음 작업이다. `/`·`/verify`에 추모의 벽 공동 확인, 봉지 개인 회고·팀 동의, 전체 결과를 연결했다. 사용자 확인으로 용봉관 배포·개발 코스 연결은 완료했다. PR-5는 별도 적용이 필요하며 [API 12절](../be/API_CONTRACT.md#12-pr-5-추모의-벽봉지결과--구현-계약)과 [수동 적용 안내](../archive/be/PR_5_APPLY.md)가 최신 기준이다.
 
 FE는 `stage.completion.type`으로 잠금(`lock`)/공동 확인(`confirm`)/헌화(`tribute`)/회고(`joint-record`) 화면을 구분한다. 기존 공동 확인형 추모·봉지의 공동 초안·동의 요청에는 읽은 `draft_version`을 보내고 STALE_DRAFT 때 새 내용을 다시 읽게 한다. 헌화형에는 공동 초안·동의가 없다. 개인 본문은 self에만 있으며 game_public을 통해 공유하지 않는다. 봉지 회고 수정 시 전원 동의가 초기화된다. done 이후 get-stage 대신 get-game/get-result로 복원하며 `self.result`를 표시한다. 기존 정문 mock 12개는 그대로 사용한다.
 
@@ -21,17 +21,17 @@ FE는 `stage.completion.type`으로 잠금(`lock`)/공동 확인(`confirm`)/헌�
 | 자료 | 용도 |
 |---|---|
 | [최신 시나리오](../scenario/GPS_MINO_1st_scenario_current.md) | 정답 포함 공동 검토 문서. FE 문항·나레이션·장면 구성의 기준이며 전체 파일을 앱에 import하거나 public에 복사하지 않는다 |
-| [정문·헌화 선택 통합 안내](GATE_TRIBUTE_INTEGRATION.md) | 현재 정문 입력 UI·헌화 계약, 기존 용봉관·공동 확인형 호환, 명시적 새 코스 전환 |
-| [정찰원 사진 미션 UI 전달 문서](SCOUT_PHOTO_GATE_HANDOFF.md) | `feat/scout-photo-gate`의 개발 전용 촬영·모의 판정·객관식 틀과 UI 담당 작업 범위. 실제 게임·모델·서버 연결 전 초안 |
-| [PR-5 적용 안내](../be/PR_5_APPLY.md) / [합성 최종 공동 기록 화면](images/full-result-synthetic.png) | 추모·봉지·결과 계약과 네 세션 시험 캡처 |
-| [메인 UI 통합 안내](UI_INTEGRATION.md) | PR #8 디자인과 PR #9 API의 연결 범위·로컬 실행·dev 적용 조건 |
-| [GPS 적용·개발용 모드 전환](../be/GPS_APPLY.md) | 같은 Vercel 주소에서 실내 모의 도착/GPS 현장 시험, Supabase 코스 전환과 새 방 생성 |
-| [용봉관 적용 안내](../be/YONGBONG_APPLY.md) | 두 거점 새 preset, DB 마이그레이션·재배포, 실제 콘텐츠 등록 준비와 미확정 항목 |
+| [정문·헌화 선택 통합 안내](../archive/fe/GATE_TRIBUTE_INTEGRATION.md) | 현재 정문 입력 UI·헌화 계약, 기존 용봉관·공동 확인형 호환, 명시적 새 코스 전환 |
+| [정찰원 사진 미션 UI 전달 문서](../archive/fe/SCOUT_PHOTO_GATE_HANDOFF.md) | `feat/scout-photo-gate`의 개발 전용 촬영·모의 판정·객관식 틀과 UI 담당 작업 범위. 실제 게임·모델·서버 연결 전 초안 |
+| [PR-5 적용 안내](../archive/be/PR_5_APPLY.md) / [합성 최종 공동 기록 화면](images/full-result-synthetic.png) | 추모·봉지·결과 계약과 네 세션 시험 캡처 |
+| [메인 UI 통합 안내](../archive/fe/UI_INTEGRATION.md) | PR #8 디자인과 PR #9 API의 연결 범위·로컬 실행·dev 적용 조건 |
+| [GPS 적용·개발용 모드 전환](../archive/be/GPS_APPLY.md) | 같은 Vercel 주소에서 실내 모의 도착/GPS 현장 시험, Supabase 코스 전환과 새 방 생성 |
+| [용봉관 적용 안내](../archive/be/YONGBONG_APPLY.md) | 두 거점 새 preset, DB 마이그레이션·재배포, 실제 콘텐츠 등록 준비와 미확정 항목 |
 | [용봉관 외부 모드 합성 화면](images/yongbong-outdoor-synthetic.png) | 로컬 4세션 시험에서 확인한 화면. 실제 자료·시나리오가 아님 |
 | [API_CONTRACT.md](../be/API_CONTRACT.md) | 요청·전체 Snapshot·역할별 공개 범위·입력 형식·오류의 기준 문서 |
 | [역할별 mock 12개](../be/API_CONTRACT.md#31-fe용-전체-snapshot-mock) | commander/scout/signal/cipher × 힌트 전/후/정문 완료 후 전체 JSON. FE 화면·Storybook·테스트에 사용 가능 |
 | [확정 사항·결정 대기](../be/DECISIONS.md) | 정규화·힌트 3단계·해설 개방·사초 저장 방식과 미확정 항목 |
-| [PR-2 적용 안내](../be/PR_2_APPLY.md) | BE 담당의 DB 적용·Edge 재배포·새 코스 등록 및 FE 연결 순서 |
+| [PR-2 적용 안내](../archive/be/PR_2_APPLY.md) | BE 담당의 DB 적용·Edge 재배포·새 코스 등록 및 FE 연결 순서 |
 | [정문 확인용 UI](VERIFY_UI.md) | 정식 디자인 전 `/verify`에서 로컬 4인 동작을 확인하는 방법과 dev 연결 절차 |
 | [웹앱 README](../../web/README.md) | 기본 설치·기존 v1 실행·테스트 방법 |
 | [공통 타입](../../web/supabase/functions/_shared/types.ts), [SnapshotV2](../../web/supabase/functions/_shared/engine-v2.ts) | type-only import용 타입. 서버 엔진·코스·비공개 자료를 클라이언트 런타임에 import하지 않는다 |
@@ -48,12 +48,12 @@ PR-2 서버 기준 브랜치는 `feat/engine-v2-gate`이며 PR-0 #6·PR-1 #7을 
 | PR-2 서버 | get-stage, submit-step, 역할별 힌트, 보고, 일반 자물쇠, 전원 해설 확인 후 별도 개방, 사초① 저장 구현 |
 | PR-4 용봉관 | 이동·전원 재도착, 11단계 조사, 통신원→암호해독관 자료 전달, 분류 입력, 외부 대체 모드, 사초② 구현. 새 마이그레이션·Edge·웹·새 코스 적용 필요 |
 | PR-2 검증 | 단위·DB·계약 테스트 94개, 타입 검사·빌드·Deno 검사/lint 통과. 기존 v1 E2E 9개 시나리오 통과 |
-| UI 연결 | `/verify`를 유지하고 통합 브랜치의 `/`에도 v2 문제·별도 보고·힌트·읽음 확인·두 개방 경로 연결. [통합 안내](UI_INTEGRATION.md) 참고 |
+| UI 연결 | `/verify`를 유지하고 통합 브랜치의 `/`에도 v2 문제·별도 보고·힌트·읽음 확인·두 개방 경로 연결. [통합 안내](../archive/fe/UI_INTEGRATION.md) 참고 |
 | 정문·헌화 선택 통합 | `/` 정문은 서버 문항 기반 입력 도구, `/`·`/verify`의 새 tribute wall은 전원 헌화 완료. 기존 confirm 코스·용봉관·봉지 유지. 새 마이그레이션 없음, 코스 전환·배포 미수행 |
 | 별도 확인할 것 | 현재 활성 코스와 새 방의 모드, 클라우드 4인 정문 완주, 실기기 GPS 현장 시험. 웹 배포 성공과 전체 흐름 검증을 구분한다 |
 | 후속 범위 | 실제 콘텐츠 확정·등록, 프롤로그 문구 연결의 잔여 부분, 시간 점수·랭킹, 추모의 벽 GPS 확정. 역할 교환·QR·수동 도착은 사용자 결정으로 제외 |
 
-처음 연결하는 환경은 [PR-2 적용 안내](../be/PR_2_APPLY.md)를 따른다. 기존 dev 환경은 [GPS 적용 안내](../be/GPS_APPLY.md)대로 등록된 개발용/GPS 코스 사이에서 `ACTIVE_COURSE_ID`를 전환하고 **새 방**을 만든다. 기존 방은 기존 코스에 고정되며 행을 덮어쓰지 않는다. FE가 임의로 DB·시드·Edge 비밀값을 바꿀 필요는 없다. 전환은 BE 담당과 맞추며 두 모드 모두 같은 Vercel 주소를 사용한다.
+처음 연결하는 환경은 [PR-2 적용 안내](../archive/be/PR_2_APPLY.md)를 따른다. 기존 dev 환경은 [GPS 적용 안내](../archive/be/GPS_APPLY.md)대로 등록된 개발용/GPS 코스 사이에서 `ACTIVE_COURSE_ID`를 전환하고 **새 방**을 만든다. 기존 방은 기존 코스에 고정되며 행을 덮어쓰지 않는다. FE가 임의로 DB·시드·Edge 비밀값을 바꿀 필요는 없다. 전환은 BE 담당과 맞추며 두 모드 모두 같은 Vercel 주소를 사용한다.
 
 ## 3. FE에서 바꿔야 하는 부분
 
@@ -83,7 +83,7 @@ type V2ActionResponse = SnapshotV2 & { result?: Record<string, unknown> };
 모든 게임 요청에는 game_id, 단계 요청에는 stage_id를 사용한다. 쓰기에는 request_id가 필수다. 새 사용자 동작에는 새 ID를 만들고, 응답 유실 재전송에는 **같은 ID와 같은 본문**을 유지한다.
 
 1. 기존 4인 로비→방장 start-game→각자 set-ready→지휘관 begin-operation으로 출발한다. 방장과 지휘관은 다를 수 있다.
-2. 본인 report-arrival 후 팀 도착 상태를 조회한다. 지정 GPS 코스는 반경 10m 안에서 5초 체류 후 `method:"gps"`를 보내며, 네 명 모두 도착해야 미션이 열린다. GPS 미확정 dev 시연에만 `method:"simulated"`를 사용한다. QR·수동 대행은 거절한다. 기존 시연 문항을 현장에서 시험하는 새 `v1-gate-gps` preset과 재배포 절차는 [GPS 적용 안내](../be/GPS_APPLY.md)를 따른다.
+2. 본인 report-arrival 후 팀 도착 상태를 조회한다. 지정 GPS 코스는 반경 10m 안에서 5초 체류 후 `method:"gps"`를 보내며, 네 명 모두 도착해야 미션이 열린다. GPS 미확정 dev 시연에만 `method:"simulated"`를 사용한다. QR·수동 대행은 거절한다. 기존 시연 문항을 현장에서 시험하는 새 `v1-gate-gps` preset과 재배포 절차는 [GPS 적용 안내](../archive/be/GPS_APPLY.md)를 따른다.
 3. get-game으로 현재 stage_id·site_phase를 확인한다. mission/cleared에서 get-stage를 호출해 본인의 미션·힌트·진행 상태를 받는다. travel에서 get-stage는 409 WRONG_PHASE다.
 4. self.step_progress[stepId].status가 open인 문제를 submit-step으로 제출한다. locked는 선행 문제/보고를 기다린다. HTTP 200이어도 result.accepted=false이면 채점 오답이다.
 5. 본인의 모든 문제가 done/explained이고 선행 보고 조건을 충족하면 submit-report를 보낸다. 본인 숫자를 표시하고 구두 전달을 안내한다. 타인 화면에는 보고 ✓만 표시한다.
@@ -114,7 +114,7 @@ type V2ActionResponse = SnapshotV2 & { result?: Record<string, unknown> };
 
 현재 방의 `stage.completion.type`이 `tribute`일 때만 헌화 화면을 사용한다. 전원 도착 후 본인의 `self.mission.steps`에서 헌화 단계 ID를 읽어 `submit-step`에 `answer:"confirmed"`를 보낸다. 공통 `method`·`source`는 생략하며 별도 `submit-report`를 보내지 않는다. `report_mask`는 commander/scout/signal/cipher 순서의 헌화 여부로 표시하고, 네 번째 헌화가 완료되면 `헌화 완료` 화면에서 기존 지휘관 출발 액션으로 봉지에 이동한다.
 
-점수·힌트·숫자·자물쇠·공동 기록·`confirm-stage`를 표시하지 않고 `confirm_mask`를 기다리지 않는다. 기존 `confirm` 코스의 개인 조사·공동 기록·버전 확인 UI는 그대로 유지한다. 새로운 헌화형 등록은 `seed:review` 또는 `seed:course --wall-mode tribute`를 명시해 새 코스 리비전을 준비한다. 운영 `seed:course`는 `--course-id <새 ID>`가 함께 필요하며 옵션 생략·`preserve`는 기존 코스를 유지한다. FE 화면 변경만으로 진행 중인 공동 확인형 방이 헌화형으로 바뀌지 않는다. [적용 안내](GATE_TRIBUTE_INTEGRATION.md)를 따른다.
+점수·힌트·숫자·자물쇠·공동 기록·`confirm-stage`를 표시하지 않고 `confirm_mask`를 기다리지 않는다. 기존 `confirm` 코스의 개인 조사·공동 기록·버전 확인 UI는 그대로 유지한다. 새로운 헌화형 등록은 `seed:review` 또는 `seed:course --wall-mode tribute`를 명시해 새 코스 리비전을 준비한다. 운영 `seed:course`는 `--course-id <새 ID>`가 함께 필요하며 옵션 생략·`preserve`는 기존 코스를 유지한다. FE 화면 변경만으로 진행 중인 공동 확인형 방이 헌화형으로 바뀌지 않는다. [적용 안내](../archive/fe/GATE_TRIBUTE_INTEGRATION.md)를 따른다.
 
 ## 5. 화면에서 꼭 지켜야 할 규칙
 
@@ -152,7 +152,7 @@ type V2ActionResponse = SnapshotV2 & { result?: Record<string, unknown> };
 - FE 로컬 주소나 새 Vercel Preview로 dev Edge에 접속할 경우 정확한 origin을 BE에게 전달해 허용 목록에 추가해야 한다. 이때 origin에는 경로나 와일드카드를 넣지 않는다.
 - 기존 private `game:<gameId>` Realtime 구독을 재사용할 수 있다. game_public 변경/Broadcast 후 자기 get-game/get-stage를 다시 조회한다. game_public에는 self·개인 단서가 없다. 낮은 version의 늦은 응답은 버리고 네트워크 복구 시 재조회한다.
 - 네 명 검증은 서로 다른 브라우저 프로필/Playwright context/기기를 사용한다. 같은 프로필의 탭 네 개는 같은 익명 참가자로 인식될 수 있다.
-- 순수 mock 개발에는 서버 비밀값이 필요 없다. 로컬 v2 API 실행이 필요하면 [로컬 API 개발 안내](../be/PR_2_APPLY.md#로컬-api-개발)에 따라 로컬 전용 salt와 새 dev 리비전 ID를 사용한다. 실제 Edge salt를 FE 작업용으로 복사하지 않는다.
+- 순수 mock 개발에는 서버 비밀값이 필요 없다. 로컬 v2 API 실행이 필요하면 [로컬 API 개발 안내](../archive/be/PR_2_APPLY.md#로컬-api-개발)에 따라 로컬 전용 salt와 새 dev 리비전 ID를 사용한다. 실제 Edge salt를 FE 작업용으로 복사하지 않는다.
 
 오류는 ApiError.code로 분기한다. 409는 현재 상태 재조회, 429는 retry_at 기준 대기, 503 CONTENT_UNCONFIRMED는 콘텐츠 준비 필요 안내다. 오류 객체·전체 Snapshot·입력 답안·개인 단서를 콘솔이나 분석 로그에 남기지 않는다.
 

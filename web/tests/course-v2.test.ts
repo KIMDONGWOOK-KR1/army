@@ -20,8 +20,8 @@ import {
   ROLES,
   type Step,
 } from "../supabase/functions/_shared/types";
-import source from "../../codex-handoff-v2/data/courses/jnu-v2.course.json";
-import example from "../../codex-handoff-v2/data/courses/jnu-v2.private.example.json";
+import source from "../../docs/planning/data/courses/jnu-v2.course.json";
+import example from "../../docs/planning/data/courses/jnu-v2.private.example.json";
 
 // Per-test salt is intentionally unrelated to deployment; never an application default.
 const salt = crypto.randomUUID();

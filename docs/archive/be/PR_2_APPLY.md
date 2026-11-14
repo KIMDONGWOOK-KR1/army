@@ -2,7 +2,7 @@
 
 PR-2 적용을 마친 뒤 기존 v1 정문 문항을 다시 시연하려면 [v1 정문 dev 이관 안내](LEGACY_GATE_DEV.md)를 따른다. 별도 preset과 새 리비전을 사용하며 기본 합성 API 시험 코스를 덮어쓰지 않는다.
 
-이 문서는 사용자가 검토 후 실행할 절차다. PR 작성 중 Supabase/Vercel에 배포하거나 마이그레이션·시드를 적용하지 않았다. 기존 dev `jnu-demo-dev-r1`은 v1 코스다. PR-2 단독 브랜치의 `/` UI는 새로운 mission 입력을 표시하지 않는다. **v2 확인용 `/verify` UI와 새 DB·Edge·코스 적용 준비를 맞춘 뒤 활성 코스를 전환한다.** [확인 UI 실행 안내](../fe/VERIFY_UI.md)를 참고한다.
+이 문서는 사용자가 검토 후 실행할 절차다. PR 작성 중 Supabase/Vercel에 배포하거나 마이그레이션·시드를 적용하지 않았다. 기존 dev `jnu-demo-dev-r1`은 v1 코스다. PR-2 단독 브랜치의 `/` UI는 새로운 mission 입력을 표시하지 않는다. **v2 확인용 `/verify` UI와 새 DB·Edge·코스 적용 준비를 맞춘 뒤 활성 코스를 전환한다.** [확인 UI 실행 안내](../../fe/VERIFY_UI.md)를 참고한다.
 
 후속 `feat/ui-v2-integration` 브랜치에서는 PR #8 디자인의 메인 `/`에도 정문 v2를 연결했다. 해당 브랜치 웹을 사용하면 `/`에서도 새 v2 방을 만들 수 있다. 이 UI 통합으로 추가되는 마이그레이션·환경변수는 없다. [통합 실행 안내](../fe/UI_INTEGRATION.md)를 함께 확인한다.
 
@@ -37,7 +37,7 @@ try {
 }
 ```
 
-3. DB 적용 후 사용자가 Edge를 재배포한다. 새 비밀값 이름은 없다. 기존 ANSWER_SALT와 ALLOWED_ORIGIN을 유지하며, 합성 허용 설정은 dev에서만 사용한다. 기본값 꺼짐·prod 금지 원칙은 [DEPLOY.md](DEPLOY.md)의 6절을 따른다. 함수 배포만으로 기존 r1 게임이 v2로 바뀌지 않는다.
+3. DB 적용 후 사용자가 Edge를 재배포한다. 새 비밀값 이름은 없다. 기존 ANSWER_SALT와 ALLOWED_ORIGIN을 유지하며, 합성 허용 설정은 dev에서만 사용한다. 기본값 꺼짐·prod 금지 원칙은 [DEPLOY.md](../../be/DEPLOY.md)의 6절을 따른다. 함수 배포만으로 기존 r1 게임이 v2로 바뀌지 않는다.
 
 ```powershell
 npx supabase functions deploy game --project-ref $pr2DevRef

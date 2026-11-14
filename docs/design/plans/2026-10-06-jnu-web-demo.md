@@ -5,7 +5,7 @@
 **Goal:** 시연 코스로 두 거점 완주가 가능한 모바일 웹앱과 실제 데이터 연결 경로를 만든다.
 **Architecture:** 공통 서버 게임 엔진, 로컬 영속 저장 어댑터, Supabase Edge/DB 어댑터, 개인 투영 API, 반응형 화면.
 **Tech Stack:** Next.js 16, React 19, TypeScript, Tailwind, Supabase, Vitest, Playwright.
-**Spec:** ../specs/2026-10-06-jnu-web-demo-design.md 및 ../../../codex-handoff-v2/PRD.md.
+**Spec:** ../specs/2026-10-06-jnu-web-demo-design.md 및 ../../planning/PRD.md.
 
 ## Global Constraints
 

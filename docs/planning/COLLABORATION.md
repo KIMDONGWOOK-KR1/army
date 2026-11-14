@@ -5,9 +5,9 @@
 ## 먼저 읽을 문서
 
 1. `README.md`
-2. `codex-handoff-v2/AGENTS.md`
-3. `codex-handoff-v2/MVP_PLAN.md`
-4. `codex-handoff-v2/PRD.md`
+2. `docs/planning/AGENTS.md`
+3. `docs/planning/MVP_PLAN.md`
+4. `docs/planning/PRD.md`
 
 하위 개발 지침의 정답 보호, 장소 원칙, 기술 스택, 검증 규칙을 저장소 전체에 적용한다. 실제 없는 앱·시험 결과를 구현 완료로 보고하지 않는다. 개발 대상 경로는 해당 작업에서 확인하며 기존 자료를 임의로 이동하지 않는다.
 

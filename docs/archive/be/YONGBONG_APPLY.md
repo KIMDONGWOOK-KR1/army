@@ -105,7 +105,7 @@ npx.cmd vercel --prod
 
 ## 로컬 재현
 
-`web/`에서 `NEXT_PUBLIC_BACKEND=local`, `LOCAL_V2_PRESET=gate-yongbong`, 새 dev ID의 `LOCAL_V2_COURSE_ID`, 32자 이상의 개발용 `ANSWER_SALT`를 설정해 실행한다. 이미 저장된 코스는 preset을 바꿔도 그대로이므로 새 코스 ID와 새 방을 사용한다. 상태는 기존 `.demo-data/state.json`에 저장한다. 전체 환경 설정은 [웹 안내](../../web/README.md)를 따른다.
+`web/`에서 `NEXT_PUBLIC_BACKEND=local`, `LOCAL_V2_PRESET=gate-yongbong`, 새 dev ID의 `LOCAL_V2_COURSE_ID`, 32자 이상의 개발용 `ANSWER_SALT`를 설정해 실행한다. 이미 저장된 코스는 preset을 바꿔도 그대로이므로 새 코스 ID와 새 방을 사용한다. 상태는 기존 `.demo-data/state.json`에 저장한다. 전체 환경 설정은 [웹 안내](../../../web/README.md)를 따른다.
 
 ```powershell
 npm.cmd test
@@ -114,4 +114,4 @@ npm.cmd run build
 npx.cmd playwright test --config playwright.yongbong.config.ts
 ```
 
-자동화는 합성 4세션 시험이며 휴대폰 4대 GPS 현장 검증을 대신하지 않는다. [API 계약 11절](API_CONTRACT.md#11-pr-4-용봉관), [결정 기록](DECISIONS.md), [검증 기록](../../web/docs/VALIDATION.md) 참고.
+자동화는 합성 4세션 시험이며 휴대폰 4대 GPS 현장 검증을 대신하지 않는다. [API 계약 11절](../../be/API_CONTRACT.md#11-pr-4-용봉관), [결정 기록](../../be/DECISIONS.md), [검증 기록](../../../web/docs/VALIDATION.md) 참고.
