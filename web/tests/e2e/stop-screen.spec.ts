@@ -34,7 +34,7 @@ test("arrival opens the stop screen once, opens the four clues and closes into t
   await expect(stop.locator(".stop-pill")).toHaveText("단서 4");
   await expect(stop).toHaveClass(/calm/);
   await expect(stop).toContainText("기억의 흔적 1/2");
-  await expect(stop).toContainText("원판을 밀어 기록을 펼쳐라");
+  await expect(stop).toContainText("원판을 밀어 기록을 펼쳐 봐요");
   // 천천히 떠오르는 등장 움직임이 끝난 뒤의 대비를 잰다
   await page.evaluate(() =>
     Promise.all(
@@ -56,7 +56,7 @@ test("arrival opens the stop screen once, opens the four clues and closes into t
   // 열리자마자 초점이 대화상자에 있으니 Enter만 눌러도 원판이 돈다
   await expect(stop).toBeFocused();
   await page.keyboard.press("Enter");
-  await expect(stop).toContainText("네 보직의 단서를 받았다.");
+  await expect(stop).toContainText("네 보직의 단서를 받았어요.");
   await expect(stop.locator(".stop-bubble")).toHaveCount(4);
   await expect(
     stop.getByRole("button", { name: "원판 돌리기" }),

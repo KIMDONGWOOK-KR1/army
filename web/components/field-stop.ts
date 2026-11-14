@@ -395,25 +395,28 @@ export function routeDots() {
   const m = new THREE.Matrix4();
   return {
     mesh,
-    // along(s): 길 위 s미터 지점, from~to 사이에 점을 찍는다
+    // along(s): 길 위 s미터 지점, from~to 사이에 점을 찍는다.
+    // k: 지도를 멀리 볼 때 점을 그만큼 크게, 간격도 그만큼 넓게(화면에서 같은 크기로 보이게)
     update(
       t: number,
       along: (s: number) => { x: number; z: number },
       from: number,
       to: number,
+      k = 1,
     ) {
       // 점 자리는 길 위에 고정된 간격(GAP)이고 시간이 갈수록 앞으로 민다.
       // 캐릭터 발밑(9m 안)과 거점 바로 앞(4m)은 비운다.
-      const shift = ((t / 1000) * 2.5) % GAP,
+      const gap = GAP * k,
+        shift = ((t / 1000) * 2.5 * k) % gap,
         lo = from + 9;
       let n = 0;
       for (
-        let s = lo + ((((shift - lo) % GAP) + GAP) % GAP);
+        let s = lo + ((((shift - lo) % gap) + gap) % gap);
         s < to - 4 && n < MAX_DOTS;
-        s += GAP
+        s += gap
       ) {
         const p = along(s);
-        m.makeTranslation(p.x, 0.58, p.z);
+        m.makeScale(k, 1, k).setPosition(p.x, 0.58, p.z);
         mesh.setMatrixAt(n++, m);
       }
       mesh.count = n;

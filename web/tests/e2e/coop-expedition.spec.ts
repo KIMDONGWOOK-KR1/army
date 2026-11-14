@@ -29,7 +29,13 @@ test("four roles see their next action, team progress and only earned journal st
     await expect(panel).not.toContainText("내 도착을 확인");
     await teamCard.click();
     await expect(panel).toContainText("내 도착을 확인");
+    // 기본은 닫힘(hh 2026-10-28): Esc로 닫고 초점은 단추로 돌아온다. 다시 열면 바뀐 상태가 보인다
+    await scout.keyboard.press("Escape");
+    await expect(teamCard).toHaveAttribute("aria-expanded","false");
+    await expect(teamCard).toBeFocused();
     await scout.getByRole("button",{name:"본인 모의 도착 확인",exact:true}).click();
+    await expect(teamCard).toContainText("1/4");
+    await teamCard.click();
     await expect(panel).toContainText("도착 확인 1/4");
     await expect(panel).toContainText("내 도착은 확인됐어요");
     await expect(teamCard).toContainText("동료 3명 기다려요");
@@ -46,6 +52,8 @@ test("four roles see their next action, team progress and only earned journal st
     }
     await scout.setViewportSize({width:390,height:844});
     await scout.screenshot({path:"test-results/coop-travel.jpg",animations:"disabled"});
+    await panel.getByRole("button",{name:"닫기",exact:true}).click();
+    await expect(teamCard).toHaveAttribute("aria-expanded","false");
     await panel.getByRole("button",{name:"기록첩",exact:true}).click();
     await expect(scout.getByTestId("expedition-passport")).toContainText("함께 마친 장소 0/4");
     await scout.getByRole("button",{name:"닫기",exact:true}).click();
@@ -55,9 +63,12 @@ test("four roles see their next action, team progress and only earned journal st
       for(const level of [1,2,3]) await call(commander,"request-hint",{target_role:role,level});
       await call(forRole(role),"submit-report"); await call(forRole(role),"confirm-explanation");
     }
+    // 장면이 바뀌어도 오른쪽 위 같은 단추로 팀 상태를 연다(기본은 닫힘)
+    await expect(teamCard).toHaveAttribute("aria-expanded","false");
+    await expect(teamCard).toContainText("4/4");
+    await teamCard.click();
     await expect(panel).toContainText("조사 보고 4/4");
-    // 펼침 상태는 기기에 기억되어 장면이 바뀌어도 펼쳐져 있다
-    await expect(teamCard).toHaveAttribute("aria-expanded","true");
+    await scout.keyboard.press("Escape");
     const reward = scout.locator(".reward-stage"), digit = scout.locator(".private-digit");
     const rewardBox = await reward.boundingBox(), digitBox = await digit.boundingBox();
     expect(rewardBox).not.toBeNull(); expect(digitBox).not.toBeNull();
@@ -66,7 +77,8 @@ test("four roles see their next action, team progress and only earned journal st
     await scout.screenshot({path:"test-results/coop-team.jpg",animations:"disabled"});
     await call(commander,"open-after-explanation");
     await expect(scout.getByTestId("stage-v2-completed")).toBeVisible();
-    await panel.getByRole("button",{name:"기록첩",exact:true}).click();
+    // 사초 화면에서는 아래 '수집한 기록 읽기' 하나로 기록첩을 연다(위 단추 줄에는 팀 상태만)
+    await scout.getByRole("button",{name:"수집한 기록 읽기",exact:true}).click();
     const passport=scout.getByTestId("expedition-passport");
     await expect(passport).toContainText("함께 마친 장소 1/4");
     await expect(passport.locator('li[data-state="complete"]')).toHaveCount(1);

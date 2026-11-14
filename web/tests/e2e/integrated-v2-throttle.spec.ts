@@ -36,7 +36,7 @@ test("초기 복원 429 뒤 만료된 방이면 오류를 지우고 첫 화면�
     } });
   });
   await page.goto("/");
-  await expect(page.locator(".error-banner")).toContainText("서버 요청이 잠시 몰렸다");
+  await expect(page.locator(".error-banner")).toContainText("서버 요청이 잠시 몰렸어요");
   await expect.poll(() => reads.length).toBe(2);
   await expect(page.locator(".error-banner")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "다시 연결", exact: true })).toHaveCount(0);
@@ -75,7 +75,7 @@ test("조회 요청을 합치고 429 대기 시간을 지킨 뒤 회복하며 �
       window.dispatchEvent(new Event("online"));
     }
   });
-  await expect(page.locator(".error-banner")).toContainText("서버 요청이 잠시 몰렸다");
+  await expect(page.locator(".error-banner")).toContainText("서버 요청이 잠시 몰렸어요");
   const blockedReads = reads.length;
   expect(blockedReads).toBe(initialReads + 1);
   await page.evaluate(() => {
@@ -122,7 +122,7 @@ test("제출 429는 입력과 요청 번호를 보존하고 명시적 재시도 
   const input = form.getByRole("textbox").first();
   await input.fill("합성 입력 유지 확인");
   await form.getByTestId("story-submit").click();
-  await expect(page.locator(".error-banner")).toContainText("서버 요청이 잠시 몰렸다");
+  await expect(page.locator(".error-banner")).toContainText("서버 요청이 잠시 몰렸어요");
   await expect(input).toHaveValue("합성 입력 유지 확인");
   await page.getByRole("button", { name: "다시 연결", exact: true }).click();
   expect(submissions).toHaveLength(1);

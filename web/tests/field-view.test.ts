@@ -11,9 +11,11 @@ describe("카메라 거리에 따른 극각·안개", () => {
     expect(maxPolarFor(74)).toBeCloseTo(1.25);
     expect(maxPolarFor(90)).toBeCloseTo(1.25);
     expect(maxPolarFor(200)).toBeCloseTo(0.85);
-    expect(maxPolarFor(400)).toBeCloseTo(0.85);
+    // 지도처럼 멀리 빼면(600m 넘게) 0.6rad까지 세워 캠퍼스를 위에서 본다(hh 2026-10-29)
+    expect(maxPolarFor(600)).toBeCloseTo(0.6);
+    expect(maxPolarFor(VIEW.maxDistance)).toBeCloseTo(0.6);
     let prev = Infinity;
-    for (let d = 0; d <= 260; d += 10) {
+    for (let d = 0; d <= VIEW.maxDistance; d += 10) {
       const p = maxPolarFor(d);
       expect(p).toBeLessThanOrEqual(prev + 1e-9);
       prev = p;

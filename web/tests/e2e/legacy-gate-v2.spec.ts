@@ -91,7 +91,7 @@ async function checkFrequencyControls(page: Page, form: Locator, answer: string)
   // Preserve the invalid raw input; the UI must never round it into an answer.
   const invalid = Number(answer).toFixed(2);
   await privateInput(() => lcd.fill(invalid));
-  await form.getByRole("button", { name: "문제 제출", exact: true }).focus();
+  await form.getByRole("button", { name: "맞춰 보기", exact: true }).focus();
   expect((await lcd.inputValue()) === invalid).toBe(true);
   expect(await lcd.evaluate((element) => !(element as HTMLInputElement).validity.valid)).toBe(true);
   await expect(lcd).toHaveAttribute("aria-invalid", "true");
@@ -102,7 +102,7 @@ async function checkFrequencyControls(page: Page, form: Locator, answer: string)
   };
   page.on("request", observe);
   try {
-    await form.getByRole("button", { name: "문제 제출", exact: true }).click({ noWaitAfter: true });
+    await form.getByRole("button", { name: "맞춰 보기", exact: true }).click({ noWaitAfter: true });
     await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
     expect(submitted, "invalid frequency does not dispatch a submission").toBe(false);
   } finally {
@@ -128,7 +128,7 @@ async function submitFrequencyWhileCheckingBusy(page: Page, form: Locator, stepI
   };
   await page.route("**/api/game", routeHandler);
   const pending = clickAction(page, form.getByRole("button", {
-    name: "문제 제출", exact: true,
+    name: "맞춰 보기", exact: true,
   }), "submit-step").then(
     (reply) => ({ reply, error: null }),
     (error: unknown) => ({ reply: null, error }),
@@ -295,7 +295,7 @@ test("four sessions complete the migrated v1 gate through v2 solve, separate rep
       const solved = step.type === "frequency"
         ? await submitFrequencyWhileCheckingBusy(page, form, step.id)
         : await clickAction(page, form.getByRole("button", {
-          name: "문제 제출", exact: true,
+          name: "맞춰 보기", exact: true,
         }), "submit-step");
       expect(solved.result?.accepted === true).toBe(true);
       expect(solved.self.step_progress[step.id]?.status === "done").toBe(true);

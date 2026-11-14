@@ -9,6 +9,10 @@ export const metadata: Metadata = {
   description:
     "네 사람이 서로 다른 현장의 단서를 나누고 하나의 기억을 완성하는 협동 역사 교육 웹앱.",
   robots: { index: false, follow: false },
+  // 홈 화면에 추가해 열면 브라우저 막대 없이 연다. 상태 막대는 짙은 머리줄 위에 겹치고(머리줄이 안전 영역만큼 내려간다)
+  appleWebApp: { capable: true, title: "호국실록", statusBarStyle: "black-translucent" },
+  // 예전 iOS(16.3 이하)는 manifest 대신 이 표시를 보고 홈 화면 앱을 막대 없이 연다
+  other: { "apple-mobile-web-app-capable": "yes" },
 };
 export const viewport: Viewport = {
   width: "device-width",

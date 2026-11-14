@@ -1,6 +1,8 @@
 import { fullDemoCourseV2 } from "@/supabase/functions/_shared/wall-bongji-course-v2";
 import { legacyFullDemoCourseV2 } from "@/supabase/functions/_shared/legacy-full-course-v2";
+import { dogamFullDemoCourseV2 } from "@/supabase/functions/_shared/dogam-course-v2";
 import "server-only";
+import { createHash } from "node:crypto";
 import { readFile, mkdir, writeFile, rename } from "node:fs/promises";
 import { join } from "node:path";
 import {
@@ -66,10 +68,12 @@ async function operation(session: string, cmd: Command): Promise<Snapshot> {
     db.courses ??= {};
     if (db.courses[id]) return db.courses[id];
     const preset = process.env.LOCAL_V2_PRESET ?? "synthetic";
-    if (!["synthetic", "v1-gate", "v1-gate-gps", "gate-yongbong", "gate-yongbong-gps", "full-course", "full-course-v1"].includes(preset))
+    if (!["synthetic", "v1-gate", "v1-gate-gps", "gate-yongbong", "gate-yongbong-gps", "full-course", "full-course-v1", "full-course-dogam"].includes(preset))
       throw new DomainError("SERVER_ERROR", "로컬 v2 preset 설정을 확인하라.");
     // full-course-v1: 전체 코스에서 용봉관만 hh의 v1 시연 문항(주파수 등)
     if (preset === "full-course-v1") return db.courses[id] = await legacyFullDemoCourseV2(id, salt ?? "");
+    // full-course-dogam: 위 코스에서 정문을 안 2 '현장 도감'(네 보직 도구 미니게임)으로 바꾼다(hh 2026-11-08)
+    if (preset === "full-course-dogam") return db.courses[id] = await dogamFullDemoCourseV2(id, salt ?? "");
     const build = preset === "full-course" ? fullDemoCourseV2 : preset.startsWith("gate-yongbong") ? yongbongDemoCourseV2 : preset !== "synthetic" ? legacyDemoCourseV2 : demoCourseV2;
     return db.courses[id] = await build(id, salt ?? "", preset.endsWith("-gps"));
   };
@@ -113,7 +117,11 @@ async function operation(session: string, cmd: Command): Promise<Snapshot> {
           g.expiresAt > now &&
           g.status !== "done",
       );
-      if (active.length >= 5)
+      // Local preview users repeatedly create rehearsal rooms while checking UI.
+      // Preserve existing rooms, and retain the cap outside explicit local development.
+      const localPreview = process.env.NODE_ENV === "development" &&
+        process.env.NEXT_PUBLIC_BACKEND === "local" && !process.env.VERCEL;
+      if (active.length >= 5 && !localPreview)
         throw new DomainError(
           "RATE_LIMITED",
           "열려 있는 작전이 많다. 기존 작전을 먼저 마치라.",
@@ -208,4 +216,25 @@ export function localRequest(session: string, cmd: Command) {
   );
   globalStore.hogukQueue = pending.catch(() => undefined);
   return pending;
+}
+
+// Read-only membership check for transient virtual motion; never writes game progress.
+const plazaIdentities = new Map<string, { until: number; member: string }>();
+export async function localPlazaIdentity(session: string, gameId: string, seat = 0) {
+  if (!/^[a-f0-9-]{36}$/.test(session) || !Number.isInteger(seat) || seat < 0 || seat > 3) throw new Error("FORBIDDEN");
+  const key = `${session}:${gameId}:${seat}`, cached = plazaIdentities.get(key);
+  if (cached && cached.until > Date.now()) return { game: gameId, member: cached.member };
+  let as = session;
+  if (seat) {
+    const h = createHash("sha256").update(`${session}:solo-seat:${seat}`).digest("hex");
+    as = `${h.slice(0,8)}-${h.slice(8,12)}-${h.slice(12,16)}-${h.slice(16,20)}-${h.slice(20,32)}`;
+  }
+  const db = await read(), game = db.games[gameId], user = await sha256(as);
+  const member = game?.members.find(m => m.userId === user);
+  const course = game && db.courses?.[game.courseId];
+  const stage = game?.v2 && course?.stages[game.v2.stageIndex];
+  if (!member || stage?.kind !== "epilogue" || !["mission","cleared"].includes(game.phase) || (game.expiresAt <= Date.now() && game.status !== "done")) throw new Error("FORBIDDEN");
+  for (const [id,v] of plazaIdentities) if (v.until < Date.now()) plazaIdentities.delete(id);
+  plazaIdentities.set(key,{member:member.id,until:Date.now()+30000});
+  return {game:gameId,member:member.id};
 }

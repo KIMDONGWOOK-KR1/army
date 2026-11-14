@@ -39,7 +39,7 @@ export function useLocation(
         setFix(null);
         setDistance(null);
         setDwell(0);
-        setStatus("위치 신호가 끊겼다. 위치 확인을 다시 눌러라.");
+        setStatus("위치 신호가 끊겼어요. 위치 확인을 다시 눌러 주세요.");
       }
     }, 1000);
     return () => window.clearInterval(timer);
@@ -57,7 +57,7 @@ export function useLocation(
   }, [snapshot?.game.status]);
   const start = () => {
     if (!navigator.geolocation) {
-      setStatus("위치를 지원하지 않는 기기다. GPS를 지원하는 브라우저에서 접속하라.");
+      setStatus("위치를 지원하지 않는 기기예요. GPS를 지원하는 브라우저로 접속해 주세요.");
       return;
     }
     stop();
@@ -87,7 +87,7 @@ export function useLocation(
           setFix(null);
           setDistance(null);
           setDwell(0);
-          setStatus("최신 위치를 확인하지 못했다. 다시 측정하라.");
+          setStatus("최신 위치를 확인하지 못했어요. 다시 측정해 주세요.");
           return;
         }
         lastFixAt.current = fix.timestamp;
@@ -103,7 +103,7 @@ export function useLocation(
         }
         setStatus(
           p.coords.accuracy > 40
-            ? "오차가 크다. 열린 곳에서 기다리라."
+            ? "오차가 크게 잡혀요. 탁 트인 곳에서 잠시 기다려 주세요."
             : `위치 수신 · 오차 약 ${Math.round(p.coords.accuracy)}m`,
         );
         const verdict = judgeArrival(fixes.current, {
@@ -141,8 +141,8 @@ export function useLocation(
         setDwell(0);
         setStatus(
           e.code === 1
-            ? "위치 권한이 꺼져 있다. 브라우저에서 정확한 위치를 허용한 뒤 위치 확인을 눌러라."
-            : "위치 신호를 찾지 못했다. 열린 곳에서 위치 확인을 다시 눌러라.",
+            ? "위치 권한이 꺼져 있어요. 브라우저에서 정확한 위치를 허용한 뒤 위치 확인을 눌러 주세요."
+            : "위치 신호를 찾지 못했어요. 탁 트인 곳에서 위치 확인을 다시 눌러 주세요.",
         );
       },
       { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 },

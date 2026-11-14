@@ -31,7 +31,7 @@ test("demo scene picker jumps to the lock and to the finished operation", async 
   await expect(page.locator('[data-scene="travel"]')).toBeVisible();
 
   const open = async () => {
-    await page.getByRole("button", { name: "메뉴 열기" }).click();
+    await page.getByRole("button", { name: "메뉴 열기", exact: true }).click();
     await page.getByRole("button", { name: "시연 장면 고르기" }).click();
     return page.getByRole("dialog", { name: "시연 장면 고르기" });
   };
@@ -64,5 +64,5 @@ test("demo scene picker jumps to the lock and to the finished operation", async 
   // 끝난 작전에서도 다시 앞 장면으로 돌아갈 수 있다
   await (await open()).getByRole("button", { name: /용봉관으로 이동/ }).click();
   await expect(page.locator('[data-scene="travel"]')).toBeVisible();
-  await expect(page.getByText("용봉관까지", { exact: false })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "용봉관으로 이동" })).toBeVisible();
 });

@@ -1,32 +1,33 @@
 {
-  "_note": "호국실록 캠퍼스 사운드 — AI 보조 작곡·합성, 호국실록 팀 사운드 디렉션. 48kHz 모노 MP3(192kbps). 길이는 제작 문서(음원 목록과 검증 결과, 2026-10-10)와 ffmpeg 디코딩 표본 수로 확인했다. loop=true인 곡은 길이(seconds)를 반복 끝점으로 쓴다.",
+  "_note": "호국실록 캠퍼스 사운드 — AI 보조 작곡·합성, 호국실록 팀 사운드 디렉션. 48kHz 모노 MP3(192kbps). 길이는 제작 문서(음원 목록과 검증 결과, 2026-10-10)와 ffmpeg 디코딩 표본 수로 확인했다. loop=true인 곡은 길이(seconds)를 반복 끝점으로 쓴다. 2026-11-08: 01·02·03·07·08·09는 새 곡(Higgsfield ElevenLabs 음악 모델, 반복 곡은 박자 4배수에서 0.6초 크로스페이드로 이음). 2026-11-09: 반복 곡 길이는 표본 수 그대로 적는다(08을 58.421로 반올림해 끝 16표본이 잘리며 반복마다 딸깍 소리가 났다). 2026-11-09: 봉지 08을 마당의 hoguk-10-bongji-plaza(65.45초)로 통일. 2026-11-09: 봉지 자유 놀이에는 새 오리지널 곡 봉지의 오후(76.8초) 한 곡만 사용. 별도 비트·연못 루프 제거. 2026-11-09 후속: 봉지 연못은 봉지의 오후 원곡(100 BPM), 석상 근처는 동일 곡 하우스 리믹스(120 BPM)로 자동 전환. 선택 UI 없이 한 번에 한 편곡만 재생.",
   "sampleRate": 48000,
   "tracks": {
     "01": {
       "file": "hoguk-01-lobby.mp3",
-      "seconds": 80,
+      "seconds": 73.632,
       "loop": true,
       "lufs": -18,
       "webkitWav": "hoguk-01-lobby.wav"
     },
     "02": {
       "file": "hoguk-02-role-reveal.mp3",
-      "seconds": 6.8,
+      "seconds": 4.119,
       "loop": false,
-      "lufs": -16
+      "lufs": -26
     },
     "03": {
       "file": "hoguk-03-walk.mp3",
-      "seconds": 96,
+      "seconds": 87.690667,
       "loop": true,
       "lufs": -18,
       "webkitWav": "hoguk-03-walk.wav"
     },
     "04": {
       "file": "hoguk-04-mission.mp3",
-      "seconds": 80,
+      "seconds": 78.336,
       "loop": true,
-      "lufs": -22
+      "lufs": -18,
+      "webkitWav": "hoguk-04-mission.wav"
     },
     "05": {
       "file": "hoguk-05-memorial.mp3",
@@ -43,23 +44,46 @@
     },
     "07": {
       "file": "hoguk-07-record.mp3",
-      "seconds": 3.6,
+      "seconds": 4.68,
       "loop": false,
-      "lufs": -16
+      "lufs": -30
     },
     "08": {
-      "file": "hoguk-08-bongji.mp3",
-      "seconds": 80,
+      "file": "hoguk-bongji-afternoon.mp3",
+      "seconds": 76.8,
       "loop": true,
-      "lufs": -21,
-      "webkitWav": "hoguk-08-bongji.wav"
+      "lufs": -20,
+      "webkitWav": "hoguk-bongji-afternoon.wav"
     },
     "09": {
       "file": "hoguk-09-results.mp3",
-      "seconds": 24,
+      "seconds": 29.732,
       "loop": false,
-      "lufs": -18
+      "lufs": -20
+    },
+    "10": {
+      "file": "hoguk-memorial-remembrance.mp3",
+      "seconds": 30,
+      "loop": true,
+      "lufs": -28,
+      "webkitWav": "hoguk-memorial-remembrance.wav",
+      "source": "Higgsfield ElevenLabs Music v2.5",
+      "job_id": "b0d191ef-2330-4f81-9d4d-5920a3746351"
     }
   },
-  "_webkit": "사파리 엔진은 mp3 인코더 지연(1152~1920표본)을 지우지 않아 반복 이음매에 틈이 생긴다. webkitWav가 있는 곡은 웹킷에서만 같은 길이의 16비트 WAV를 쓴다(웹킷 26.6·크롬에서 길이·이음매 확인)."
+  "_webkit": "사파리 엔진은 mp3 인코더 지연(1152~1920표본)을 지우지 않아 반복 이음매에 틈이 생긴다. webkitWav가 있는 곡은 웹킷에서만 같은 길이의 16비트 WAV를 쓴다(웹킷 26.6·크롬에서 길이·이음매 확인).",
+  "_mix": "2026-11-08 기본 음량(음악 0.6·효과음 0.75)에서 순간 최대 크기: 대기실·이동 약 -25, 봉지 -29, 문제 풀이 바탕음 약 -32(평균), 보직 공개·사초 -22(이때 배경음은 0.6으로 낮춤), 결과 -21, 합성 효과음 -27~-42 LUFS.",
+  "_plazaRemix": {
+    "file": "hoguk-bongji-afternoon-house.mp3",
+    "webkitWav": "hoguk-bongji-afternoon-house.wav",
+    "seconds": 64,
+    "bpm": 120,
+    "source": "hoguk-bongji-afternoon.wav",
+    "sourceBpm": 100,
+    "bars": 32,
+    "method": "Pitch-preserving 1.2x time stretch and original synthesized drums; 8ms boundary fades",
+    "integratedLufs": -19.9,
+    "truePeakDbtp": -4.7,
+    "transition": "Phrase-mapped fade-through; previous source stops when next source starts"
+  }
 }

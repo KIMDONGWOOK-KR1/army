@@ -51,10 +51,27 @@ async function setup(session: string, requestId: string) {
   return { ...lead, solo: { seats: map } };
 }
 
+async function teamTribute(session: string, seat: number, cmd: Command) {
+  if (typeof cmd.answer !== "string" || !/^(start|hold|release):/.test(cmd.answer)) return;
+  for (let other = 0; other < 4; other++) {
+    if (other === seat) continue;
+    const as = (c: Command) => localRequest(seatSession(session, other), c) as Promise<SnapshotV2>;
+    const s = await as({ action: "get-game", game_id: cmd.game_id });
+    const step = s.self.mission?.steps[0];
+    if (!step || s.stage.completion.type !== "tribute" || s.game.site_phase !== "mission" || s.game.stage_id !== cmd.stage_id) continue;
+    await as({ action: "submit-step", game_id: cmd.game_id, stage_id: cmd.stage_id, step_id: step.id,
+      answer: cmd.answer, request_id: `${cmd.request_id}-team${other}` });
+  }
+}
+
 async function act(session: string, seat: number, cmd: Command, team: boolean) {
   if (["create-game", "create-demo", "create-solo", "join-game", "demo-role"].includes(cmd.action))
     throw new DomainError("FORBIDDEN", "시연 자리는 새 방을 만들거나 다른 방에 합류하지 않는다.");
   const snapshot = await localRequest(seatSession(session, seat), cmd);
+  if (team && cmd.action === "submit-step") {
+    await teamTribute(session, seat, cmd);
+    return localRequest(seatSession(session, seat), { action: "get-game", game_id: cmd.game_id });
+  }
   // 모의 도착은 시연 동료도 함께 도착한다(실제 4인 방에서는 각자 폰이 GPS로 도착한다)
   if (!team || cmd.action !== "report-arrival" || cmd.method !== "simulated") return snapshot;
   for (let other = 0; other < 4; other++) {

@@ -423,17 +423,13 @@ for (const role of ROLES) {
         }
 
         const submit = card.getByRole("button", {
-          name: "문제 제출",
+          name: "맞춰 보기",
           exact: true,
         });
         await submit.scrollIntoViewIfNeeded();
         await expect(submit).toBeInViewport();
-        const report = page.getByRole("button", {
-          name: "조사 결과 보고",
-          exact: true,
-        });
-        await report.scrollIntoViewIfNeeded();
-        await expect(report).toBeInViewport();
+        // 보고 단추는 내 문제를 다 푼 뒤에야 나온다(hh 2026-10-28: 한 화면에 할 일 하나)
+        await expect(page.getByRole("button", { name: "조사 결과 보고", exact: true })).toHaveCount(0);
         await expectNoHorizontalOverflow(page);
       });
     }

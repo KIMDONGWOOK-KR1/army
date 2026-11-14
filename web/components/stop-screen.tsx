@@ -11,7 +11,7 @@ import { play } from "@/lib/sound";
 
 // 거점 한 줄 설명. 나레이션·힌트에 이미 쓰인 공개 사실만 두고, 단서의 답이 되는 값은 넣지 않는다.
 const LINES: Record<string, string> = {
-  gate: "5·18 사적지 · 추모의 마음으로 머물러라.",
+  gate: "5·18 사적지 · 추모의 마음으로 잠시 머물러요.",
   yongbong: "1957년에 세운 옛 대학 본부 · 오월의 기록을 품은 곳",
 };
 
@@ -271,8 +271,8 @@ export function StopScreen({
         <p className="stop-line" id={`${id}-hint`} aria-live="polite">
           <span key={phase === "open" ? "open" : "hint"}>
             {phase === "open"
-              ? "네 보직의 단서를 받았다."
-              : "원판을 밀어 기록을 펼쳐라"}
+              ? "네 보직의 단서를 받았어요."
+              : "원판을 밀어 기록을 펼쳐 봐요"}
           </span>
         </p>
       </div>

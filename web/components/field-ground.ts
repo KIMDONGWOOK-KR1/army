@@ -30,7 +30,9 @@ export const LAYER = {
   rimSand: 0.2, // 마사토 길 테
   rimPave: 0.207, // 보도블록 테(연석)
   edge: 0.214, // 차도·서비스 길 노란 테
-  foot: 0.24, // 보행로
+  footSand: 0.22, // 마사토 길(민주대로·캠퍼스 산책길)
+  footPave: 0.23, // 보도블록(캠퍼스 밖)
+  foot: 0.24, // 붉은 벽돌 보도: 보행로끼리 만나면 늘 맨 위
   service: 0.26,
   car: 0.28,
   mark: 0.295, // 횡단보도
@@ -40,6 +42,15 @@ export const LAYER = {
   bedSoil: 0.5, // 돋운 화단 흙
   bedRim: 0.62, // 돋운 화단 테 윗면
 } as const;
+
+// 보행로 바닥 높이. 같은 높이로 겹친 두 길은 카메라가 조금만 돌아도 프레임마다 앞뒤가
+// 바뀌어 지지직거린다(z-fighting). 재질 층(8mm 이상 간격) 안에서 길마다 0~7.2mm 더 띄운다
+// (일곱 칸이라 갈림목에서 만나는 두 길이 같은 높이가 되는 일이 드물다).
+export const FOOT_STEPS = 7;
+export const FOOT_STEP_M = 0.0012;
+export const footY = (f: FootMaterial | null, i: number) =>
+  (f === "sand" ? LAYER.footSand : f === "pave" ? LAYER.footPave : LAYER.foot) +
+  (i % FOOT_STEPS) * FOOT_STEP_M;
 
 // 땅 종류(셰이더가 무늬를 고른다)
 export const GK = {
@@ -341,7 +352,9 @@ export class GroundBuilder {
   }
   // 꺾은선을 너비 w의 띠로 깐다. 꺾이는 곳은 바깥쪽 틈만 부채꼴로 메우고(안쪽은 이미 겹친다),
   // 끝은 반원으로 둥글게 막는다.
-  ribbon(p: number[], w: number, y: number) {
+  // plainCaps: 꺾이는 곳·끝을 메우는 부채꼴에 줄눈을 그리지 않는다(보행로). 부채꼴은 무늬 좌표가
+  // 한 점(길 따라 거리)에 몰려 있어, 그 거리가 줄눈 위면 부채꼴 전체가 줄눈 색(흰 삼각형)이 되었다.
+  ribbon(p: number[], w: number, y: number, plainCaps = false) {
     const n = p.length / 2,
       h = w / 2;
     if (n < 2) return;
@@ -374,6 +387,8 @@ export class GroundBuilder {
         s[i], -h, s[i + 1], h, s[i + 1], -h,
       ]);
     }
+    // 0.9m 칸의 가운데(가로·세로 줄눈 모두에서 가장 먼 자리)
+    const mid = (a: number) => Math.floor(a / 0.9) * 0.9 + 0.45;
     const fan = (
       cx: number,
       cz: number,
@@ -393,7 +408,9 @@ export class GroundBuilder {
           cx + Math.cos(t1) * h,
           cz + Math.sin(t1) * h,
           y,
-          [along, 0, along, h, along, h],
+          plainCaps
+            ? [mid(along), 0.225, mid(along), 0.225, mid(along), 0.225]
+            : [along, 0, along, h, along, h],
         );
       }
     };
@@ -932,7 +949,9 @@ export function buildGround(
         gb.ribbon(r.p, r.w + 0.6, LAYER.rimPave);
         gb.paint(f === "brick" ? G.brick : G.pave, f === "brick" ? GK.brick : GK.pave);
       }
-      gb.ribbon(r.p, r.w, LAYER.foot);
+      // 재질마다 높이를 나눠 벽돌 보도가 늘 마사토·보도블록 위에 오고, 같은 재질 길끼리
+      // 갈림목에서 겹쳐도 무늬가 번갈아 비치지 않게 길마다 1.5mm씩 다르게 띄운다.
+      gb.ribbon(r.p, r.w, footY(f, i), true);
     } else {
       gb.paint(G.edge, GK.plain);
       gb.ribbon(r.p, r.w + (r.k === 0 ? 1.5 : 1.1), LAYER.edge);

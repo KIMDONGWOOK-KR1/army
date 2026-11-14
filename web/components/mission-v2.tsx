@@ -1,7 +1,7 @@
 "use client";
 
 import { plain } from "@/lib/practice-text";
-import { type FormEvent, useState } from "react";
+import { type CSSProperties, type FormEvent, type KeyboardEvent, useEffect, useRef, useState } from "react";
 import { BookOpen, Check, LockKeyhole, Radio } from "lucide-react";
 import { personalMissionBody } from "@/lib/gate-narration";
 import {
@@ -20,7 +20,8 @@ import { emptyStepAnswer, VerifyInput } from "./verify-input";
 import { isLegacyMissionStep, LegacyMissionInput } from "./legacy-mission-input";
 import { useLockDraft } from "./use-lock-draft";
 import styles from "./mission-v2.module.css";
-import { RetroPanel, SharedDraftPanel } from "./closing-v2";
+import { SharedDraftPanel } from "./closing-v2";
+import { BongjiStop } from "./bongji-stop";
 import { TributePanel } from "./tribute-v2";
 import { YongbongPanel } from "./yongbong-panel";
 import { MissionAsset } from "./mission-asset";
@@ -31,6 +32,8 @@ import { ScanResult, ScoutScan } from "./scout-scan";
 import { scanEnabled, scanState } from "@/lib/scout-photo/session";
 import type { ScoutScanSite } from "@/lib/scout-photo/sites";
 import type { PhotoGateState } from "@/lib/scout-photo/contract";
+import { dogamPageFor } from "@/lib/dogam";
+import { DogamMission } from "./dogam/dogam-mission";
 
 type Props = {
   snapshot: V2Response;
@@ -38,12 +41,10 @@ type Props = {
   now: number;
   send: (command: Command) => Promise<GameResponse | null>;
 };
-const labels = {
-  locked: "선행 조사 대기",
-  open: "조사 중",
-  done: "조사 완료",
-  explained: "해설로 확인",
-};
+// 다시 해 볼 때의 말: 고르는 문제는 골라 보고, 맞추는 문제는 맞춰 보고, 찾아 적는 문제는 찾아 본다
+const retryVerb = (step: Step) =>
+  step.type === "choice" || step.type === "truefalse" ? "골라 봐요"
+    : step.type === "frequency" || step.type === "order" || step.type === "match" ? "맞춰 봐요" : "찾아 봐요";
 
 function StepCard(
   { step, snapshot, busy, send }: Omit<Props, "now"> & { step: Step },
@@ -53,15 +54,25 @@ function StepCard(
   const [answer, setAnswer] = useState<StepAnswer>(() =>
     legacyInput && step.type === "frequency" ? "50.0" : emptyStepAnswer(step));
   const [feedback, setFeedback] = useState("");
+  // 방금 맞힌 문제만 도장처럼 찍어 보인다(새로고침해서 다시 열면 그냥 결과 줄)
+  const [fresh, setFresh] = useState(false);
   const progress = snapshot.self.step_progress[step.id];
   const done = progress?.status === "done" || progress?.status === "explained";
+  // 낸 뒤에는 결과 줄(맞음·다시 해 보기)이 화면 밖에 있으면 보이게 당겨 온다
+  const statusLine = useRef<HTMLParagraphElement>(null), reveal = useRef(false);
+  useEffect(() => {
+    if (!reveal.current) return;
+    reveal.current = false;
+    const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    statusLine.current?.scrollIntoView({ block: "nearest", behavior: still ? "auto" : "smooth" });
+  }, [feedback, done]);
   const disabled = busy || progress?.status !== "open";
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (disabled) return;
     if (legacyInput && step.type === "choice" &&
       (typeof answer !== "string" || !/^[1-9]\d*$/.test(answer))) {
-      setFeedback("답안을 하나 선택하라.");
+      setFeedback("답을 하나 골라 주세요.");
       return;
     }
     setFeedback("");
@@ -72,13 +83,19 @@ function StepCard(
       answer,
     });
     if (!next || !isV2Response(next)) return;
+    reveal.current = true;
     if (next.result?.accepted === false) {
       setFeedback(
-        snapshot.stage.kind === "memorial" ? "자료를 다시 확인하라." : "단서를 다시 살펴라. 문제 오답은 자물쇠 시도 횟수를 줄이지 않는다.",
+        snapshot.stage.kind === "memorial" ? "자료를 다시 확인해 봐요." : `아직 아니에요. 단서를 다시 보고 ${retryVerb(step)}. (자물쇠 기회는 그대로예요)`,
       );
     } else {
       setAnswer(emptyStepAnswer(step));
-      setFeedback("조사를 기록했다.");
+      setFeedback("");
+      // 추모 거점에서는 도장·한마디 없이 조용히 결과 줄만
+      if (snapshot.stage.kind !== "memorial") {
+        setFresh(true);
+        window.dispatchEvent(new Event("hoguk:step-solved"));
+      }
     }
   };
   return (
@@ -88,10 +105,11 @@ function StepCard(
       onSubmit={(e) => void submit(e)}
       autoComplete="off"
     >
-      <div className="section-label">
-        <span>{labels[progress?.status ?? "locked"]}</span>
-        {snapshot.stage.kind !== "memorial" && <span>제출 {progress?.attempts ?? 0}회</span>}
-      </div>
+      {/* 상태 줄은 아직 안 열린 문제에만, 왜 못 푸는지 한 줄. 낸 횟수(제출 N회)는 시험지처럼 읽혀 빼고,
+          틀린 뒤에는 아래 안내 한 줄이 그 몫을 한다(처음엔 질문부터, 푼 뒤엔 결과 한 줄로) */}
+      {!done && (progress?.status ?? "locked") === "locked" && <div className="section-label">
+        <span>선행 조사 대기</span>
+      </div>}
       <h3>{plain(step.prompt)}</h3>
       {!!step.requiresReports?.length && (
         <p className="fine-print">
@@ -113,41 +131,39 @@ function StepCard(
                 value={typeof answer === "string" ? answer : ""}
                 onChange={setAnswer} disabled={disabled} />
             : <VerifyInput step={step} value={answer} onChange={setAnswer} />}
+          {/* 틀렸을 때는 고개를 젓듯 살짝 흔든다(낼 때마다 다시) */}
+          {feedback && <p ref={statusLine} key={progress?.attempts ?? 0} role="status" className={`${styles.feedback} ${styles.nudge}`}>{feedback}</p>}
           <button className="button primary full" type="submit"
             disabled={legacyInput && step.type === "choice" && !answer}>
-            문제 제출 <Check size={17} />
+            맞춰 보기 <Check size={17} />
           </button>
         </fieldset>
       )}
-      {progress?.record && (
-        <div className={styles.note}>
-          <h4>내 기록</h4>
-          {Object.entries(progress.record).map(([key, value]) => (
+      {/* 답한 뒤: 결과 한 줄이 먼저, 해설·내 기록·복원한 기록은 펼쳐 볼 때만(hh 2026-10-28) */}
+      {done && <p ref={statusLine} className={`${styles.result} ${fresh ? styles.stamped : ""}`} data-explained={progress?.status === "explained"} role="status">
+        <Check size={17} aria-hidden="true" />
+        {progress?.status === "explained" ? "해설로 확인 · 조사 완료"
+          : snapshot.stage.kind === "memorial" ? "기록했어요 · 조사 완료" : "맞았어요 · 조사 완료"}
+      </p>}
+      {(progress?.record || snapshot.self.explanations[step.id] || snapshot.self.rewards[step.id]) && (
+        <details className={styles.more}>
+          <summary>해설 보기</summary>
+          {progress?.record && Object.entries(progress.record).map(([key, value]) => (
             <p key={key}>
-              {step.fields?.find((f) => f.id === key)?.label ?? "기록"}: {plain(value)}
+              {step.fields?.find((f) => f.id === key)?.label ?? "내 기록"}: {plain(value)}
             </p>
           ))}
-        </div>
+          {snapshot.self.explanations[step.id] && <p>{plain(snapshot.self.explanations[step.id])}</p>}
+          {snapshot.self.rewards[step.id] && <p className={styles.reward}>{plain(snapshot.self.rewards[step.id])}</p>}
+        </details>
       )}
-      {snapshot.self.explanations[step.id] && (
-        <div className={styles.note}>
-          <h4>문제 해설</h4>
-          <p>{plain(snapshot.self.explanations[step.id])}</p>
-        </div>
-      )}
-      {snapshot.self.rewards[step.id] && (
-        <div className={styles.note}>
-          <h4>복원한 기록</h4>
-          <p>{plain(snapshot.self.rewards[step.id])}</p>
-        </div>
-      )}
-      {feedback && <p role="status" className="fine-print">{feedback}</p>}
     </form>
   );
 }
 
 type MissionProps = Props & {
   onShowDigit?: () => void;
+  onMap?: () => void;
   /** 정찰원 '사진으로 찾기'(개발 서버의 모의 판정). 찾은 뒤에야 서버 문제가 열린다 */
   scan?: ScoutScanSite;
 };
@@ -159,7 +175,7 @@ export function MissionV2(props: MissionProps) {
 }
 
 /** The real mission always comes from the caller's server-projected response. */
-function MissionContent({ snapshot, busy, send, onShowDigit, scan: requestedScan }: MissionProps) {
+function MissionContent({ snapshot, busy, now, send, onShowDigit, onMap, scan: requestedScan }: MissionProps) {
   const { self, game, stage } = snapshot;
   const { mission, role } = self;
   const scan = scanEnabled() && snapshot.course.demo && role === "scout" &&
@@ -167,8 +183,12 @@ function MissionContent({ snapshot, busy, send, onShowDigit, scan: requestedScan
   const scanKey = `${game.id}:${stage.id}`;
   const [scanResult, setScanResult] = useState<PhotoGateState | null>(() => scan ? scanState(scanKey) : null);
   if (!mission || !role) return <p role="status">본인 조사를 불러오는 중…</p>;
-  if (stage.completion.type === "joint-record") return <RetroPanel snapshot={snapshot} busy={busy} send={send} />;
-  if (stage.completion.type === "tribute") return <TributePanel snapshot={snapshot} busy={busy} send={send} />;
+  // 봉지(hh 2026-11-09): 온라인 산사처럼 다른 팀과 머무는 마당을 먼저, 회고·공동 기록은 그다음
+  if (stage.completion.type === "joint-record") return <BongjiStop snapshot={snapshot} busy={busy} send={send} />;
+  if (stage.completion.type === "tribute") return <TributePanel snapshot={snapshot} busy={busy} now={now} send={send} />;
+  // 안 2 '현장 도감'(hh 2026-11-08): 도감 문항(.dogam)으로 된 거점은 도감 화면으로 푼다. 사진으로 찾기 시연은 쓰지 않는다.
+  const dogam = dogamPageFor(stage.id, mission.steps);
+  if (dogam) return <DogamMission snapshot={snapshot} page={dogam} busy={busy} send={send} onShowDigit={onShowDigit} onMap={onMap} />;
   const cleared = game.stage_phase === "done" || game.site_phase === "cleared";
   const complete = (step: Step) =>
     ["done", "explained"].includes(self.step_progress[step.id]?.status);
@@ -191,6 +211,7 @@ function MissionContent({ snapshot, busy, send, onShowDigit, scan: requestedScan
       snapshot={snapshot} busy={busy} send={send} onShowDigit={onShowDigit} />}
   </div>;
   const doneCount = mission.steps.filter(complete).length + (scan && !scanOpen ? 1 : 0);
+  const solving = !allDone && !self.reported && !cleared;
   const totalCount = mission.steps.length + (scan ? 1 : 0);
   // 짧은 안내(조사 이름)는 카드 머리에, 긴 안내는 본문 문단으로 둔다
   const introText = mission.intro.trigger === "enter"
@@ -210,6 +231,12 @@ function MissionContent({ snapshot, busy, send, onShowDigit, scan: requestedScan
     (scene.trigger === "scout-reported" &&
       game.report_mask[ROLES.indexOf("scout")])
   );
+  // 처음부터 보이는 글(긴 소개·시작 장면)은 문제를 푸는 단서라 푸는 동안 문제 곁에 두고, 다 푼 뒤에는 접는다.
+  // 그 뒤에 열리는 장면(다 풂·보고·완료)은 짧은 결과 문장이라 그대로 보인다
+  const clues = [
+    ...(mission.intro.trigger === "enter" && !shortIntro && introText ? [introText] : []),
+    ...scenes.filter((scene) => scene.trigger === "enter").map((scene) => plain(scene.text)),
+  ];
   return (
     <div className={styles.root}>
       <YongbongPanel snapshot={snapshot} busy={busy} send={send} />
@@ -225,13 +252,16 @@ function MissionContent({ snapshot, busy, send, onShowDigit, scan: requestedScan
             {doneCount} / {totalCount}
           </span>
         </div>
-        <span className={styles.questBar} aria-hidden="true"><i style={{ width: `${totalCount ? (doneCount / totalCount) * 100 : 0}%` }} /></span>
-        <ul className={styles.questRewards} aria-label="이 조사로 얻는 것">
+        <span className={styles.questBar} aria-hidden="true"><i style={{ "--done": totalCount ? doneCount / totalCount : 0 } as CSSProperties} /></span>
+        {/* 얻는 것은 종류만 한 줄로(숫자·정답은 보고 전에 보이지 않는다). 팀 목표 설명은 오른쪽 위 '함께'에서 */}
+        {!self.reported && <ul className={styles.questRewards} aria-label="이 조사로 얻는 것">
           <li><b>얻는 것</b>{mission.digit ? "기억의 숫자 1개" : "팀에 전할 조사 결과"}</li>
-          {stage.completion.type === "lock" && <li><b>함께</b>네 보고가 모여 자물쇠가 열리면 이곳의 기록이 복원돼요</li>}
-        </ul>
-        {mission.intro.trigger === "enter" && !shortIntro && <p>{introText}</p>}
-        {scenes.map((scene) => <p key={scene.id}>{plain(scene.text)}</p>)}
+        </ul>}
+        {/* 단서는 푸는 동안 문제 위에 그대로, 다 푼 뒤에는 '단서 다시 보기'로 접는다(hh 2026-10-28) */}
+        {clues.length > 0 && (solving
+          ? <div className={styles.clueBox} data-testid="mission-v2-clue"><b>단서</b>{clues.map((text, i) => <p key={i}>{text}</p>)}</div>
+          : <details className={styles.more}><summary>단서 다시 보기</summary>{clues.map((text, i) => <p key={i}>{text}</p>)}</details>)}
+        {scenes.filter((scene) => scene.trigger !== "enter").map((scene) => <p key={scene.id} className={styles.sceneLine}>{plain(scene.text)}</p>)}
       </div>
       {!scanOpen && <MissionAsset asset={mission.asset} stageId={stage.id} role={role} />}
       {role === "commander" && self.transfer_clue && (
@@ -240,9 +270,6 @@ function MissionContent({ snapshot, busy, send, onShowDigit, scan: requestedScan
             <Radio size={18} /> {plain(self.transfer_clue.label)}
           </h3>
           <p>{plain(self.transfer_clue.value)}</p>
-          <p className="fine-print">
-            대상 보직에게 말로 전달하라. 지휘관의 화면에만 보이는 단서다.
-          </p>
         </section>
       )}
       {!!self.hints.length && (
@@ -261,13 +288,11 @@ function MissionContent({ snapshot, busy, send, onShowDigit, scan: requestedScan
           send={send}
         />
       ))}
-      <section className={styles.card}>
-        <h3>조사 결과 보고</h3>
+      {(allDone || self.reported) && <section className={styles.card}>
         {self.reported
           ? (
             <div className="digit-result">
-              <span className="eyebrow">REPORT COMPLETE</span>
-              <p>{mission.digit ? "내 숫자를 지휘관에게 말로 전하라." : "조사 결과를 팀에 말로 전달하고 공동 기록을 함께 확인하라."}</p>
+              <p className={styles.result}><Check size={17} aria-hidden="true" />보고했어요 · {mission.digit ? "내 숫자를 지휘관에게 말로 전해요" : "찾은 내용을 팀에 말로 나눠요"}</p>
               {mission.digit && onShowDigit ? <button type="button" className="button primary full" onClick={onShowDigit}>
                 내 숫자 확인 <Check size={17} />
               </button> : self.digit !== null && (
@@ -278,14 +303,10 @@ function MissionContent({ snapshot, busy, send, onShowDigit, scan: requestedScan
                   {self.digit}
                 </div>
               )}
-              <p className="fine-print">
-                다른 기기에는 보고 완료 표시만 전달된다.
-              </p>
             </div>
           )
           : (
             <>
-              <p>본인 조사를 마치고 결과를 보고하라.</p>
               {!!requiredReports.length && (
                 <p className="fine-print">
                   먼저 보고할 역할:{" "}
@@ -294,7 +315,7 @@ function MissionContent({ snapshot, busy, send, onShowDigit, scan: requestedScan
               )}
               <button
                 type="button"
-                className="button primary full"
+                className={`button primary full ${reportReady && !busy && !cleared ? styles.callout : ""}`}
                 disabled={busy || cleared || !reportReady}
                 onClick={() =>
                   void send({ action: "submit-report", stage_id: stage.id })}
@@ -303,14 +324,11 @@ function MissionContent({ snapshot, busy, send, onShowDigit, scan: requestedScan
               </button>
             </>
           )}
-      </section>
+      </section>}
       {!cleared && role === "commander" && (
-        <section className={styles.card}>
-          <h3>역할별 힌트 요청</h3>
-          <p className="fine-print">
-            힌트는 대상 보직에만 전달된다. 3단계는 그 역할의 미완료 조사를
-            해설로 확인한다.
-          </p>
+        <details className={`${styles.card} ${styles.more}`}>
+          <summary>동료에게 힌트 주기</summary>
+          <p className="fine-print">대상 보직에만 전달돼요. 3단계는 그 문제를 해설로 넘겨요.</p>
           {ROLES.map((target, i) => {
             const level = game.hint_level[target] ?? 0, next = level + 1;
             const penalty = next <= 3
@@ -344,14 +362,11 @@ function MissionContent({ snapshot, busy, send, onShowDigit, scan: requestedScan
               </div>
             );
           })}
-        </section>
+        </details>
       )}
-      {!cleared && stage.completion.type === "lock" && (
+      {/* 해설 읽음 확인은 내 문제를 다 푼 뒤에만(해설로 복원하는 길) */}
+      {!cleared && stage.completion.type === "lock" && allDone && (
         <section className={styles.card}>
-          <h3>
-            <BookOpen size={18} /> 해설 읽음 확인
-          </h3>
-          <p>공개된 본인 문제의 해설을 모두 읽고 확인하라.</p>
           <button
             type="button"
             className="button secondary full"
@@ -376,11 +391,45 @@ export function LockPanelV2({ snapshot, busy, now, send, draft }: Props & {
   const localDraft = useLockDraft(snapshot);
   const { digits, setDigits } = draft ?? localDraft;
   const [feedback, setFeedback] = useState("");
+  // 숫자 칸: 한 자리를 넣으면 다음 빈 칸으로, 빈 칸에서 지우면 앞 칸으로(인증번호 칸처럼)
+  const boxes = useRef<(HTMLInputElement | null)[]>([]);
   const { game, stage, self } = snapshot;
   const lock = self.lock;
   if (self.role !== "commander" || !lock || stage.completion.type !== "lock") {
     return null;
   }
+  const open = (i: number) => lock.digits[i] === null;
+  const focusBox = (i: number) => {
+    const box = boxes.current[i];
+    if (!box || box.disabled) return;
+    box.focus();
+    box.setSelectionRange(0, box.value.length);
+  };
+  const put = (i: number, raw: string) => {
+    // 칸에 있던 숫자 앞이나 뒤에 새로 친 숫자가 붙어 들어와도(아이폰은 칸을 눌러도 다 고르지 않는다) 새 숫자만 남긴다
+    const typed = raw.replace(/\D/g, ""), before = digits[i] ?? "";
+    const added = typed.length > 1 && before && typed.startsWith(before) ? typed.slice(before.length)
+      : typed.length > 1 && before && typed.endsWith(before) ? typed.slice(0, -before.length)
+      : typed;
+    const value = added.slice(-1);
+    const next = digits.map((d, index) => index === i ? value : d);
+    setDigits(next);
+    if (!value) return;
+    // 뒤쪽 빈 칸부터, 없으면 앞쪽 빈 칸으로. 다 찼으면 자판을 내려 '자물쇠 확인'이 보이게
+    const empty = (index: number) => open(index) && !/^\d$/.test(next[index] ?? "");
+    const order = next.map((_, index) => index);
+    const target = order.slice(i + 1).find(empty) ?? order.slice(0, i).find(empty);
+    if (target !== undefined) focusBox(target);
+    else boxes.current[i]?.blur();
+  };
+  const back = (i: number, event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== "Backspace" || digits[i]) return;
+    const prev = digits.map((_, index) => index).slice(0, i).reverse().find(open);
+    if (prev === undefined) return;
+    event.preventDefault();
+    setDigits(digits.map((d, index) => index === prev ? "" : d));
+    focusBox(prev);
+  };
   const remaining = Math.max(
     0,
     Math.ceil(((lock.nextAttemptAt ?? 0) - now) / 1000),
@@ -397,8 +446,8 @@ export function LockPanelV2({ snapshot, busy, now, send, draft }: Props & {
     if (next && isV2Response(next)) {
       setFeedback(
         next.result?.ok
-          ? "기록을 복원했다."
-          : "맞은 칸은 잠겼다. 나머지 숫자를 다시 확인하라. −10점",
+          ? "열렸어요 · 기록을 복원했어요"
+          : "맞은 칸은 고정됐어요. 나머지 숫자를 다시 확인해요 (−10점)",
       );
     }
   };
@@ -409,31 +458,29 @@ export function LockPanelV2({ snapshot, busy, now, send, draft }: Props & {
         autoComplete="off"
         onSubmit={(e) => void submit(e)}
       >
+        {/* 위 장면 제목(기억의 자물쇠)과 겹치는 이름 대신, 남은 횟수와 규칙을 한 줄에 */}
         <div className="section-label">
           <span>
-            <LockKeyhole size={16} /> 기록의 자물쇠
+            <LockKeyhole size={16} /> {game.attempts_left}회 남음
           </span>
-          <span>{game.attempts_left}회 남음</span>
+          <span>틀리면 −10점</span>
         </div>
         <div className="lock-digits">
           {stage.completion.order.map((role, i) => (
             <label key={role}>
               <span>{ROLE_NAMES[role]}</span>
               <input
+                ref={(box) => { boxes.current[i] = box; }}
                 aria-label={`${ROLE_NAMES[role]} 잠금 숫자`}
                 inputMode="numeric"
                 pattern="[0-9]"
-                maxLength={1}
                 required
                 value={digits[i] ?? ""}
                 disabled={busy || cleared || lock.digits[i] !== null}
                 className={lock.digits[i] !== null ? "locked" : ""}
-                onChange={(e) =>
-                  setDigits(digits.map((value, index) =>
-                    index === i
-                      ? e.target.value.replace(/\D/g, "").slice(-1)
-                      : value
-                  ))}
+                onFocus={(e) => e.target.select()}
+                onChange={(e) => put(i, e.target.value)}
+                onKeyDown={(e) => back(i, e)}
               />
               <small>
                 {lock.digits[i] !== null
@@ -460,14 +507,14 @@ export function LockPanelV2({ snapshot, busy, now, send, draft }: Props & {
           자물쇠 확인 <LockKeyhole size={17} />
         </button>
         {!reports && <p className="fine-print">네 보직의 보고를 기다리는 중</p>}
-        <p className="fine-print">오답 −10점 · 3회 소진 후 60초마다 1회 추가</p>
+        {/* 횟수 규칙은 거의 다 썼을 때만 */}
+        {game.attempts_left <= 1 && <p className="fine-print">3회를 다 쓰면 60초마다 1회씩 다시 시도할 수 있어요</p>}
       </form>
+      {/* 자물쇠 대신 해설로 복원하는 길: 단추는 늘 보이고, 조건과 네 사람 상태는 펼쳐 본다 */}
       <section className={styles.card}>
-        <h3>해설 확인 후 복원</h3>
-        <p>
-          전원이 조사 결과를 보고하고 본인 해설을 읽었다고 확인한 뒤, 지휘관이
-          별도로 복원한다.
-        </p>
+        <details className={styles.more}>
+          <summary>해설로 복원 · 해설 읽음 {game.confirm_mask.filter(Boolean).length}/4</summary>
+          <p className="fine-print">모두 보고하고 각자 해설 읽음을 확인하면, 지휘관이 자물쇠 대신 복원할 수 있어요.</p>
         <ul className={styles.confirmations}>
           {ROLES.map((role, i) => (
             <li key={role}>
@@ -477,6 +524,7 @@ export function LockPanelV2({ snapshot, busy, now, send, draft }: Props & {
             </li>
           ))}
         </ul>
+        </details>
         <button
           type="button"
           className="button secondary full"

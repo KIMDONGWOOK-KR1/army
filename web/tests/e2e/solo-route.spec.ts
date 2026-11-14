@@ -91,7 +91,7 @@ test("solo demo walks all four places with role switching, a map button and the 
   const afterPhoto = await call("scout", "get-game");
   expect(afterPhoto.self.reported).toBe(false);
   expect(afterPhoto.game.step_done_count.scout).toBe(0);
-  await page.getByTestId("map-fab").click();
+  await page.getByRole("button", { name: "지도 보기: 내 위치와 거점" }).click();
   await expect(page.getByTestId("map-peek")).toContainText("시연 중이라 거점 앞에 서 있어요");
   await page.getByTestId("map-peek").getByRole("button", { name: "돌아가기" }).click();
   await expect(page.getByTestId("map-peek")).toHaveCount(0);
@@ -110,7 +110,7 @@ test("solo demo walks all four places with role switching, a map button and the 
     await departAndContinue(i ? "추모의 벽" : "용봉관");
   }
 
-  // 추모의 벽: 묵념 뒤 네 보직이 차례로 국화를 올린다
+  // 추모의 벽(hh 2026-11-09): 묵념 뒤 15초 안에 네 사람이 모두 추모해야 국화 네 송이가 함께 올라간다
   stage = "wall";
   await arrive();
   await expect(page.locator('[data-scene="memorial"]')).toBeVisible();
@@ -119,12 +119,22 @@ test("solo demo walks all four places with role switching, a map button and the 
     if (!await page.locator('[data-scene="mission"]').isVisible()) throw error;
   });
   await expect(page.locator('[data-scene="mission"]')).toBeVisible();
-  await expect(page.getByTestId("map-fab")).toBeVisible();
-  for (const role of ["scout", "signal", "cipher", "commander"] as const) {
-    await asRole(role);
-    await page.getByRole("button", { name: "국화 올리기", exact: true }).click();
-  }
-  await expect(page.getByTestId("stage-v2-completed")).toBeVisible();
+  await expect(page.getByRole("button", { name: "지도 보기: 내 위치와 거점" })).toBeVisible();
+  const tribute = page.getByTestId("tribute");
+  await expect(tribute).toHaveAttribute("data-state", "idle");
+  // 혼자 누르면 끝나지 않는다: 정찰원 자리만 추모하고 15초가 지나면 '다시 함께' 상태가 된다(시연 동료 없이 API로)
+  const wallStep = (await call("scout", "get-game")).self.mission.steps[0].id;
+  expect((await call("scout", "submit-step", { step_id: wallStep, answer: "confirmed" })).game.tribute.pressed)
+    .toEqual([false, true, false, false]);
+  await expect(tribute).toHaveAttribute("data-state", "open");
+  await expect(page.getByRole("button", { name: "추모하기", exact: true })).toBeInViewport();
+  await expect(tribute).toHaveAttribute("data-state", "missed", { timeout: 20000 });
+  expect((await call("commander", "get-game")).game.site_phase).toBe("mission");
+  // 지휘관이 다시 추모하면 시연 동료 셋이 뒤따라 15초 안에 모이고, 국화 네 송이를 보여 준 뒤 기록으로 넘어간다
+  await page.getByRole("button", { name: "다시 함께 추모하기", exact: true }).click();
+  await expect(tribute).toHaveAttribute("data-state", "done", { timeout: 15000 });
+  await expect(tribute.locator("svg")).toHaveCount(4);
+  await expect(page.getByTestId("stage-v2-completed")).toBeVisible({ timeout: 10000 });
   await departAndContinue("봉지");
 
   // 봉지: 회고 넷, 지휘관의 공동 기록, 네 사람 동의 → 결과
@@ -163,7 +173,8 @@ test("three failed photo checks pass only the photo step and keep the question",
   await expect(result).toContainText("사진 검증 실패 후 통과");
   await expect(result).toHaveAttribute("data-verified", "false");
   await expect(page.locator('[data-testid^="mission-v2-step-"]').first()).toBeVisible();
-  await expect(page.getByRole("button", { name: "조사 결과 보고", exact: true })).toBeDisabled();
+  // 보고 단추는 내 문제를 다 푼 뒤에야 나온다(hh 2026-10-28: 한 화면에 할 일 하나)
+  await expect(page.getByRole("button", { name: "조사 결과 보고", exact: true })).toHaveCount(0);
 });
 
 test("solo seats cannot create or join other rooms", async ({ page }) => {

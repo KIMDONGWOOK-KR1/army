@@ -1,5 +1,7 @@
+import { isAudioForeground, subscribeAudioFocus } from "./audio-focus";
 // 호국실록 소리 엔진(WebAudio). 배경음과 보직 공개·사초·결과 소리는 public/sound/의 음원 파일로
-// 낸다(lib/sound-files.ts). 파일을 못 불러오면, 그리고 나머지 효과음은 lib/sound-synth.ts의 합성 재료로 낸다.
+// 낸다(lib/sound-files.ts). 나머지 효과음(보직 공개·사초 파일을 못 받았을 때 포함)은 lib/sound-synth.ts의
+// 합성 재료로 낸다. 반복 배경음은 파일을 못 받아도 예전 합성 배경음으로 바꾸지 않는다(다시 받아 본다).
 //
 // 쓰는 법(다른 화면에서):
 //   import { play, staticNoise } from "@/lib/sound";
@@ -68,6 +70,26 @@ const GAP: Partial<Record<SoundName, number>> = {
   confirm: 0.08,
 };
 
+const bgmOwners = new Set<symbol>();
+const bgmAllowed = () => bgmOwners.size === 0 ? 1 : 0;
+
+/** A scene can own background music without changing the user’s settings or desired next track. */
+export function acquireBgmSilence() {
+  const owner = Symbol("bgm-owner");
+  bgmOwners.add(owner);
+  for (const bus of [state.chain?.bgm, state.fileBus]) {
+    if (!bus || !state.ctx) continue;
+    bus.gain.cancelScheduledValues(state.ctx.currentTime);
+    bus.gain.value = 0;
+  }
+  syncBgm();
+  return () => {
+    if (!bgmOwners.delete(owner)) return;
+    applyMix();
+    syncBgm();
+  };
+}
+
 const state = {
   ctx: null as AudioContext | null,
   chain: null as Chain | null,
@@ -77,7 +99,10 @@ const state = {
   fileBus: null as GainNode | null,
   cueBus: null as GainNode | null,
   mix: null as AudioMix | null,
+  // 음원 배경음 크기: fileLevel은 다른 화면이 잠깐 넘겨받을 때(봉지 마당이 0으로 내림),
+  // fileDuck은 나레이션 아래에서 낮출 때. 둘을 곱한다(한쪽이 다른 쪽을 덮어쓰지 않게)
   fileLevel: 1,
+  fileDuck: 1,
   // 원하는 반복 곡(undefined: 파일을 쓰지 않고 합성 배경음만)
   track: undefined as LoopTrack | null | undefined,
   // 추모의 벽(사초 소리를 1/3로)과 묵념 중(사초 소리를 틀지 않는다)
@@ -159,8 +184,8 @@ export function setAudioMix(patch: Partial<AudioMix>) {
 function applyMix() {
   const { ctx, chain, fileBus, cueBus } = state;
   if (!ctx || !chain) return;
-  const levels = mixLevels(getAudioMix(), state.level, state.fileLevel);
-  for (const [node, value] of [[chain.bgm, levels.synth], [fileBus, levels.files],
+  const levels = mixLevels(getAudioMix(), state.level, state.fileLevel * state.fileDuck);
+  for (const [node, value] of [[chain.bgm, levels.synth * bgmAllowed()], [fileBus, levels.files * bgmAllowed()],
     [cueBus, levels.effects], [chain.sfx.ui, levels.effects], [chain.sfx.music, levels.effects]] as const) {
     if (!node) continue;
     try {
@@ -176,11 +201,11 @@ function applyMute() {
   try {
     const now = ctx.currentTime;
     chain.master.gain.cancelScheduledValues(now);
-    chain.master.gain.setTargetAtTime(state.muted || state.sceneQuiet ? 0 : 1, now, 0.04);
-    if (state.muted || state.sceneQuiet)
+    chain.master.gain.setTargetAtTime(state.muted || state.sceneQuiet || !isAudioForeground() ? 0 : 1, now, 0.04);
+    if (state.muted || state.sceneQuiet || !isAudioForeground())
       // 끈 뒤에는 오디오 처리를 멈춰 전지를 아낀다
       window.setTimeout(() => {
-        if ((state.muted || state.sceneQuiet) && state.ctx?.state === "running")
+        if ((state.muted || state.sceneQuiet || !isAudioForeground()) && state.ctx?.state === "running")
           void state.ctx.suspend().catch(() => {});
       }, 300);
     else resume();
@@ -224,14 +249,14 @@ function context(): AudioContext | null {
   try {
     const ctx = new AC({ latencyHint: "interactive" });
     const chain = buildChain(ctx);
-    chain.master.gain.value = isMuted() || state.sceneQuiet ? 0 : 1;
+    chain.master.gain.value = isMuted() || state.sceneQuiet || !isAudioForeground() ? 0 : 1;
     chain.bgm.gain.value = state.level;
     state.ctx = ctx;
     state.chain = chain;
     state.deck = createBgmDeck(ctx, chain.bgm);
     // 음원 파일은 잔향을 거치지 않고 바로 마스터로(파일마다 목표 음량으로 만들어져 있다)
     const fileBus = ctx.createGain();
-    fileBus.gain.value = state.fileLevel;
+    fileBus.gain.value = state.fileLevel * state.fileDuck;
     fileBus.connect(chain.master);
     state.fileBus = fileBus;
     const cueBus = ctx.createGain();
@@ -239,13 +264,14 @@ function context(): AudioContext | null {
     state.cueBus = cueBus;
     applyMix();
     state.files = createFileDeck(ctx, fileBus, {
-      // 못 불러온 곡은 합성 배경음으로 대신한다
+      // 세 번 다시 받아도 못 받은 곡: 반복 곡은 조용히 두고(장면이 다시 부르면 또 받아 본다),
+      // 보직 공개·사초는 합성 효과음으로 대신한다(fileCue)
       onFail: () => syncBgm(),
       onStart: (track) =>
         window.dispatchEvent(new CustomEvent("hoguk:bgm-file", { detail: { track } })),
     }, cueBus);
     // 꺼 둔 채 열었으면 처리도 멈춰 둔다(켜면 resume)
-    if (isMuted() || state.sceneQuiet) void ctx.suspend().catch(() => {});
+    if (isMuted() || state.sceneQuiet || !isAudioForeground()) void ctx.suspend().catch(() => {});
   } catch {
     state.broken = true;
     return null;
@@ -254,7 +280,7 @@ function context(): AudioContext | null {
 }
 function resume() {
   const ctx = state.ctx;
-  if (!ctx || isMuted() || state.sceneQuiet || ctx.state === "running" || ctx.state === "closed")
+  if (!ctx || isMuted() || state.sceneQuiet || !isAudioForeground() || ctx.state === "running" || ctx.state === "closed")
     return;
   try {
     state.resumeAt = performance.now();
@@ -289,6 +315,7 @@ export function unlock() {
 export function installSoundListeners(): () => void {
   if (typeof window === "undefined") return () => {};
   if (state.installed++ === 0) {
+    const releaseFocus = subscribeAudioFocus(applyMute);
     const onGesture = () => unlock();
     const kinds = ["pointerup", "touchend", "mousedown", "keydown", "click"];
     const opts = { capture: true, passive: true } as const;
@@ -312,6 +339,7 @@ export function installSoundListeners(): () => void {
     };
     window.addEventListener("storage", onStorage);
     state.uninstall = () => {
+      releaseFocus();
       for (const k of kinds) window.removeEventListener(k, onGesture, opts);
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("storage", onStorage);
@@ -339,7 +367,7 @@ function audible(ctx: AudioContext) {
   );
 }
 export function play(name: SoundName, opts: SoundOptions = {}) {
-  if (isMuted() || state.sceneQuiet || !isSoundName(name)) return;
+  if (isMuted() || state.sceneQuiet || !isAudioForeground() || !isSoundName(name)) return;
   const ctx = context();
   if (!ctx || !state.chain) return;
   try {
@@ -361,7 +389,7 @@ export function play(name: SoundName, opts: SoundOptions = {}) {
     // 가락 있는 효과음은 그때 배경음의 화음에 맞춰 비키고, 배경음은 잠깐 낮춘다
     const harmony = state.deck?.harmony(at);
     renderSound(ctx, state.chain.sfx, name, at, harmony?.length ? { ...opts, harmony } : opts);
-    duckBgm(state.chain, name, at);
+    if (bgmAllowed()) duckBgm(state.chain, name, at);
     // 실제로 낸 소리 이름을 알린다(e2e 시험·디버깅용, 화면 동작에는 쓰지 않는다)
     window.dispatchEvent(new CustomEvent("hoguk:sound", { detail: name }));
   } catch {}
@@ -434,7 +462,7 @@ export function setBgmLevel(level: number) {
   const { ctx, chain } = state;
   if (!ctx || !chain) return;
   try {
-    chain.bgm.gain.setTargetAtTime(state.level * getAudioMix().music, ctx.currentTime, 0.35);
+    chain.bgm.gain.setTargetAtTime(state.level * getAudioMix().music * bgmAllowed(), ctx.currentTime, 0.35);
   } catch {}
 }
 // 보직 공개(02)·사초(07) 음원. 받아 둔 파일이 있어 틀 수 있으면 true(못 틀면 합성 소리로 대신한다)
@@ -452,7 +480,7 @@ function fileCue(cue: "02" | "07", delay: number): boolean {
 }
 // 단발 음원: 묵념(06), 최종 결과(09). 파일이 없으면 조용히 넘어간다
 export function playCue(track: Extract<Track, "06" | "09">) {
-  if (isMuted() || state.sceneQuiet) return;
+  if (isMuted() || state.sceneQuiet || !isAudioForeground()) return;
   const ctx = context();
   if (!ctx || !state.files || !audible(ctx)) return;
   if (state.files.cue(track)) window.dispatchEvent(new CustomEvent("hoguk:sound", { detail: `file-${track}` }));
@@ -465,22 +493,35 @@ export function setMemorialState({ wall, bowing }: { wall: boolean; bowing: bool
   state.files?.calm(bowing);
   if (start && MEMORIAL_SOUND) playCue("06");
 }
-// 음원 배경음의 크기(나레이션 아래에서만 낮춘다. 파일은 장소마다 목표 음량으로 만들어져 있다)
-export function setFileLevel(level: number) {
-  state.fileLevel = Number.isFinite(level) ? Math.min(1, Math.max(0, level)) : 1;
+// 음원 배경음의 크기. 파일은 장소마다 목표 음량으로 만들어져 있다.
+// setFileLevel: 다른 화면이 배경음을 잠깐 넘겨받을 때(봉지 마당이 제 소리를 내는 동안 0, 떠나면 1)
+// setFileDuck: 나레이션 아래에서 낮출 때(use-sound-cues). 2026-11-09: 예전에는 둘 다 setFileLevel을 써서
+// 봉지 마당에서 나레이션이 닫히면 내려 둔 08이 다시 1로 올라와 마당 소리와 겹쳤다.
+const unit = (v: number) => (Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 1);
+function applyFileLevel() {
   const { ctx, fileBus } = state;
   if (!ctx || !fileBus) return;
   try {
-    fileBus.gain.setTargetAtTime(state.fileLevel * getAudioMix().music, ctx.currentTime, 0.35);
+    fileBus.gain.setTargetAtTime(state.fileLevel * state.fileDuck * getAudioMix().music * bgmAllowed(), ctx.currentTime, 0.35);
   } catch {}
+}
+export function setFileLevel(level: number) {
+  state.fileLevel = unit(level);
+  applyFileLevel();
+}
+export function setFileDuck(level: number) {
+  state.fileDuck = unit(level);
+  applyFileLevel();
 }
 function syncBgm() {
   const { ctx, deck } = state;
   if (!ctx || !deck) return;
-  const off = isMuted() || state.sceneQuiet;
-  // 반복 곡 파일을 쓸 수 있으면 파일로, 못 쓰면(실패) 합성 배경음으로
+  const off = isMuted() || state.sceneQuiet || !isAudioForeground() || !bgmAllowed();
+  // 반복 곡은 음원 파일로만 낸다. 못 받으면 파일 쪽이 잠시 뒤 다시 받아 보고, 그동안은 조용하다
+  // (2026-11-09: 예전에는 한 번만 실패해도 그 접속 내내 예전 합성 배경음이 새 곡 대신 났다).
+  // 합성 배경음은 반복 곡을 정하지 않은 화면(track === undefined)에서만 쓴다.
   const track = off ? null : state.track;
-  const useFile = !!state.files && track !== undefined && !(track && state.files.failed(track));
+  const useFile = !!state.files && track !== undefined;
   try {
     state.files?.set(useFile ? (track ?? null) : null);
   } catch {}

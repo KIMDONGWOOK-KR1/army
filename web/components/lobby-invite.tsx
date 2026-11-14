@@ -58,7 +58,7 @@ export function LobbyInvite({
     try {
       await navigator.share({
         title: "호국실록 작전 합류",
-        text: `입장 코드 ${code} — 호출명을 정하고 합류하라.`,
+        text: `입장 코드 ${code} — 호출명을 정하고 합류해 주세요.`,
         url,
       });
     } catch {}

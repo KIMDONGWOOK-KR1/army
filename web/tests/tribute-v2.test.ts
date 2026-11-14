@@ -12,75 +12,55 @@ import schemaExample from "../../codex-handoff-v2/data/courses/jnu-v2.private.ex
 
 const offer = (role: Role, stepId?: string): Command => ({
   action: "submit-step", step_id: stepId ?? { commander: "W-04.tribute", scout: "W-01.tribute", signal: "W-02.tribute", cipher: "W-03.tribute" }[role],
-  answer: "confirmed",
+  answer: `start:${role}`,
 });
 
-describe("four-person tribute", () => {
-  it("waits for all arrivals and all four offerings, with no hints, reports, lock or shared draft", async () => {
-    const t = await fullTeam({ wallMode: "tribute", evidence: false });
-    const score = t.game.score;
-    for (const role of ROLES.slice(0, 3)) await t.call(role, { action: "report-arrival", method: "simulated" });
-    expect(t.view("scout").self.mission).toBeNull();
-    const before = structuredClone(t.game);
-    await expect(t.call("scout", offer("scout"))).rejects.toMatchObject({ code: "WRONG_PHASE" });
-    expect(t.game).toEqual(before);
-    await t.call("cipher", { action: "report-arrival", method: "simulated" });
-    const view = t.view("scout");
-    expect(view.stage.completion).toEqual({ type: "tribute", label: "국화 올리기" });
-    expect(view.stage).not.toHaveProperty("recordTemplate");
-    for (const action of ["request-hint", "submit-report", "draft-memorial-record", "confirm-stage", "submit-retro", "draft-joint-record", "consent-joint-record", "open-lock", "open-after-explanation", "confirm-explanation"]) {
-      const before = structuredClone(t.game);
-      await expect(t.call("commander", { action, level: 1, target_role: "scout" })).rejects.toMatchObject({ code: "WRONG_PHASE" });
-      expect(t.game).toEqual(before);
-    }
-    await expect(t.call("scout", offer("commander"))).rejects.toMatchObject({ code: "NO_STEP" });
-    await expect(t.call("scout", { ...offer("scout"), role: "commander" })).rejects.toMatchObject({ code: "FORBIDDEN" });
-    expect(await t.call("scout", { ...offer("scout"), answer: "unconfirmed" })).toMatchObject({ accepted: false });
-    expect(t.view("scout").self.reported).toBe(false);
-    for (const role of ROLES.slice(0, 3)) {
-      await t.call(role, offer(role));
-      expect(t.view(role).self).toMatchObject({ reported: true, digit: null, lock: null, hint_level: 0 });
-      expect(t.game.phase).toBe("mission");
-    }
-    const command = { ...offer("cipher"), request_id: "tribute-final-once" };
-    const result = await t.call("cipher", command);
-    expect(result).toMatchObject({ accepted: true, opened: true, completion_type: "tribute", label: "헌화 완료" });
-    expect(t.game.phase).toBe("cleared");
-    expect(t.game.score).toBe(score);
-    expect(t.game.v2!.memorialRecords).toBeUndefined();
-    expect(t.game.locks.wall).toBeUndefined();
-    expect(t.view("cipher").game.report_mask).toEqual([true, true, true, true]);
-    expect(t.view("cipher").game.completion).toMatchObject({ completion_type: "tribute", label: result.label });
-    expect(t.view("cipher").self.journal.find((entry) => entry.stage_id === "wall"))
-      .toMatchObject({ completion_type: "tribute", label: result.label });
-    expect(t.game.v2!.sacho.wall).toMatchObject({ sources: [], observations: [], eventRecords: [], eventOrder: [] });
-    const version = t.game.version, events = t.events.length;
-    expect(await t.call("cipher", command)).toEqual(result);
-    expect(t.game.version).toBe(version); expect(t.events).toHaveLength(events);
-    await expect(t.call("cipher", { ...command, answer: "other" })).rejects.toMatchObject({ code: "IDEMPOTENCY_CONFLICT" });
-    expect(JSON.stringify(t.events.filter((event) => event.stage_id === "wall"))).not.toMatch(/answer|confirmed|answerHash/);
-    await t.depart();
-    expect(t.view("cipher").game.stage_id).toBe("bongji");
-    await t.arrive();
-    for (const role of ROLES) await t.call(role, { action: "submit-retro", text: `[합성] ${role} 회고` });
-    await t.draft("draft-joint-record");
-    for (const role of ROLES) await t.call(role, { action: "consent-joint-record", draft_version: 1 });
-    expect(t.game.status).toBe("done");
-    expect(t.view("cipher").self.result?.stages.find((stage) => stage.stage_id === "wall"))
-      .toMatchObject({ completion_type: "tribute", completion: result.label });
-  });
-
-  it("replays the same offering and keeps independent new request IDs from offering twice", async () => {
-    const t = await fullTeam({ wallMode: "tribute" }); await t.arrive();
-    const command = { ...offer("scout"), request_id: "tribute-once" };
-    await t.call("scout", command);
-    const before = structuredClone(t.game), events = t.events.length;
-    await t.call("scout", command);
-    expect(t.game).toEqual(before); expect(t.events).toHaveLength(events);
-    await t.call("scout", offer("scout"));
-    expect(t.game.v2!.progress.wall.scout).toEqual(before.v2!.progress.wall.scout);
-    expect(t.view("commander").game.report_mask.filter(Boolean)).toHaveLength(1);
+const pulse = (role: Role) => ({ ...offer(role), answer: `hold:${role}` });
+async function together(t: Awaited<ReturnType<typeof fullTeam>>, seconds: number) {
+  for (let i=0; i<seconds; i++) { t.advance(1000); for (const r of ROLES) await t.call(r,pulse(r)); }
+}
+describe("four-person continuous hold tribute", () => {
+  it("requires all arrivals, own role, and 15 seconds of overlap", async () => {
+    const t=await fullTeam({wallMode:"tribute"});
+    await expect(t.call("scout",offer("scout"))).rejects.toMatchObject({code:"WRONG_PHASE"});
+    await t.arrive(); const score=t.game.score;
+    await expect(t.call("scout",offer("commander"))).rejects.toMatchObject({code:"NO_STEP"});
+    expect(await t.call("scout",{...offer("scout"),answer:"confirmed"})).toMatchObject({accepted:false,gathered:0});
+    for (const r of ROLES.slice(0,3)) await t.call(r,offer(r));
+    expect(t.view("scout").game.tribute!.started_at).toBeNull();
+    for(let i=0;i<6;i++){t.advance(1000);for(const r of ROLES.slice(0,3))await t.call(r,pulse(r));}
+    await t.call("cipher",offer("cipher"));
     expect(t.game.phase).toBe("mission");
+    await together(t,14);expect(t.game.phase).toBe("mission");
+    t.advance(1000);for(const r of ROLES.slice(0,3))await t.call(r,pulse(r));
+    expect(t.game.phase).toBe("mission");
+    const cmd={...pulse("cipher"),request_id:"final-hold"};const result=await t.call("cipher",cmd);
+    expect(result).toMatchObject({accepted:true,opened:true});expect(t.game.phase).toBe("cleared");
+    expect(t.game.score).toBe(score);expect(t.view("scout").game.report_mask).toEqual([true,true,true,true]);
+    const version=t.game.version;expect(await t.call("cipher",cmd)).toEqual(result);expect(t.game.version).toBe(version);
+    expect(JSON.stringify(t.events.filter(e=>e.stage_id==="wall"))).not.toMatch(/start:|hold:|release:/);
+  });
+  it("release resets the full duration and late pulses cannot resume it",async()=>{
+    const t=await fullTeam({wallMode:"tribute"});await t.arrive();for(const r of ROLES)await t.call(r,offer(r));
+    await together(t,10);
+    await t.call("scout",{...offer("scout"),answer:"release:scout"});
+    expect(t.view("scout").game.tribute!.started_at).toBeNull();
+    await t.call("scout",pulse("scout"));expect(t.view("scout").game.tribute!.pressed[1]).toBe(false);
+    await t.call("scout",offer("scout"));await together(t,14);expect(t.game.phase).toBe("mission");
+    await together(t,1);expect(t.game.phase).toBe("cleared");
+  });
+  it("lost connection expires holding, including at the completion boundary",async()=>{
+    const t=await fullTeam({wallMode:"tribute"});await t.arrive();for(const r of ROLES)await t.call(r,offer(r));
+    await together(t,12);t.advance(4000);
+    expect(t.view("scout").game.tribute!.pressed).toEqual([false,false,false,false]);
+    for(const r of ROLES)await t.call(r,pulse(r));expect(t.game.phase).toBe("mission");
+    expect(t.view("scout").game.tribute!.started_at).toBeNull();
+  });
+  it("a stale release cannot cancel a new physical press",async()=>{
+    const t=await fullTeam({wallMode:"tribute"});await t.arrive();await t.call("scout",offer("scout"));
+    await t.call("scout",{...offer("scout"),answer:"start:new"});
+    await t.call("scout",{...offer("scout"),answer:"release:scout"});
+    expect(t.view("scout").game.tribute!.pressed[1]).toBe(true);
   });
 });
 

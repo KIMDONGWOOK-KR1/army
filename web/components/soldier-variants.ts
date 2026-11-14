@@ -3,6 +3,7 @@
 // 값은 참가자 식별자(멤버 id, 없으면 호출명)에서 늘 같게 나온다: 네 사람의 폰이 같은 동료를
 // 같은 모습으로 본다. 얼굴은 눈·눈썹·입꼬리·볼을 부드럽게 변형하며, 키·몸집은 ±4% 안,
 // 둥근 안경은 일부만 쓴다. 서기 동작의 시작 시점과 빠르기를 어긋나게 해 넷이 똑같이 숨 쉬지 않게 한다.
+// 머리색·볼터치·주근깨·점(2026-11-08)은 예전 값 뒤에 이어 뽑아, 이미 정해진 사람의 모습은 그대로 둔다.
 
 export type SoldierVariant = {
   face: number; // 차분함·호기심·밝은 미소·집중, 참가자마다 고정
@@ -12,6 +13,10 @@ export type SoldierVariant = {
   glasses: boolean; // 둥근 안경
   phase: number; // 서기 동작 시작 시점(초, 0~4)
   pace: number; // 서기 동작 빠르기(0.9~1.08)
+  hair: number; // HAIR_TONES 차례
+  blush: number; // 볼터치 세기(0이면 없음)
+  freckles: number; // 주근깨 세기(0이면 없음)
+  mole: number; // MOLE_SPOTS 차례(-1이면 없음)
 };
 
 // 모형 피부 무늬(밝은 살구색)를 바꿀 목표 색(sRGB). 첫째가 모형 그대로다.
@@ -19,11 +24,24 @@ export type SoldierVariant = {
 export const SKIN_BASE = "#fab484";
 export const SKIN_TONES = ["#fab484", "#fcc29a", "#e69e6e", "#cd875c"] as const;
 
+// 모형 머리카락·눈썹(짙은 갈색)을 바꿀 목표 색(sRGB). 첫째가 모형 그대로다: 흑갈색·검정·밤색.
+export const HAIR_BASE = "#2e210d";
+export const HAIR_TONES = ["#2e210d", "#1a1613", "#4f2c15"] as const;
+// 얼굴 점 자리(모형 좌표 x, y): 오른눈 아래 바깥, 입 왼쪽 아래, 왼볼 위
+export const MOLE_SPOTS = [
+  [0.168, 0.583],
+  [-0.05, 0.512],
+  [-0.142, 0.598],
+] as const;
+
 export const VARIANT_RANGE = {
   scale: 0.04, // 키·너비는 1 ± 이 값 안
   glasses: 0.3, // 안경을 쓰는 비율
   phase: 4, // 서기 동작 시작 시점 범위(초)
   pace: [0.9, 1.08] as const,
+  blush: 0.45, // 볼터치 하는 비율
+  freckles: 0.2, // 주근깨 있는 비율
+  mole: 0.25, // 점 있는 비율
 };
 
 // 문자열 → 32비트 정수(FNV-1a). 같은 문자열은 어느 기기에서나 같은 값이다.
@@ -60,14 +78,23 @@ export function soldierVariant(seed: string): SoldierVariant {
   const glasses = next() < r.glasses;
   const phase = next() * r.phase;
   const pace = r.pace[0] + next() * (r.pace[1] - r.pace[0]);
+  const face = Math.floor(next() * 4);
+  const hair = Math.min(HAIR_TONES.length - 1, Math.floor(next() * HAIR_TONES.length));
+  const blush = next() < r.blush ? round4(0.55 + next() * 0.45) : 0;
+  const freckles = next() < r.freckles ? 1 : 0;
+  const mole = next() < r.mole ? Math.min(MOLE_SPOTS.length - 1, Math.floor(next() * MOLE_SPOTS.length)) : -1;
   return {
-    face: Math.floor(next() * 4),
+    face,
     skin,
     height: round4(height),
     width: round4(Math.min(1 + r.scale, Math.max(1 - r.scale, width))),
     glasses,
     phase: round4(phase),
     pace: round4(pace),
+    hair,
+    blush,
+    freckles,
+    mole,
   };
 }
 
@@ -83,6 +110,10 @@ export const HOME_VARIANTS = {
     glasses: false,
     phase: 0.4,
     pace: 0.95,
+    hair: 1,
+    blush: 0,
+    freckles: 0,
+    mole: -1,
   },
   scout: {
     face: 1,
@@ -92,6 +123,10 @@ export const HOME_VARIANTS = {
     glasses: false,
     phase: 1.6,
     pace: 1.02,
+    hair: 2,
+    blush: 0.9,
+    freckles: 1,
+    mole: -1,
   },
   signal: {
     face: 2,
@@ -101,6 +136,10 @@ export const HOME_VARIANTS = {
     glasses: false,
     phase: 2.7,
     pace: 0.92,
+    hair: 0,
+    blush: 0.6,
+    freckles: 0,
+    mole: 1,
   },
   cipher: {
     face: 3,
@@ -110,5 +149,9 @@ export const HOME_VARIANTS = {
     glasses: true,
     phase: 3.5,
     pace: 1.06,
+    hair: 1,
+    blush: 0,
+    freckles: 0,
+    mole: 0,
   },
 } as const satisfies Record<string, SoldierVariant>;

@@ -13,6 +13,7 @@
   border-radius: 12px;
   background: #fffaf0;
 }
+.card.embedded { padding: 0; border: 0; border-radius: 0; background: transparent; }
 .card h3, .result h2 { font-size: 18px; line-height: 1.5; margin: 0; }
 .result h1 { font-size: 25px; margin: 0; }
 .card p, .result p { margin: 0; }

@@ -69,7 +69,6 @@ export function LegacyMissionInput({
               className={value === String(index + 1) ? "selected" : ""}
               onClick={() => onChange(String(index + 1))}
             >
-              <span>{String(index + 1).padStart(2, "0")}</span>
               {choice}
             </button>
           ))}
@@ -86,7 +85,7 @@ export function LegacyMissionInput({
         maxLength={step.maxLen ?? 300}
         disabled={disabled}
         onChange={(event) => onChange(event.target.value)}
-        placeholder="현장에서 찾은 답을 입력하라"
+        placeholder="현장에서 찾은 답 입력"
         autoComplete="off"
       />
     </label>

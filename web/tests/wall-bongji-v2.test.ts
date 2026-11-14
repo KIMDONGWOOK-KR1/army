@@ -104,7 +104,7 @@ describe("wall and Bongji completion", () => {
     await expect(t.callUser("outsider", { action: "get-result" })).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 
-  it("projects personal prose only to its author during missions, journals and results", async () => {
+  it("shares plaza reflections while keeping mission prose and result aggregates private", async () => {
     const t = await fullTeam(); await t.arrive(); await t.wallComplete();
     for (const viewer of ROLES) {
       const s = t.view(viewer);
@@ -120,11 +120,11 @@ describe("wall and Bongji completion", () => {
       const s = t.view(viewer);
       expect(s.self.retro).toBe(`[합성] ${viewer} 개인 회고`);
       for (const other of ROLES.filter((r) => r !== viewer)) {
-        expect(JSON.stringify(s)).not.toContain(`${other} 개인 회고`);
+        expect(s.game.plaza_boats?.some(b=>b.text.includes(`${other} 개인 회고`))).toBe(true);
         // Yongbong's explicit signal -> cipher relay is an earlier, scoped exception.
         expect(JSON.stringify(s.self.result ?? null)).not.toContain(`wall-${other} 비공개`);
       }
-      expect(JSON.stringify(s.game)).not.toMatch(/개인 회고|함께 작성한|확인한 근거/);
+      expect(JSON.stringify(s.game)).not.toMatch(/함께 작성한|확인한 근거/);
       expect(s.self.memorial_record).toBeUndefined();
     } };
     check(); for (const role of ROLES) await t.call(role, { action: "consent-joint-record", draft_version: 1 }); check();

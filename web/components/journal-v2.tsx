@@ -34,11 +34,10 @@ export function JournalV2({ snapshot }: { snapshot: V2Response }) {
               {acquired ? acquired.sacho.char || "記" : "封"}
             </span>
             <h3>{site.sacho.name}</h3>
-            <p>
-              {acquired
-                ? plain(acquired.sacho.body) || "함께 복원한 기록이다."
-                : "동료들과 단서를 모아 이 기록을 복원하라."}
-            </p>
+            {/* 글은 접어 두고(hh 2026-10-28), 복원한 곳만 '기록 읽기'로 펼친다 */}
+            {acquired && <details className={styles.read}>
+            <summary>기록 읽기</summary>
+            <p>{plain(acquired.sacho.body) || "함께 복원한 기록이다."}</p>
             {journal && (
               <>
                 <p>
@@ -75,6 +74,7 @@ export function JournalV2({ snapshot }: { snapshot: V2Response }) {
                 ) => <p key={id}>{plain(text)}</p>)}
               </>
             )}
+            </details>}
           </article>
         );
       })}

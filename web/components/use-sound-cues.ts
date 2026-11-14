@@ -8,7 +8,7 @@ import {
   play,
   playCue,
   setBgmLevel,
-  setFileLevel,
+  setFileDuck,
   setMemorialState,
   setSceneQuiet,
   startBgm,
@@ -73,6 +73,7 @@ export function useSoundCues({
       const el = (e.target as Element | null)?.closest?.(
         "button, [role='button']",
       );
+      if (el?.closest('[data-testid="bongji-plaza"]')) return;
       if (!el || el.matches(":disabled, [aria-disabled='true']")) return;
       const named = el.getAttribute("data-sound");
       if (named === "none") return;
@@ -97,7 +98,8 @@ export function useSoundCues({
   useEffect(() => startBgm(final ? null : mood, track), [mood, track, final]);
   const level = bgmLevelForScene(scene, narration, mood);
   useEffect(() => setBgmLevel(level), [level]);
-  useEffect(() => setFileLevel(narration ? 0.5 : 1), [narration]);
+  // 나레이션 음량은 배경음 소유권과 독립적으로 곱한다.
+  useEffect(() => setFileDuck(narration ? 0.5 : 1), [narration]);
   // 묵념(06 한 번, 05의 새소리를 내린다)과 추모의 벽(사초 소리 1/3)
   const bowing = scene === "memorial";
   useEffect(() => setMemorialState({ wall, bowing }), [wall, bowing]);

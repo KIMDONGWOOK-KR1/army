@@ -60,7 +60,7 @@ test("responsive UI and solo demo complete both sites with reload recovery", asy
           .click();
       if (role === "정찰원")
         await page
-          .getByPlaceholder("현장에서 찾은 답을 입력하라")
+          .getByPlaceholder("현장에서 찾은 답 입력")
           .fill(site === "gate" ? "1" : "용봉관");
       if (role === "통신원")
         await page

@@ -1,4 +1,5 @@
 "use client";
+import { TributePanel } from "./tribute-v2";
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import {
   ArrowLeft,
@@ -12,7 +13,6 @@ import {
   Home,
   LocateFixed,
   LockKeyhole,
-  Map as MapIcon,
   Maximize,
   Menu,
   Play,
@@ -24,7 +24,9 @@ import {
   Users,
   WifiOff,
 } from "lucide-react";
+import { useLatestAutoplay } from "./use-latest-autoplay";
 import { useGameAny } from "./use-game";
+import { BrandBackdrop, LoadingSplash } from "./loading-splash";
 import { useLocation } from "./use-location";
 import { allowsSimulatedArrival, gpsArrivalPending, isGpsReviewCourse } from "@/supabase/functions/_shared/arrival-policy";
 import { useLockDraft } from "./use-lock-draft";
@@ -37,8 +39,9 @@ import {
 } from "./view-handoff";
 import { Mission, LockPanel } from "./mission";
 import { MissionV2, LockPanelV2 } from "./mission-v2";
+import { dogamPageFor } from "@/lib/dogam";
 import { JournalV2 } from "./journal-v2";
-import { CoopCompass } from "./coop-compass";
+import { TeamOrb } from "./team-orb";
 import { DepartCard } from "./depart-card";
 import { RolePortrait } from "./role-portrait";
 import { Crew, NextStageAction } from "./yongbong-panel";
@@ -53,11 +56,14 @@ import { SoundToggle } from "./sound-toggle";
 import { SoundSettings } from "./sound-settings";
 import { JourneyGuide, RoleLegend } from "./journey-guide";
 import { play } from "@/lib/sound";
-import { MemorialDeparture, ResultV2 } from "./closing-v2";
+import { MemorialDeparture } from "./closing-v2";
+import { BongjiAfter } from "./bongji-after";
 import { useCueSend, useSoundCues } from "./use-sound-cues";
 import { Narration } from "./narration";
 import { TravelHud } from "./travel-hud";
 import { StopScreen, markStopSeen, stopEnabled, stopSeen } from "./stop-screen";
+import { UNLOCK_MS, UnlockSeal, unlockRevealClass } from "./unlock-moment";
+import cheerStyles from "./mission-cheer.module.css";
 import { ROLE_COLORS, ROLE_ICONS as icons } from "./role-style";
 import {
   autoAnswer,
@@ -86,14 +92,16 @@ import type { FieldStatus } from "./field-3d";
 import type { GatherMember, RevealStep } from "./gather-stage";
 import { RoleReveal, type RevealCue } from "./role-reveal";
 import { LobbyInvite } from "./lobby-invite";
+// hh 2026-11-09: 문제 푸는 화면 위에는 지도만(캐릭터 초상은 뺀다). 다시 보이려면 true
+const MISSION_PORTRAIT: boolean = false;
 const Field3D = dynamic(() => import("./field-3d").then((m) => m.Field3D), {
   ssr: false,
-  loading: () => <SceneArt site={0} party={false} />,
+  loading: () => <SceneArt loading />,
 });
 // 모이기·보직 공개·장비 장면 뒤의 입체 정문(첫 화면과 같은 점토 캠퍼스)
 const GatherStage = dynamic(
   () => import("./gather-stage").then((m) => m.GatherStage),
-  { ssr: false, loading: () => <SceneArt party={false} /> },
+  { ssr: false, loading: () => <SceneArt loading /> },
 );
 // 보직 공개 애니메이션을 이 기기에서 이미 봤는지(같은 게임에서 새로고침해도 다시 띄우지 않는다)
 const revealSeenKey = (gameId: string) => `hoguk:reveal-seen:${gameId}`;
@@ -128,16 +136,18 @@ const revealCue = (cue: RevealCue) => {
 // 첫 화면 입체 배경: three는 이 화면에서만 따로 받는다(첫 그림을 늦추지 않게)
 const HomeHero = dynamic(() => import("./home-hero").then((m) => m.HomeHero), {
   ssr: false,
-  loading: () => <SceneArt party={false} />,
+  loading: () => <SceneArt loading />,
 });
 // 이동 장면에서 이 장면들로 넘어가는 순간이 거점 도착이다
 const ARRIVAL_SCENES = ["mission", "report", "lock", "waiting"];
+// 문제를 맞힌 순간 내 장병이 하는 한마디(보직의 일에 맞춘 짧은 말)
+const CHEER: Record<Role, string> = { commander: "알겠어요", scout: "찾았어요", signal: "들려요", cipher: "풀었어요" };
 const descriptions: Record<Role, string> = {
   commander:
-    "자신의 단서를 풀고, 네 사람의 보고를 모아 기억의 자물쇠를 열어라.",
-  scout: "표지석과 안내판의 흔적을 찾아 현장에 남은 기록을 읽어라.",
-  signal: "현장의 힌트를 따라 주파수를 조절하고, 흩어진 신호를 모아라.",
-  cipher: "달력과 현판에 담긴 의미를 읽고 숨은 단서를 해독하라.",
+    "자신의 단서를 풀고, 네 사람의 보고를 모아 기억의 자물쇠를 열어요.",
+  scout: "표지석과 안내판의 흔적을 찾아 현장에 남은 기록을 읽어요.",
+  signal: "현장의 힌트를 따라 주파수를 조절하고, 흩어진 신호를 모아요.",
+  cipher: "달력과 현판에 담긴 의미를 읽고 숨은 단서를 해독해요.",
 };
 function RoleBadge({ role }: { role: Role }) {
   const Icon = icons[role];
@@ -251,23 +261,31 @@ export default function GameApp({
   const gpsCoordinatesPending = !!v2 && gpsArrivalPending(v2.course, v2.stage);
   // 혼자 데모 체험(네 곳 코스): 이 기기가 네 자리를 맡고 보직을 바꿔 가며 진행한다
   const soloSeats = v2 ? soloFor(v2.game.id) : null;
+  // 현장 도감의 미션·팀 그림에 사용한다. 개인 숫자는 기존 획득 모션으로 바로 보여 준다.
+  const dogamPage = v2?.self.mission ? dogamPageFor(v2.stage.id, v2.self.mission.steps) : null;
   const simulatedArrival = !!v2 && allowsSimulatedArrival(v2.course, v2.stage.arrival);
   // 정찰원 '사진으로 찾기'(개발 서버의 모의 판정). localStorage "hoguk:photo-gate"="off"는 e2e 시험에서 끄는 스위치다
   const scoutScan = backend === "local" && v2?.course.demo && simulatedArrival &&
     v2.self.role === "scout" && v2.stage.completion.type === "lock" && scanEnabled() &&
     photoGateOn(!!soloSeats) ? SCOUT_SCAN_SITES[v2.stage.id] : undefined;
-  // 사진으로 찾으면 머리의 정찰원이 쌍안경을 내리고 끄덕인다
+  // 사진으로 찾으면 머리의 정찰원이 쌍안경을 내리고 끄덕인다.
+  // 문제를 맞혀도 내 장병이 소품을 내리고 끄덕이며 한마디 한다(보직마다 다른 말)
   const [nod, setNod] = useState(false);
+  const [cheer, setCheer] = useState(false);
   useEffect(() => {
     let timer = 0;
-    const found = () => {
+    const react = (say: boolean) => () => {
       setNod(true);
+      setCheer(say);
       window.clearTimeout(timer);
-      timer = window.setTimeout(() => setNod(false), 2600);
+      timer = window.setTimeout(() => { setNod(false); setCheer(false); }, 2600);
     };
+    const found = react(false), solved = react(true);
     window.addEventListener("hoguk:scout-found", found);
+    window.addEventListener("hoguk:step-solved", solved);
     return () => {
       window.removeEventListener("hoguk:scout-found", found);
+      window.removeEventListener("hoguk:step-solved", solved);
       window.clearTimeout(timer);
     };
   }, []);
@@ -329,7 +347,32 @@ export default function GameApp({
     [copied, setCopied] = useState(false),
     [dev, setDev] = useState(false),
     [auto, setAuto] = useState(false),
-    [field, setField] = useState<FieldStatus | null>(null);
+    [field, setField] = useState<FieldStatus | null>(null),
+    // 지도를 끌어 옮긴 뒤 내 위치로 되돌리기(값이 바뀌면 Field3D가 다시 따라간다)
+    [recenter, setRecenter] = useState(0);
+  // 첫 로딩 화면(LoadingSplash)은 실제 준비가 끝나면 바로 걷는다: 세션 복구(새로 시작·이어 하기 결정)와 글꼴,
+  // 첫 화면이면 입체 정문 첫 장면까지(그 사이 평면 그림이 잠깐 끼어 보이지 않게, hh 2026-10-29).
+  // 입체 장면은 복구·글꼴이 끝난 뒤 3.5초까지만 기다린다(느린 폰에서 단추를 오래 막지 않게, 그 뒤엔 평면 그림이 잠깐 보인다).
+  // 복구가 실패하면 기존 오류 알림·다시 연결로 넘어가고, 응답이 오래 없으면 10초 뒤 앱 화면을 그대로 보여 준다(무한 로딩 없음).
+  const [fontsReady, setFontsReady] = useState(false),
+    [heroSettled, setHeroSettled] = useState(false),
+    [heroWaitOver, setHeroWaitOver] = useState(false),
+    [bootGaveUp, setBootGaveUp] = useState(false);
+  const settleHero = useCallback(() => setHeroSettled(true), []);
+  const baseReady = !restoring && fontsReady;
+  useEffect(() => {
+    if (!baseReady) return;
+    const t = window.setTimeout(() => setHeroWaitOver(true), 3500);
+    return () => window.clearTimeout(t);
+  }, [baseReady]);
+  useEffect(() => {
+    let off = false;
+    const fonts = document.fonts?.ready ?? Promise.resolve();
+    void fonts.then(() => { if (!off) setFontsReady(true); });
+    const fontWait = window.setTimeout(() => { if (!off) setFontsReady(true); }, 3000),
+      giveUp = window.setTimeout(() => { if (!off) setBootGaveUp(true); }, 10000);
+    return () => { off = true; window.clearTimeout(fontWait); window.clearTimeout(giveUp); };
+  }, []);
   const canvas = useRef<HTMLDivElement>(null);
   // 폰 목업 보기를 막 켜거나 끈 뒤라면 앞 문서의 화면 상태를 넘겨받는다(view-handoff.ts).
   // undefined는 아직 읽지 않음, null은 넘겨받을 것이 없음(개발 모드 Strict Mode가 효과를 두 번 돌려도 한 번만 읽는다)
@@ -503,13 +546,34 @@ export default function GameApp({
     lockKey,
     !!v2,
   ]);
-  // 추모의 벽(헌화 거점)에 모두 도착하면 먼저 네 사람이 벽 앞에서 묵념한 뒤 헌화 화면으로 간다
+  // 네 사람이 연속 15초 누름을 완료한 뒤 묵념 장면을 열고 헌화로 이어진다.
   const tributeKey =
-    v2 && v2.stage.completion.type === "tribute" && v2.game.site_phase === "mission"
-      ? `${v2.game.id}:${v2.stage.id}`
+    v2 && v2.stage.completion.type === "tribute" && v2.game.site_phase === "cleared"
+      ? `${v2.game.id}:${v2.stage.id}:hold-v2`
       : null;
   const [bowFor, setBowFor] = useState<string | null>(null);
+  // 이번 공동 누름 완료에 대한 묵념을 이 기기에서 보았는지 확인한다.
   const bowDone = !tributeKey || bowFor === tributeKey || bowSeen(tributeKey);
+  // 추모의 벽: 넷이 모여 거점이 끝나면 국화 네 송이가 올라가는 모습을 잠시 보여 준 뒤 기록으로 넘어간다
+  const tributeStage = v2 && v2.stage.completion.type === "tribute" ? `${v2.game.id}:${v2.stage.id}` : null;
+  const tributePhase = tributeStage ? `${tributeStage}|${v2!.game.site_phase}` : null;
+  const [laying, setLaying] = useState<string | null>(null);
+  const [seenTributePhase, setSeenTributePhase] = useState<string | null>(null);
+  if (tributePhase !== seenTributePhase) {
+    setSeenTributePhase(tributePhase);
+    if (seenTributePhase === `${tributeStage}|mission` && tributePhase === `${tributeStage}|cleared`) setLaying(tributeStage);
+  }
+  // 헌화(hh 2026-11-10): 내 국화를 올리고 동료 국화가 다 놓이면(hoguk:tribute-laid) 잠시 뒤 기록으로 넘어간다.
+  // 이미 올린 방이거나 아무 동작이 없으면 예전처럼 시간이 지나면 넘어간다.
+  useEffect(() => {
+    if (!laying || !bowDone) return;
+    let offered = false;
+    try { offered = sessionStorage.getItem(`hoguk:tribute-offered:${laying}`) === "1"; } catch {}
+    let timer = setTimeout(() => setLaying(null), offered ? 4200 : 60000);
+    const laid = () => { clearTimeout(timer); timer = setTimeout(() => setLaying(null), 1800); };
+    window.addEventListener("hoguk:tribute-laid", laid);
+    return () => { clearTimeout(timer); window.removeEventListener("hoguk:tribute-laid", laid); };
+  }, [laying, bowDone]);
   const finishBow = () => {
     if (!tributeKey) return;
     try {
@@ -537,9 +601,9 @@ export default function GameApp({
                 : s.game.site_phase === "travel"
                   ? "travel"
                   : s.game.site_phase === "cleared"
-                    ? v2 && pane === "summary" ? "done" : "sacho"
+                    ? !bowDone ? "memorial" : v2 && laying && laying === tributeStage ? "mission" : v2 && pane === "summary" ? "done" : "sacho"
                     : v2
-                      ? !bowDone ? "memorial"
+                      ? !bowDone || v2.stage.completion.type === "tribute" ? "memorial"
                         : v2.stage.completion.type !== "lock" ? "mission" : pane === "lock" && s.self.role === "commander"
                         ? "lock"
                         : !s.self.reported || pane === "mission"
@@ -550,6 +614,7 @@ export default function GameApp({
                         ? "report"
                         : pane
                       : "mission";
+  const booted = (baseReady && (scene !== "title" || heroSettled || heroWaitOver)) || bootGaveUp;
   const role = s?.self.role,
     site = s?.current_site,
     nextSite = v2 ? v2.course.sites.find((p) => p.seq > v2.current_site.seq) : undefined,
@@ -575,7 +640,9 @@ export default function GameApp({
     [lastSiteName, setLastSiteName] = useState(site?.name ?? ""),
     [depart, setDepart] = useState<{ from: string; siteId: string } | null>(null),
     // 문제를 푸는 중에도 내 위치를 볼 수 있는 지도
-    [mapPeek, setMapPeek] = useState(false);
+    [mapPeek, setMapPeek] = useState(false),
+    // 기억의 자물쇠가 열리는 순간(문제·보고·대기·자물쇠 화면에서 사초로 넘어갈 때 거점마다 한 번)
+    [unlocking, setUnlocking] = useState<string | null>(null);
   if (lastScene !== scene) {
     setLastScene(scene);
     if (
@@ -593,14 +660,24 @@ export default function GameApp({
       !stopSeen(gameId, site.id)
     )
       setStop(site.id);
+    if (v2 && site && scene === "sacho" && ARRIVAL_SCENES.includes(lastScene) &&
+      v2.stage.completion.type === "lock")
+      setUnlocking(site.id);
   }
   if (stop && (!gameId || site?.id !== stop)) setStop(null);
+  if (unlocking && (scene !== "sacho" || site?.id !== unlocking)) setUnlocking(null);
   if (lastScene === scene && (site?.name ?? "") !== lastSiteName) setLastSiteName(site?.name ?? "");
   if (depart && (scene !== "travel" || site?.id !== depart.siteId)) setDepart(null);
   if (mapPeek && (!site || scene === "travel" || !s)) setMapPeek(false);
   useEffect(() => {
     if (gameId && stop) markStopSeen(gameId, stop);
   }, [gameId, stop]);
+  useEffect(() => {
+    if (!unlocking) return;
+    const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const timer = window.setTimeout(() => setUnlocking(null), still ? 0 : UNLOCK_MS);
+    return () => window.clearTimeout(timer);
+  }, [unlocking]);
   const focusHeading = () => {
     const root = canvas.current;
     // 거점 도착 화면이나 나레이션이 떠 있으면 초점은 그쪽에 둔다
@@ -670,13 +747,14 @@ export default function GameApp({
     } else if (previous?.gameId !== gameId) {
       presentedNarration.current = null;
     }
-    if (!gameId || stop || !enabledNarration) return setOpenNarration(null);
+    // 자물쇠가 열리는 장면이 끝난 뒤에 사초 나레이션을 연다
+    if (!gameId || stop || unlocking || !enabledNarration) return setOpenNarration(null);
     setOpenNarration((open) => {
       if (open?.gameId === gameId && narrationFrames.some((frame) => frame.key === open.key)) return open;
       const next = nextNarrationFrame(narrationFrames, hasReadNarration);
       return next ? { gameId, key: next.key } : null;
     });
-  }, [gameId, narrationSignature, stop, enabledNarration]);
+  }, [gameId, narrationSignature, stop, unlocking, enabledNarration]);
   useEffect(() => {
     if (gameId && activeNarration && !stop)
       presentedNarration.current = { gameId, key: activeNarration.key };
@@ -709,7 +787,7 @@ export default function GameApp({
     return () => window.clearTimeout(t);
   }, [calmNotice]);
   useSoundCues({
-    scene,
+    scene: scene === "memorial" && s?.game.site_phase === "mission" ? "mission" : scene,
     reverent: !!site?.reverent,
     hushed,
     // 추모 거점에 들어선 뒤로는(헌화형도 포함) 봉지에서도 자동으로 소리를 되살리지 않는다
@@ -726,7 +804,7 @@ export default function GameApp({
     digits: lockDraft.digits,
   });
   useAutoplay({
-    active: auto && !v2,
+    active: false,
     paused: !!narration || restoring || !!stop || !!modal,
     s,
     scene,
@@ -736,6 +814,7 @@ export default function GameApp({
     setPane,
     stop: () => setAuto(false),
   });
+  useLatestAutoplay({ active: auto, paused: !!narration || restoring || !!stop || !!modal, busy, s, scene, send, stop: () => setAuto(false) });
   // 미리 보기 모이기: 시연 동료가 하나씩 걸어 들어오고, 다 모이면 보직 공개로 넘어간다
   useEffect(() => {
     if (!rehearsing || rehearsing.step !== "lobby") return;
@@ -838,11 +917,21 @@ export default function GameApp({
   return (
     <div className="game-viewport">
       <div className="game-canvas" ref={canvas}>
+        <LoadingSplash done={booted} />
         <header className="game-hud">
+          {/* 제호는 확정 로고 그림(hh 2026-10-29). 좁은 폰은 記 도장만 보이고, 이름은 화면 읽기용 글자로 남긴다 */}
           <div className="game-brand">
-            <span className="tiny-seal" aria-hidden="true">
-              記
-            </span>
+            <img
+              className="brand-logo"
+              src="/brand/hoguk-header-72.webp"
+              srcSet="/brand/hoguk-header-72.webp 279w, /brand/hoguk-header-120.webp 466w"
+              sizes="124px"
+              width={279}
+              height={72}
+              alt=""
+              aria-hidden="true"
+            />
+            <img className="brand-seal" src="/brand/hoguk-seal-96.webp" width={81} height={96} alt="" aria-hidden="true" />
             <b>호국실록</b>
           </div>
           <div className="hud-stage">
@@ -904,10 +993,10 @@ export default function GameApp({
             </button>
           </div>
         </header>
-        {auto && !v2 && (
+        {auto && (
           <div className="autoplay-caption" role="status">
             <span>자동 시연</span>
-            <p>{autoCaption(scene, s)}</p>
+            <p>{v2 ? `${site?.name ?? ""} · 최신 코스 자동 시연 · 모의 도착 / 해설 경로` : "최신 네 거점 코스를 준비해요."}</p>
           </div>
         )}
         {gathering && (
@@ -925,25 +1014,29 @@ export default function GameApp({
               walkIn={scene === "lobby"}
               hidden={!!narration || !!stop}
               site={scene === "memorial" ? "wall" : "gate"}
-              bow={scene === "memorial"}
+              bow={scene === "memorial" && s?.game.site_phase === "cleared"}
               onBowDone={finishBow}
               fallback={<SceneArt party={false} />}
             />
           </div>
         )}
         <main
-          className={`game-scene scene-${scene}`}
+          className={`game-scene scene-${scene}${scene === "mission" && dogamPage ? " gate-focus" : ""}`}
           data-scene={scene}
           key={sceneKey}
           id="main-content"
         >
-          {v2 && ["mission", "report", "lock", "waiting", "sacho"].includes(scene) && (
-            <CoopCompass snapshot={v2} onRecords={() => setModal("records")} />
+          {/* 문제 화면에서도 팀 상태는 오른쪽 위 동그라미로(이동 화면과 같은 자리), 지도 단추와 가로 한 줄.
+              장면 안(스크롤 영역)에 두어 글과 함께 스크롤된다(떠 있으면 스크롤한 문제 글을 덮는다).
+              기록첩은 메뉴(≡)에서, 사초 화면에서는 아래 '수집한 기록 읽기'로(같은 단추를 두 번 두지 않는다) */}
+          {v2 && ["mission", "report", "lock", "waiting", "sacho"].includes(scene) && !stop && !narration && !(scene === "mission" && dogamPage) && (
+            <div className="mission-side"><TeamOrb snapshot={v2} quiet mapOnly={scene === "mission"}
+              onMap={scene === "sacho" ? undefined : () => { setMapPeek(true); if (!location.fix && !simulatedArrival) location.start(); }} /></div>
           )}
           {scene === "title" ? (
             <>
               <div className="title-backdrop">
-                <HomeHero fallback={<SceneArt party={false} />} />
+                <HomeHero fallback={<SceneArt party={false} />} onSettled={settleHero} />
               </div>
               <div className="title-stage">
                 <div className="title-scrim" />
@@ -951,13 +1044,18 @@ export default function GameApp({
                   <span className="title-kicker">
                     네 개의 시선, 하나의 기억
                   </span>
+                  {/* 제목은 로딩 화면과 같은 확정 로고 그림(記 도장 포함, hh 2026-10-29). 로딩 때 받은 파일을 그대로 쓴다 */}
                   <div className="title-lockup">
-                    <h1 data-scene-heading tabIndex={-1}>
-                      호국실록
+                    <h1 className="title-logo" data-scene-heading tabIndex={-1}>
+                      <img
+                        src="/brand/hoguk-logo-1200.webp"
+                        srcSet="/brand/hoguk-logo-720.webp 720w, /brand/hoguk-logo-1200.webp 1200w"
+                        sizes="(max-width: 480px) 72vw, 380px"
+                        width={1200}
+                        height={573}
+                        alt="호국실록"
+                      />
                     </h1>
-                    <span className="title-seal" aria-hidden="true">
-                      記
-                    </span>
                   </div>
                   <div className="title-edition">
                     <span />
@@ -1020,7 +1118,7 @@ export default function GameApp({
                 <span>작전 참가</span>
               </div>
               <div className="enroll-stage">
-                <SceneArt party={false} />
+                <BrandBackdrop />
                 <form
                   className="enroll-form game-window"
                   onSubmit={(e) => {
@@ -1028,9 +1126,6 @@ export default function GameApp({
                     void create();
                   }}
                 >
-                  <span className="eyebrow">
-                    {entry === "join" ? "JOIN OPERATION" : "NEW OPERATION"}
-                  </span>
                   <h1 data-scene-heading tabIndex={-1}>
                     {entry === "join"
                       ? "동료들의 기록에 함께해요."
@@ -1080,7 +1175,6 @@ export default function GameApp({
                     {entry === "join" ? "작전에 합류하기" : "새 작전 만들기"}
                     <ArrowRight size={18} />
                   </button>
-                  <p className="console-footnote">실명·연락처 없이 참여한다.</p>
                 </form>
               </div>
             </>
@@ -1094,7 +1188,7 @@ export default function GameApp({
                     /4
                   </span>
                   <h1 data-scene-heading tabIndex={-1}>
-                    네 사람의 기록이 필요하다.
+                    네 사람의 기록이 필요해요.
                   </h1>
                 </div>
                 <LobbyInvite
@@ -1115,9 +1209,9 @@ export default function GameApp({
                   <span className="speaker guide"><i aria-hidden="true">記</i>기록관</span>
                   <p>
                     {rehearsing
-                      ? "시연 미리 보기: 실제 작전에서는 네 사람이 각자 폰으로 합류한다."
+                      ? "시연 미리 보기: 실제 작전에서는 네 사람이 각자 폰으로 합류해요."
                       : s!.self.is_host
-                        ? "옆 사람에게 QR을 보여 주거나 코드를 알려 주세요. 네 사람이 모이면 함께 보직을 열어 봐요."
+                        ? "QR이나 입장 코드로 동료를 부르세요. 넷이 모이면 함께 보직을 열어 봐요."
                         : "정문 앞에 동료들이 모이고 있어요. 네 사람이 모이면 방장이 보직을 공개해요."}
                   </p>
                 </div>
@@ -1173,7 +1267,7 @@ export default function GameApp({
                 <div className="gather-heading">
                   <span className="eyebrow">보직 배정</span>
                   <h1 data-scene-heading tabIndex={-1}>
-                    당신의 역할이 정해진다.
+                    당신의 역할이 정해져요.
                   </h1>
                 </div>
                 {role && (
@@ -1193,10 +1287,10 @@ export default function GameApp({
               <section className="game-console" data-gather-bottom>
                 <p className="dialogue-line">
                   {revealStep !== "all"
-                    ? "각자의 시선으로, 함께 기억하라."
+                    ? "각자의 시선으로, 함께 기억해요."
                     : rehearsing
-                      ? "네 보직이 모두 정해졌다. 미리 보기를 마치고 작전으로 돌아간다."
-                      : "네 보직이 모두 정해졌다. 장비를 받으러 간다."}
+                      ? "네 보직이 모두 정해졌어요. 미리 보기를 마치고 작전으로 돌아가요."
+                      : "네 보직이 모두 정해졌어요. 장비를 받으러 가요."}
                 </p>
                 {revealStep !== "all" && (
                   <button
@@ -1214,18 +1308,20 @@ export default function GameApp({
                 <div className="gather-heading">
                   <span className="eyebrow">{site?.name ?? "추모의 벽"}</span>
                   <h1 data-scene-heading tabIndex={-1}>
-                    잠시 묵념합니다.
+                    {s?.game.site_phase === "mission" ? "함께 마음을 모아요" : "잠시 묵념합니다."}
                   </h1>
                 </div>
               </div>
               <div className="gather-gap" />
               <section className="game-console" data-gather-bottom>
+                {v2 && s?.game.site_phase === "mission" ? <TributePanel compact snapshot={v2} busy={busy} now={now} send={send} /> : <>
                 <p className="dialogue-line">
-                  네 사람이 벽 앞에 나란히 서서 고개를 숙인다. 묵념을 마치면 국화를 올린다.
+                  네 사람이 함께 마음을 모았다. 벽 앞에 나란히 서서 고개를 숙이고 잠시 묵념한다.
                 </p>
                 <button className="button secondary" onClick={finishBow}>
                   묵념 마치기
                 </button>
+                </>}
               </section>
             </>
           ) : scene === "equip" ? (
@@ -1249,15 +1345,10 @@ export default function GameApp({
                   <span className="dog-tag-text">
                     {role && <RoleBadge role={role} />}
                     <b>{s!.self.nickname}</b>
-                    <small>
-                      FIELD JOURNAL · 0
-                      {s!.game.members.findIndex((m) => m.id === s!.self.id) +
-                        1}
-                    </small>
                   </span>
                 </div>
                 <h1 data-scene-heading tabIndex={-1}>
-                  {ROLE_NAMES[role!]}, 준비하라.
+                  {ROLE_NAMES[role!]}, 출발 준비
                 </h1>
                 <p className="equip-desc">{descriptions[role!]}</p>
               </div>
@@ -1279,8 +1370,8 @@ export default function GameApp({
                   </div>
                   <p>
                     {s!.self.ready
-                      ? "장비 수령을 마쳤다. 동료들의 준비를 기다리라."
-                      : "장비 수령 후 GPS를 켜라. 네 명 모두 거점 반경 안에 도착해야 미션이 열린다."}
+                      ? "장비를 받았어요. 동료들이 준비할 때까지 기다려요."
+                      : "장비를 받은 뒤 GPS를 켜 주세요. 네 명 모두 거점 반경 안에 도착해야 미션이 열려요."}
                   </p>
                 </div>
                 <div className="console-actions">
@@ -1316,7 +1407,7 @@ export default function GameApp({
                     </button>
                   ) : (
                     <span className="waiting-note">
-                      지휘관의 출발 신호를 기다리라.
+                      지휘관의 출발 신호를 기다려요.
                     </span>
                   )}
                 </div>
@@ -1331,9 +1422,9 @@ export default function GameApp({
                     {site!.name} GPS 좌표 등록 대기
                   </h1>
                   <p role="status">
-                    이 거점의 GPS 좌표가 아직 확정되지 않았다. 좌표가 확정된 새 코스와 새 방에서 다시 확인할 수 있다.
+                    이 거점의 GPS 좌표가 아직 확정되지 않았어요. 좌표가 확정된 새 코스와 새 방에서 다시 확인할 수 있어요.
                   </p>
-                  <p>이 GPS 검수 코스에서는 모의 도착으로 건너뛸 수 없다.</p>
+                  <p>이 GPS 검수 코스에서는 모의 도착으로 건너뛸 수 없어요.</p>
                 </div>
                 <button className="button secondary" onClick={() => setModal("menu")}>
                   메뉴
@@ -1351,8 +1442,9 @@ export default function GameApp({
                 role={role ?? null}
                 look={s!.self.id}
                 fallback={<SceneArt site={site!.seq - 1} />}
-                fast={auto && !v2}
+                fast={auto}
                 simulateMovement={soloDemo || simulatedArrival}
+                recenter={recenter}
                 onStatus={setField}
                 onMarkerTap={() => {
                   if (simulatedArrival && !ownArrival && !busy)
@@ -1362,12 +1454,10 @@ export default function GameApp({
                 }}
               />
               <TravelHud
-                cooperation={v2 ? <CoopCompass snapshot={v2} compact onRecords={() => setModal("records")} /> : undefined}
+                cooperation={v2 ? <TeamOrb snapshot={v2} onRecords={() => setModal("records")} /> : undefined}
                 site={site!}
                 sites={s!.course.sites}
                 currentSeq={s!.game.current_site_seq}
-                acquired={acquired}
-                nickname={s!.self.nickname}
                 role={role ?? null}
                 field={field}
                 location={location}
@@ -1388,6 +1478,7 @@ export default function GameApp({
                   })
                 }
                 onMenu={() => setModal("menu")}
+                onRecenter={() => setRecenter((n) => n + 1)}
               />
               {calmNotice && !depart && (
                 <p className="calm-notice" role="status">
@@ -1409,7 +1500,7 @@ export default function GameApp({
             )
           ) : scene === "mission" ? (
             <>
-              <div className="mission-header">
+              {!dogamPage && <div className="mission-header">
                 <div>
                   <span className="eyebrow">거점 0{site!.seq} · {v2?.stage.completion.type === "tribute" ? "헌화" : v2?.stage.completion.type === "joint-record" ? "회고" : "개인 단서"}
                     {v2 && isPracticeStage([v2.stage, v2.self.mission]) && <span className="practice-tag">연습 문항</span>}</span>
@@ -1418,8 +1509,10 @@ export default function GameApp({
                   </h1>
                 </div>
                 <span className={`mission-emblem${nod ? " nod" : ""}`}>
+                  {cheer && role && <span className={cheerStyles.say} aria-hidden="true">{CHEER[role]}</span>}
                   {/* 문제를 푸는 동안에만 내 장병이 소품을 들고 조사하는 모습(추모·회고 단계는 평소 모습) */}
-                  {role && (
+                  {/* hh 2026-11-09: 문제 푸는 화면 위에는 지도만 남기고 캐릭터는 뺀다 */}
+                  {MISSION_PORTRAIT && role && (
                     <RolePortrait
                       role={role}
                       look={s!.self.id}
@@ -1431,16 +1524,16 @@ export default function GameApp({
                     />
                   )}
                 </span>
-              </div>
+              </div>}
               <div className="mission-stage game-window">
-                {v2 ? <MissionV2 snapshot={v2} busy={busy} now={now} send={send} onShowDigit={() => setPane("report")} scan={scoutScan} /> : <Mission
+                {v2 ? <MissionV2 snapshot={v2} busy={busy} now={now} send={send} onShowDigit={() => setPane("report")} onMap={() => { setMapPeek(true); if (!location.fix && !simulatedArrival) location.start(); }} scan={scoutScan} /> : <Mission
                   snapshot={s!}
                   busy={busy}
                   send={send}
                   auto={auto && !narration && !stop ? autoAnswer(s) : undefined}
                 />}
               </div>
-              {v2 && v2.stage.completion.type === "lock" && role === "commander" && (
+              {v2 && v2.stage.completion.type === "lock" && role === "commander" && !dogamPage && (
                 <section className="game-console slim">
                   {reports}
                   <button className="button primary" disabled={busy} onClick={() => setPane("lock")}>
@@ -1455,22 +1548,26 @@ export default function GameApp({
                 <div className="reward-rays" />
                 <span className="eyebrow">단서 획득</span>
                 <h1 data-scene-heading tabIndex={-1}>
-                  기억의 숫자를 찾았다.
+                  기억의 숫자를 찾았어요.
                 </h1>
                 <div className="private-digit" data-testid={v2 ? "mission-v2-private-digit" : undefined}>{s!.self.digit}</div>
                 {role && <RoleBadge role={role} />}
-                <p>이 숫자는 당신의 기기에만 보인다.</p>
+                {/* '내 기기에만 보인다' 대신 지금 할 일을 말한다(hh 2026-10-29) */}
+                <p>{role === "commander" ? "이 숫자도 팀 자물쇠의 한 자리예요." : "이 숫자를 지휘관에게 보고해 주세요."}</p>
               </div>
               <section className="game-console">
                 <div className="console-copy">
                   <span className="speaker">보고 완료</span>
                   <p>
                     {role === "commander"
-                      ? "동료에게 말로 전해 들은 숫자와 함께 자물쇠에 입력하라."
-                      : "지휘관에게 이 숫자를 말로 전하라. 함께 찾아야 기록이 열린다."}
+                      ? "동료에게 말로 전해 들은 숫자와 함께 자물쇠에 입력해 주세요."
+                      : v2 ? "말로 전하면 돼요. 지휘관이 자물쇠를 열면 다 같이 넘어가요."
+                      : "말로 전하면 돼요. 네 숫자가 모여야 기록이 열려요."}
                   </p>
                 </div>
-                <button
+                {/* 지휘관이 아니면 누를 것이 없다: 숫자를 띄워 둔 채 말로 전하고 기다린다
+                    ('팀원 기다리기'를 누르면 숫자가 가려져 '내 숫자 다시 보기'를 또 눌러야 했다) */}
+                {(role === "commander" || !v2) && <button
                   className="button primary"
                   onClick={() =>
                     setPane(role === "commander" ? "lock" : "waiting")
@@ -1478,7 +1575,7 @@ export default function GameApp({
                 >
                   {role === "commander" ? "팀 자물쇠로" : "팀원 기다리기"}
                   <ArrowRight size={18} />
-                </button>
+                </button>}
                 {v2 && <button className="button secondary" onClick={() => setPane("mission")}>
                   내 조사와 해설 확인 <BookOpen size={17} />
                 </button>}
@@ -1505,11 +1602,12 @@ export default function GameApp({
                   setDigits={lockDraft.setDigits}
                   auto={auto && !narration && !stop ? autoDigits(s) : undefined}
                 />}
-                {reports}
+                {/* 새 자물쇠는 칸마다 '보고 완료'를 달고 있어 같은 줄을 또 두지 않는다 */}
+                {!v2 && reports}
               </div>
               <section className="game-console slim">
                 <p className="dialogue-line">
-                  말로 전해 들은 네 숫자로 기억을 열어라.
+                  말로 전해 들은 네 숫자로 기억 열기
                 </p>
                 <button
                   className="button secondary"
@@ -1528,18 +1626,18 @@ export default function GameApp({
                 <div className="waiting-content game-window">
                   <Users size={38} />
                   <h1 data-scene-heading tabIndex={-1}>
-                    동료들의 기록을 기다린다.
+                    동료들의 기록을 기다려요.
                   </h1>
-                  {!v2 && reports}
+                    {!v2 && reports}
                   {!v2 && <p>
-                    각자의 숫자를 말로 나누어라.
+                    각자의 숫자를 말로 나눠요.
                     <br />
-                    지휘관이 기록의 자물쇠를 연다.
+                    지휘관이 기록의 자물쇠를 열어요.
                   </p>}
                 </div>
               </div>
               <section className="game-console">
-                <span className="dialogue-line">당신의 보고는 전달되었다.</span>
+                <span className="dialogue-line">당신의 보고가 전달됐어요.</span>
                 <button
                   className="button secondary"
                   onClick={() => setPane("report")}
@@ -1553,27 +1651,34 @@ export default function GameApp({
             </>
           ) : scene === "sacho" ? (
             <>
-              <div className="sacho-scene" data-testid={v2 ? "stage-v2-completed" : undefined}>
+              <div className={`sacho-scene${unlocking ? ` ${unlockRevealClass}` : ""}`} data-testid={v2 ? "stage-v2-completed" : undefined}>
                 <span className="eyebrow">{v2?.stage.completion.type === "tribute" ? "헌화 완료" : "기억 복원"} · {site!.name}</span>
-                <div className="sacho-character">{site!.sacho.char || (v2 ? "記" : "")}</div>
+                {unlocking && v2?.stage.completion.type === "lock"
+                  ? <UnlockSeal char={site!.sacho.char || "記"} order={v2.stage.completion.order}
+                    explained={v2.game.completion?.method === "explained"} />
+                  : <div className="sacho-character">{site!.sacho.char || (v2 ? "記" : "")}</div>}
                 <h1 data-scene-heading tabIndex={-1}>
                   {/* 위 줄에 '사초③'이 있으니 제목에서는 번호를 뺀다 */}
                   {v2 ? plain(site!.sacho.name).replace(/^사초.\s*·\s*/, "") : site!.sacho.name}
                 </h1>
                 {v2 && closing && <p className="sacho-closing">{closing[0]}<br />{closing[1]}</p>}
-                <p>{plain(site!.sacho.body) || (v2 ? `${site!.name} 단계 확인 완료` : "")}</p>
+                {v2 && closing ? (
+                  <details className="sacho-more">
+                    <summary>기록 전문 읽기</summary>
+                    <p>{plain(site!.sacho.body) || `${site!.name} 단계 확인 완료`}</p>
+                  </details>
+                ) : <p>{plain(site!.sacho.body) || (v2 ? `${site!.name} 단계 확인 완료` : "")}</p>}
                 {v2?.game.completion?.visit && <p>{v2.game.completion.visit.label}</p>}
                 <div className="sacho-reward">
                   <Check size={17} /> {v2 && completionLabel ? `${completionLabel} · ` : ""}사초를 기록첩에 보관했다.
                 </div>
               </div>
               <section className="game-console">
-                <p className="dialogue-line">
-                  {v2?.stage.completion.type === "tribute" ? "네 사람이 국화를 올리고 추모의 시간을 함께했다." : v2 ? `함께 복원한 ${site!.name} 기록을 보관했다.` : "다음 거점에 또 하나의 기억이 기다린다."}
-                </p>
+                {/* '보관했다'는 위 보상 줄이 이미 말하므로 여기서 되풀이하지 않는다(헌화는 그 시간을 한 줄로 남긴다) */}
+                {v2?.stage.completion.type === "tribute" && <p className="dialogue-line">네 사람이 국화를 올리고 추모의 시간을 함께했다.</p>}
                 {v2 ? (
                   // 다음 거점 카드 → 출발(지휘관 큰 버튼, 나머지는 기다림 안내와 네 사람) → 결과·기록 두 칸
-                  <>{nextSite ? <NextStopCard next={nextSite} /> : <p className="dialogue-line">함께 복원한 {site!.name} 기록을 보관했다.</p>}
+                  <>{nextSite && <NextStopCard next={nextSite} />}
                   {role !== "commander" && <MemorialDeparture key={`${v2.game.id}:${v2.stage.id}`} snapshot={v2} busy={busy} send={send} />}
                   <div className="summary-actions">
                     <button className="button secondary" aria-label={`${site!.name} 결과 보기`} onClick={() => setPane("summary")}>
@@ -1584,7 +1689,7 @@ export default function GameApp({
                     </button>
                   </div></>
                 ) : (<>
-                <p className="dialogue-line">다음 거점에 또 하나의 기억이 기다린다.</p>
+                <p className="dialogue-line">다음 거점에서 또 하나의 기억이 기다려요.</p>
                 {role === "commander" ? (
                   <button
                     className="button primary"
@@ -1601,7 +1706,7 @@ export default function GameApp({
                   </button>
                 ) : (
                   <span className="waiting-note">
-                    지휘관의 출발 신호를 기다리라.
+                    지휘관의 출발 신호를 기다려요.
                   </span>
                 )}</>)}
               </section>
@@ -1613,11 +1718,7 @@ export default function GameApp({
               )}
             </>
           ) : scene === "done" && v2?.game.status === "done" ? (
-            <><ResultV2 snapshot={v2} />
-              {/* 결과가 길어도 버튼이 화면 끝에 잘리지 않게 아래 판에 둔다 */}
-              <section className="game-console summary-console">
-                <button className="button secondary" onClick={home}>새 작전 준비하기</button>
-              </section></>
+            <BongjiAfter key={v2.game.id} snapshot={v2} onNewGame={home} send={send} />
           ) : scene === "done" ? (
             <>
               <div className="completion">
@@ -1699,26 +1800,13 @@ export default function GameApp({
             </>
           ) : null}
         </main>
-        {/* 문제 화면이 기본이고, 원할 때만 지도(내 위치·거점)로 갔다가 돌아온다 */}
-        {v2 && ["mission", "report", "lock", "waiting"].includes(scene) && !stop && !narration && (
-          <button
-            type="button"
-            className="map-fab"
-            data-testid="map-fab"
-            aria-label={`지도 보기: 내 위치와 ${site?.name ?? "거점"}`}
-            onClick={() => { setMapPeek(true); if (!location.fix && !simulatedArrival) location.start(); }}
-          >
-            <MapIcon size={19} aria-hidden="true" />
-            지도
-          </button>
-        )}
         {stop && site && (
           <StopScreen
             key={`${gameId}:${stop}`}
             site={site}
             total={s!.course.sites.length}
-            auto={auto && !v2}
-            description={v2 && !legacyGate ? "주변을 안전하게 살피고, 각자의 기록을 확인하라." : undefined}
+            auto={auto}
+            description={v2 && !legacyGate ? "주변을 안전하게 살피고, 각자의 기록을 확인해요." : undefined}
             onClose={closeStop}
           />
         )}
@@ -1731,10 +1819,10 @@ export default function GameApp({
             kind={activeNarration.kind}
             emphasis={activeNarration.emphasis}
             onClose={closeNarration}
-            auto={auto && !v2}
+            auto={auto}
           />
         )}
-        {(soloDemo || soloSeats) && s!.game.status !== "done" && (
+        {(soloDemo || soloSeats) && s!.game.status !== "done" && !(scene === "mission" && dogamPage) && (
           <div className="demo-role-bar" aria-label="시연 보직 전환">
             <span>체험 보직</span>
             {ROLES.map((r) => (
@@ -1758,7 +1846,7 @@ export default function GameApp({
         {(error || !online) && (
           <div className="error-banner" role="alert">
             <WifiOff size={18} />
-            <p>{error || "연결이 끊겼다. 현재 장면과 진행은 유지된다."}</p>
+            <p>{error || "연결이 끊겼어요. 지금 장면과 진행은 그대로예요."}</p>
             <button
               className="button secondary"
               disabled={busy}
@@ -1789,6 +1877,7 @@ export default function GameApp({
             fallback={<SceneArt site={site.seq - 1} />}
             simulateMovement={false}
             parked
+            recenter={recenter}
           />
           <div className="map-peek-bar">
             <p>
@@ -1801,7 +1890,7 @@ export default function GameApp({
               </span>
             </p>
             <div>
-              <button type="button" className="button secondary" onClick={location.start}>
+              <button type="button" className="button secondary" onClick={() => { setRecenter((n) => n + 1); location.start(); }}>
                 내 위치 찾기 <LocateFixed size={17} aria-hidden="true" />
               </button>
               <button type="button" className="button primary" autoFocus onClick={() => setMapPeek(false)}>
@@ -1837,6 +1926,13 @@ export default function GameApp({
                 게임으로 돌아가기
                 <ArrowRight size={18} />
               </button>
+              {soloSeats && s?.game.status !== "done" && <fieldset className="demo-role-menu">
+                <legend>시연 보직 바꾸기</legend>
+                {ROLES.map((r) => <button key={r} type="button" aria-pressed={role === r} disabled={busy || !canRescope}
+                  onClick={() => { setSoloRole(soloSeats.game, r); setMapPeek(false); setModal(null); rescope(); }}>
+                  {ROLE_NAMES[r]}
+                </button>)}
+              </fieldset>}
               {soloDemo && (
                 <button
                   className="button secondary full"
@@ -1948,7 +2044,7 @@ export default function GameApp({
           ) : modal === "team" && s ? (
             <>
               <Team snapshot={s} />
-              <p>방장은 보직 공개를, 지휘관은 출발과 자물쇠를 담당한다.</p>
+              <p>방장은 보직 공개를, 지휘관은 출발과 자물쇠를 맡아요.</p>
             </>
           ) : modal === "records" && s ? (
             v2 ? <JournalV2 snapshot={v2} /> : <div className="record-grid">
@@ -1967,7 +2063,7 @@ export default function GameApp({
                     <p>
                       {got
                         ? p.sacho.body || (v2 ? "이 단계의 기록을 복원했다." : "")
-                        : "동료들과 단서를 모아 이 기록을 복원하라."}
+                        : "동료들과 단서를 모아 이 기록 복원하기"}
                     </p>
                   </article>
                 );
@@ -1988,39 +2084,39 @@ export default function GameApp({
                 <Copy size={17} />
                 {copied ? "링크 복사됨" : "초대 링크 복사"}
               </button>
-              <p>각자의 폰에서 QR을 열어 호출명을 입력하라.</p>
+              <p>각자의 폰에서 QR을 열어 호출명을 입력해 주세요.</p>
             </div>
           ) : (
             <div className="guide-copy">
               <JourneyGuide />
               <p>
-                네 명이 각자의 기기로 같은 방에 합류한다. 자신의 단서만 풀고,
-                얻은 숫자를 말로 지휘관에게 전달한다.
+                네 명이 각자의 기기로 같은 방에 합류해요. 자신의 단서만 풀고,
+                얻은 숫자를 말로 지휘관에게 전해요.
               </p>
               <p>
-                네 보직의 보고가 모이면 지휘관이 자물쇠를 연다. 맞은 칸은
-                잠기고, 오답마다 10점을 차감한다. 세 번 소진하면 60초 후 한 번
-                더 시도할 수 있다.
+                네 보직의 보고가 모이면 지휘관이 자물쇠를 열어요. 맞은 칸은
+                잠기고, 오답마다 10점이 깎여요. 세 번 모두 쓰면 60초 뒤 한 번
+                더 시도할 수 있어요.
               </p>
               <p>
                 {v2
                   ? gpsCoordinatesPending
-                    ? `${site?.name ?? "이 거점"} GPS 좌표 등록 대기 중이다. 모의 도착으로 건너뛸 수 없다.`
+                    ? `${site?.name ?? "이 거점"} GPS 좌표 등록 대기 중이에요. 모의 도착으로 건너뛸 수 없어요.`
                     : simulatedArrival
-                    ? "각자가 본인 모의 도착 버튼으로 개발 시연을 진행한다."
-                    : `GPS를 켜고 반경 ${site?.radiusM ?? 10}m 안에서 5초간 기다리라. 네 명 모두 도착해야 미션이 열린다.`
-                  : "위치 확인이 어려우면 이동 시작 30초 후 지휘관이 수동 도착할 수 있다."}
-                {" "}좌표는 기기에서만 계산한다.
+                    ? "각자 본인 모의 도착 버튼으로 개발 시연을 진행해요."
+                    : `GPS를 켜고 반경 ${site?.radiusM ?? 10}m 안에서 5초간 기다려 주세요. 네 명 모두 도착해야 미션이 열려요.`
+                  : "위치 확인이 어려우면 이동 시작 30초 뒤 지휘관이 수동 도착할 수 있어요."}
+                {" "}좌표는 기기에서만 계산해요.
               </p>
               <p>
-                <Shield size={16} /> 추모 공간을 존중하며 안전하게 이동하라.
+                <Shield size={16} /> 추모 공간을 존중하며 안전하게 이동해 주세요.
                 {gpsReview
-                  ? "정식 콘텐츠 GPS 검수 · 네 명 모두 현장 반경 안에서 GPS 도착을 확인한다."
+                  ? "정식 콘텐츠 GPS 검수 · 네 명 모두 현장 반경 안에서 GPS 도착을 확인해요."
                   : isContentReview
-                  ? "정식 콘텐츠 검수 · 모의 도착. 실제 현장 GPS 검증에 해당하지 않는다."
+                  ? "정식 콘텐츠 검수 · 모의 도착. 실제 현장 GPS 검증은 아니에요."
                   : (s?.course.demo ?? backend === "local")
-                    ? v2?.stage.arrival.confirmed ? "GPS 좌표는 지정됐으며 문항은 시연용이다." : "시연 코스의 실제 좌표와 문항은 미확정이다."
-                    : "지정된 거점에서 동료와 단서를 모아라."}
+                    ? v2?.stage.arrival.confirmed ? "GPS 좌표는 정해졌고 문항은 시연용이에요." : "시연 코스의 실제 좌표와 문항은 아직 정해지지 않았어요."
+                    : "정해진 거점에서 동료와 단서를 모아요."}
               </p>
             </div>
           )}

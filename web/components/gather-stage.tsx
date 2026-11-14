@@ -1,4 +1,5 @@
 "use client";
+import { SceneArt } from "./scene-art";
 import {
   useEffect,
   useRef,
@@ -777,7 +778,7 @@ export function GatherStage({
       data-state={failed ? "flat" : ready ? "3d" : "loading"}
     >
       <div className="gather-poster" aria-hidden="true">
-        {fallback}
+        {ready || failed ? fallback : <SceneArt loading />}
       </div>
       {!failed && <div ref={host} className="gather-3d" aria-hidden="true" />}
       <ol
@@ -823,7 +824,8 @@ export function GatherStage({
                   )}
                 </>
               ) : (
-                <span className="gather-tag-empty">0{i + 1} · 빈 자리</span>
+                // 좁은 화면에서는 번호만 보여 옆 자리 꼬리표와 겹치지 않게 한다(읽기 프로그램은 '빈 자리'까지 읽는다)
+                <span className="gather-tag-empty">0{i + 1}<span className="gather-tag-word"> · 빈 자리</span></span>
               )}
             </li>
           );

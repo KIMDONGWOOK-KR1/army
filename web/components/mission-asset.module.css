@@ -28,3 +28,12 @@
 .caption strong {
   font-size: 14px;
 }
+
+/* 짧은 폰 화면: 사진은 작게 보여 주고 문제·제출이 먼저 보이게(hh 2026-10-29) */
+@media (max-width: 760px) and (max-height: 900px) {
+  .image { max-height: 132px; }
+  .caption { padding: 7px 12px; }
+}
+@media (max-width: 760px) and (max-height: 700px) {
+  .image { max-height: 104px; }
+}

@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  HAIR_TONES,
   hash32,
   HOME_VARIANTS,
+  MOLE_SPOTS,
   SKIN_TONES,
   soldierVariant,
   VARIANT_RANGE,
@@ -76,5 +78,55 @@ describe("장병 모습 차이", () => {
         VARIANT_RANGE.scale + 1e-9,
       );
     }
+  });
+
+  it("머리색·볼터치·주근깨·점은 예전 값 뒤에 뽑아, 이미 정해진 사람의 모습은 그대로다", () => {
+    // 2026-11-08 꾸밈을 넣기 전 값 그대로
+    expect(soldierVariant("동욱")).toMatchObject({
+      face: 2,
+      skin: 1,
+      height: 0.9727,
+      width: 0.9715,
+      glasses: false,
+      phase: 2.2162,
+      pace: 1.0704,
+    });
+  });
+
+  it("머리색 셋이 고르게 나오고, 볼터치·주근깨·점은 일부만 한다", () => {
+    const n = 4000,
+      hair = new Array(HAIR_TONES.length).fill(0);
+    let blush = 0,
+      freckles = 0,
+      mole = 0;
+    for (let i = 0; i < n; i++) {
+      const v = soldierVariant(`q${i}`);
+      hair[v.hair]++;
+      if (v.blush > 0) {
+        blush++;
+        expect(v.blush).toBeGreaterThanOrEqual(0.55);
+        expect(v.blush).toBeLessThanOrEqual(1);
+      }
+      if (v.freckles > 0) freckles++;
+      if (v.mole >= 0) {
+        mole++;
+        expect(v.mole).toBeLessThan(MOLE_SPOTS.length);
+      } else expect(v.mole).toBe(-1);
+    }
+    for (const c of hair) expect(c / n).toBeGreaterThan(0.28);
+    for (const [got, want] of [
+      [blush, VARIANT_RANGE.blush],
+      [freckles, VARIANT_RANGE.freckles],
+      [mole, VARIANT_RANGE.mole],
+    ]) {
+      expect(got / n).toBeGreaterThan(want - 0.05);
+      expect(got / n).toBeLessThan(want + 0.05);
+    }
+  });
+
+  it("첫 화면 네 장병은 머리색·꾸밈이 서로 겹치지 않는다", () => {
+    const list = Object.values(HOME_VARIANTS);
+    expect(new Set(list.map((v) => `${v.hair}/${v.blush > 0}/${v.freckles}/${v.mole}`)).size).toBe(4);
+    expect(new Set(list.map((v) => v.hair)).size).toBe(3);
   });
 });

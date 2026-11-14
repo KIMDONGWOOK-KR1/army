@@ -6,7 +6,7 @@
 .headline { flex:1 1 auto; min-width:0; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font:400 15px/1.35 var(--game); }
 .headline[data-waiting="true"] { color:#6b4f12; }
 .count { flex:0 0 auto; padding:3px 9px; border-radius:999px; background:#def0e7; color:#265f50; font:700 13px/1.4 var(--sans); font-variant-numeric:tabular-nums; }
-.chevron { flex:0 0 auto; color:#536048; transition:transform .2s ease; }
+.chevron { flex:0 0 auto; color:#536048; transition:transform .18s var(--ease-out); }
 .compass[data-open="true"] .chevron { transform:rotate(180deg); }
 .records { flex:0 0 auto; width:44px; height:44px; display:grid; place-items:center; border-radius:50%; background:none; border:0; color:#256956; cursor:pointer; }
 .toggle:focus-visible, .records:focus-visible { outline:3px solid #305c88; outline-offset:2px; border-radius:12px; }

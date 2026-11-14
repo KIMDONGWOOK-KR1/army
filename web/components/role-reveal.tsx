@@ -151,7 +151,7 @@ export function RoleReveal({
         );
       })}
       <p className="reveal-live" aria-live="polite">
-        {flipped ? `${nickname}의 보직은 ${ROLE_NAMES[role]}이다.` : ""}
+        {flipped ? `${nickname}의 보직은 ${ROLE_NAMES[role]}이에요.` : ""}
       </p>
     </div>
   );

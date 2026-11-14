@@ -138,12 +138,6 @@
 
 /* 문제 화면의 지도 단추(hh 2026-10-27): 기본은 문제 화면, 원할 때 지도로 갔다가 돌아온다.
    아래 오른쪽에 떠 있고, 시연 보직 줄·연결 안내가 있으면 그 위로 올라간다. 끝까지 내려도 내용을 가리지 않게 장면 아래를 비워 둔다 */
-.map-fab { position:absolute; right:14px; bottom:calc(14px + env(safe-area-inset-bottom,0px)); z-index:20; display:inline-flex; align-items:center; gap:6px; min-height:48px; padding:0 18px 0 15px; border-radius:999px; border:2px solid #347c66; background:#fffdf5; color:#2c4841; font:400 17px/1 var(--game); box-shadow:0 3px 0 #23533f40, 0 6px 14px #263a3726; cursor:pointer; }
-.map-fab:active { transform:translateY(2px); box-shadow:0 1px 0 #23533f40; }
-.map-fab:focus-visible { outline:3px solid #305c88; outline-offset:3px; }
-.game-canvas:has(> .map-fab) > .game-scene { padding-bottom:72px; }
-.game-canvas:has(> .demo-role-bar) > .map-fab { bottom:76px; }
-.game-canvas:has(> .error-banner) > .map-fab { display:none; }
 /* 기록 화면(사초)의 지휘관 출발 단추: 글을 읽는 동안에도 화면 아래에 붙어 있다 */
 .depart-dock { position:sticky; bottom:0; z-index:3; margin-top:auto; padding:18px 16px calc(14px + env(safe-area-inset-bottom,0px)); background:linear-gradient(to bottom, transparent, var(--paper) 30%); }
 .depart-dock .depart-button { width:100%; }
@@ -151,3 +145,191 @@
 .mission-emblem.nod .role-portrait { animation:scout-nod 1.1s ease-in-out 2; transform-origin:50% 88%; }
 @keyframes scout-nod { 0%,100% { transform:none; } 30% { transform:translateY(3px) rotate(-3deg); } 60% { transform:translateY(-1px) rotate(1.5deg); } }
 @media (prefers-reduced-motion: reduce) { .mission-emblem.nod .role-portrait { animation:none; } }
+
+/* ===== 지도 중심 이동 화면(hh 2026-10-28): 위계 = 지도 > 도착 단추 > 거점 한 줄 > 동그란 단추 =====
+   위: 거점 순번·이름·남은 거리를 한 알약에. 오른쪽 위: 팀·기록첩·내 위치 동그라미 세로. 아래: 도착 단추 하나. */
+.travel-hud.map-first .hud-top { top:10px; left:12px; right:78px; display:grid; justify-items:start; gap:4px; }
+.travel-hud.map-first .hud-pill { position:static; display:flex; align-items:center; gap:8px; max-width:100%; min-height:44px; padding:5px 14px 5px 6px; border-radius:999px; background:#fffdf5f2; border:1px solid #c4d6c5; box-shadow:0 3px 0 #2c48411f; }
+.travel-hud.map-first .hud-pill .hud-site-seq { position:static; flex:0 0 auto; display:grid; place-items:center; min-width:34px; height:30px; padding:0 8px; border-radius:999px; background:#2c4841; color:#fffdf5; font:700 13px/1 var(--sans); font-variant-numeric:tabular-nums; }
+.travel-hud.map-first .hud-pill h1 { min-width:0; margin:0; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font:400 18px/1.2 var(--game); color:#263a37; text-shadow:none; }
+/* 조용한 구역(5·18 사적지)에서도 목표 줄은 할 일을 알리는 글이라 명조가 아닌 본문 글꼴로 차분하게(hh 2026-10-29) */
+.travel-hud.map-first.calm .hud-pill h1 { font-family:var(--sans); font-weight:700; font-size:17px; }
+.travel-hud.map-first .hud-distance-text { flex:0 0 auto; display:flex; align-items:baseline; gap:6px; }
+.travel-hud.map-first .hud-distance-text b { font:700 16px/1.2 var(--sans); color:#2867b2; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.travel-hud.map-first .hud-distance-text small { font:400 12px/1.2 var(--sans); color:#536048; white-space:nowrap; }
+.travel-hud.map-first .hud-pill[data-in-range="true"] { border-color:#347c66; box-shadow:0 0 0 3px #7fe0b555, 0 3px 0 #2c48411f; }
+.travel-hud.map-first .hud-pill[data-in-range="true"] .hud-distance-text b { color:#256956; }
+.travel-hud.map-first .hud-gps { position:static; margin:0 0 0 8px; padding:2px 9px; border-radius:999px; background:#1f2b28a8; color:#fffdf5; font:400 12px/1.5 var(--sans); }
+.travel-hud.map-first .hud-side { position:absolute; top:10px; right:10px; display:grid; justify-items:center; gap:10px; pointer-events:auto; }
+.travel-hud.map-first .hud-round { border:0; background:#fffdf5; color:#256956; box-shadow:0 3px 0 #2c484126, 0 6px 14px #263a3726; }
+/* 하단: 가운데 핵심 행동 하나, 오른쪽 내 위치(이동 조작) */
+.travel-hud.map-first .hud-locate { position:absolute; right:12px; bottom:calc(var(--hud-bottom) + 16px); }
+/* 지도를 옮겨 따라가기가 멈췄을 때: 내 위치 단추를 눈에 띄게(누르면 돌아온다) */
+.travel-hud.map-first .hud-locate[data-free="true"] { background:#2867b2; color:#fffdf5; box-shadow:0 0 0 4px #2867b240, 0 3px 0 #2c484126; }
+/* 도착 단추는 화면 가운데: 오른쪽 내 위치 단추만큼 왼쪽도 비워 좌우를 맞춘다(hh 2026-10-29) */
+.travel-hud.map-first .hud-action-area { left:76px; right:76px; transform:none; width:auto; max-width:none; justify-content:center; bottom:calc(var(--hud-bottom) + 16px); }
+@media (max-width: 360px) { .travel-hud.map-first .hud-action-area { left:68px; right:68px; } .travel-hud.map-first .hud-action-area .hud-action { padding-inline:14px; } }
+.scene-travel:has(.travel-hud.map-first) .field-credit { bottom:calc(var(--hud-bottom, 12px) + 4px); left:8px; }
+
+/* 문제·기록 화면의 팀 단추(hh 2026-10-28): 위 팀 줄을 없애고 이동 화면처럼 오른쪽 위 동그라미로 */
+.mission-side { position:absolute; top:10px; right:12px; z-index:21; }
+.scene-mission .mission-header { padding-right:116px; }
+/* 아주 좁은 폰: 단추 줄 옆에 보직 이름이 들어가게 그림과 글자를 조금 줄인다 */
+@media (max-width: 360px) {
+  .scene-mission .mission-emblem .role-portrait { width:54px; height:54px; margin:-8px -2px -6px 0; }
+  .scene-mission .mission-header .role-badge { font-size:20px; }
+}
+.scene-sacho .sacho-scene { padding-top:18px; }
+/* 가운데 제목 화면(보고·자물쇠): 좁은 폰에서는 제목이 오른쪽 위 단추 줄(함께·지도) 아래에서 시작한다 */
+@media (max-width: 420px) { .scene-report > .reward-stage { padding-top:50px; } }
+@media (max-width: 360px) { .scene-lock .lock-heading { padding-top:82px; } }
+/* 사초: 두 줄 요약이 주인공, 전문은 접어 둔다 */
+.sacho-more { max-width:30em; margin:6px auto 0; text-align:center; }
+.sacho-more summary { display:inline-flex; align-items:center; gap:6px; min-height:44px; padding:0 14px; border-radius:999px; cursor:pointer; list-style:none; color:#256956; font:600 15px/1 var(--sans); }
+.sacho-more summary::-webkit-details-marker { display:none; }
+.sacho-more[open] summary { margin-bottom:6px; }
+.sacho-more p { text-align:left; }
+/* 좁은 화면에서도 목표 줄이 잘리지 않게(긴 이름은 말줄임, 거리는 그대로) */
+.travel-hud.map-first .hud-top { right:74px; }
+.travel-hud.map-first .hud-pill { min-width:0; max-width:100%; }
+.travel-hud.map-first .hud-pill h1 { flex:0 1 auto; }
+/* 아주 좁은 폰(360px 이하): '전남대 정문으…'처럼 할 일이 잘리지 않게 두 줄까지 */
+@media (max-width: 360px) {
+  .travel-hud.map-first .hud-pill { border-radius:22px; }
+  .travel-hud.map-first .hud-pill h1 { white-space:normal; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; font-size:17px; line-height:1.25; word-break:keep-all; }
+}
+/* 함께 모으기 시트가 열리면 지도 위 다른 표시(지도 출처 등)보다 위에 오게 */
+.travel-hud:has([data-testid="coop-compass"][data-open="true"]) { z-index:50; }
+.mission-side:has([data-open="true"]) { z-index:50; }
+
+/* 이동 지도를 멀리 볼 때 띄우는 표시(hh 2026-10-29): 파란 내 위치 점, 목표 이름 핀 */
+.field-pin { position:absolute; left:0; top:0; z-index:3; pointer-events:none; will-change:transform; }
+.field-pin[hidden] { display:none; }
+.field-pin-me { width:18px; height:18px; margin:-9px 0 0 -9px; border-radius:50%; background:#2867b2; border:3px solid #fffdf5; box-shadow:0 0 0 6px #2867b240, 0 2px 6px #1f2b2860; }
+.field-pin-goal { display:grid; justify-items:center; margin:-46px 0 0 0; transform-origin:0 0; }
+.field-pin-goal b { translate:-50% 0; padding:4px 10px; border-radius:999px; background:#c2462f; color:#fffdf5; font:700 13px/1.3 var(--sans); white-space:nowrap; box-shadow:0 2px 6px #1f2b2860; }
+.field-pin-goal::after { content:""; translate:-50% 0; width:0; height:0; border:7px solid transparent; border-top-color:#c2462f; }
+
+/* ===== 확정 B안 로딩 화면(pm-design/brand-v1, hh 2026-10-29) =====
+   시안의 #phone 안쪽만 옮겼다. 로고가 먼저, 아래에 작은 용봉관. 위치는 시안 비율(로고 위 28%, 막대 73% 부근)을 따르되
+   격자로 쌓아 좁은·짧은 화면에서도 로고·막대·문구·용봉관이 겹치지 않는다. 글꼴은 앱 것(--sans)을 그대로 쓴다. */
+.loading-splash { position:absolute; inset:0; z-index:200; display:grid; grid-template-rows:minmax(12px, 28fr) auto minmax(20px, 32fr) auto auto minmax(10px, 3fr) auto; justify-items:center; overflow:hidden; isolation:isolate;
+  padding:env(safe-area-inset-top, 0px) 0 0; background:linear-gradient(180deg,#dce9cb 0%,#f0f1d9 50%,#fff7d9 100%); color:#234537; transition:opacity .22s ease; }
+.loading-splash[data-done="true"] { opacity:0; pointer-events:none; }
+.loading-halo { position:absolute; inset:0; z-index:-1; background:radial-gradient(ellipse at 50% 35%,#fff9dd 0%,#fff9dd80 25%,transparent 65%); }
+.loading-leaf { position:absolute; z-index:-1; width:14px; height:24px; border-radius:2px 90%; background:#7c9c6a26; transform:rotate(30deg); }
+.loading-leaf.a { left:12%; top:15%; }
+.loading-leaf.b { right:12%; top:65%; transform:rotate(-70deg); width:11px; height:19px; }
+.loading-leaf.c { left:18%; bottom:17%; transform:rotate(80deg); }
+.loading-logo { grid-row:2; width:90%; max-width:440px; text-align:center; }
+.loading-logo img { display:block; width:100%; height:auto; filter:drop-shadow(0 7px 5px #35523512); }
+.loading-edition { display:flex; align-items:center; justify-content:center; gap:11px; margin:14px 0 0; font:600 12px/1.4 var(--sans); letter-spacing:.16em; color:#476249; }
+.loading-edition::before, .loading-edition::after { content:""; width:24px; height:1px; background:#80957190; }
+.loading-bar { grid-row:4; width:62%; max-width:240px; height:10px; padding:1px; border-radius:8px; background:#54734c29; border:1px solid #54734c1f; overflow:hidden; }
+.loading-bar::before { content:""; display:block; height:6px; width:40%; border-radius:6px; background:linear-gradient(90deg,#b6d56d,#6c9955); animation:loading-slide 1.7s ease-in-out infinite alternate; }
+@keyframes loading-slide { from { transform:translateX(0); } to { transform:translateX(145%); } }
+.loading-footer { grid-row:5; margin:14px 0 0; font:400 10px/1.5 var(--sans); letter-spacing:.15em; color:#607851; }
+.loading-campus { grid-row:7; display:block; width:100%; max-width:640px; height:auto; max-height:24vh; object-fit:contain; object-position:bottom; }
+/* 움직임 줄이기: 막대를 멈추되 꽉 찬 막대가 '끝남'으로 읽히지 않게 옅게 */
+@media (prefers-reduced-motion: reduce) {
+  .loading-splash { transition:none; }
+  .loading-bar::before { animation:none; width:100%; opacity:.55; }
+}
+
+/* 모이기 화면: 좁은 폭에서는 빈 자리 꼬리표를 번호만(겹침 방지, 글자는 읽기 프로그램용으로 남김) */
+@media (max-width: 480px) {
+  .gather-tag-word { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+}
+
+/* ===== 짧은 화면(사파리 위아래 막대가 있는 폰 등, hh 2026-10-29): 문제를 스크롤 없이 한 화면에서 고르고 제출 =====
+   폰에서 읽기 바닥값(문장 16px·단추 44px)은 지키고 여백·제목 크기·겹치는 안내만 줄인다 */
+@media (max-width: 760px) and (max-height: 900px) {
+  .mission-header { padding:8px 16px 4px; }
+  .mission-header h1 { margin-top:2px; }
+  .mission-header .role-badge { font-size:20px; }
+  .mission-emblem .role-portrait { width:52px; height:52px; margin:-6px -2px -6px 0; }
+  .mission-stage { padding:12px 14px; margin-bottom:10px; }
+  /* '○○의 단서 · 개인 미션'은 바로 위 머리줄의 보직과 같은 내용이라 짧은 화면에서는 뺀다 */
+  .mission-form .section-label { display:none; }
+  .mission-form h3 { font-size:20px; line-height:1.35; margin:0 0 6px; }
+  .question { font-size:16px; line-height:1.55; margin-bottom:8px; }
+  .clue-hint { line-height:1.6; padding:7px 11px; margin-bottom:10px; }
+  .choices { gap:7px; margin-bottom:12px; }
+  .choices button { min-height:44px; padding:7px 12px; font-size:15px; }
+  .choices.hanja button { min-height:56px; font-size:28px; }
+  .calendar { padding:6px 12px; margin-bottom:10px; }
+  .calendar > div:first-child { margin-bottom:3px; }
+  .calendar-grid { font-size:11px; line-height:1.45; gap:1px; }
+  .mission-stage .radio-panel { padding:10px 12px; margin-bottom:12px; }
+  .scene-mission > .mission-stage { padding-top:8px; }
+  /* 혼자 데모의 보직 바꾸기 줄(실제 4인 게임에는 없다)도 조금 낮게 */
+  .demo-role-bar { min-height:42px; padding-top:2px; padding-bottom:calc(2px + env(safe-area-inset-bottom, 0px)); }
+  .demo-role-bar button { min-height:38px; padding-block:4px; }
+}
+@media (max-width: 760px) and (max-height: 620px) {
+  /* 오른쪽 위 함께·지도 단추가 있는 화면은 머리줄 높이가 단추를 받쳐야 해서 그대로 둔다 */
+  .scene-mission:not(:has(.mission-side)) .mission-header .eyebrow { display:none; }
+  .mission-emblem .role-portrait { width:40px; height:40px; }
+  .mission-stage { padding:10px 12px; margin-bottom:6px; }
+  .mission-form h3 { font-size:18px; }
+  .clue-hint { margin-bottom:8px; }
+  .calendar { padding:4px 10px; margin-bottom:8px; }
+  .calendar-grid { line-height:1.3; }
+  .mission-stage .radio-panel { padding:8px 10px; margin-bottom:10px; }
+  .mission-form > .button.primary.full { min-height:46px; }
+}
+
+/* ===== 대기실(hh 2026-10-29): QR·입장 코드 카드를 줄여 정문 앞에 모이는 장면이 보이게.
+   QR은 옆 사람 폰으로 찍을 수 있는 크기(84px)를 지킨다 ===== */
+@media (max-width: 760px) {
+  .invite-qr, .invite-qr img { width:84px !important; height:84px !important; }
+  .invite-qr { padding:3px; border-width:1.5px; border-radius:8px; }
+  .invite-card { gap:10px; padding:8px 10px; border-width:2px; border-radius:14px; box-shadow:0 3px 0 var(--edge); }
+  .invite-side { gap:6px; }
+  .invite-card .join-code { gap:5px; }
+  .invite-card .join-code span { width:32px; height:40px; font-size:24px; border-radius:7px; box-shadow:0 2px 0 var(--edge); }
+  .button.invite-button { padding:4px 10px; font-size:13px; }
+}
+
+/* 지도 출처(© OpenStreetMap contributors): 지도 자료 라이선스(ODbL)상 지울 수 없어 글씨만 작고 옅게(hh 2026-10-29) */
+.field-credit, .home-hero-credit, .gather-credit { font-size:8px; line-height:1.3; padding:0 3px; opacity:.72; }
+
+/* 위쪽 막대 제호: 확정 로고 그림(hh 2026-10-29). 좁은 폰(380px 이하)은 記 도장만 */
+.game-brand { gap:0; }
+.game-brand .brand-logo { display:block; height:32px; width:auto; filter:drop-shadow(0 2px 0 #1c3a2e66); }
+.game-brand .brand-seal { display:none; height:30px; width:auto; }
+.game-brand > b { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
+@media (max-width: 380px) {
+  .game-brand .brand-logo { display:none; }
+  .game-brand .brand-seal { display:block; }
+}
+
+/* 호출명 화면 배경: 로딩 화면과 같은 바탕(hh 2026-10-29) */
+.brand-backdrop { position:absolute; inset:0; overflow:hidden; isolation:isolate; background:linear-gradient(180deg,#dce9cb 0%,#f0f1d9 50%,#fff7d9 100%); }
+.brand-backdrop .loading-campus { position:absolute; left:50%; bottom:0; width:100%; transform:translateX(-50%); }
+
+/* 첫 화면 제목: 로딩 화면과 같은 로고 그림(hh 2026-10-29) */
+.title-lockup h1.title-logo { margin:4px 0 0; padding:0; font-size:0; line-height:0; letter-spacing:0; text-shadow:none; }
+.title-logo img { display:block; width:min(72vw, 380px); height:auto; filter:drop-shadow(0 6px 5px #35523514); }
+@media (max-height: 700px) { .title-logo img { width:min(62vw, 270px); } }
+@media (max-height: 620px) { .title-logo img { width:min(56vw, 210px); } }
+
+/* ===== 디자인 점검 반영(hh 2026-10-29, Taste·Motion Principles 기준) ===== */
+/* 글꼴은 게임체·고딕 둘로: 고정폭 자리는 고딕으로 바꾸고 숫자만 자리 폭을 맞춘다(추모 화면 명조는 그대로) */
+:root { --mono: var(--sans); --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1); }
+.lcd, .calendar-grid, .private-digit, .join-code, .lock-digits, .hud-score { font-variant-numeric: tabular-nums; }
+/* 도착 단추: 세 번만 깜빡이고 멈춘다(계속 깜빡이면 눈이 피곤하다) */
+.hud-action.ready { animation-iteration-count: 3; }
+/* 작게 튀어나오던 보직 방울·이름표는 90%에서 부드럽게(튕김 없이) */
+.stop-bubble { animation-timing-function: var(--ease-out); }
+@keyframes stop-bubble { from { opacity: 0; transform: translate(0, 0) scale(0.9); } }
+.gather-tag-role { animation: tag-pop 0.24s var(--ease-out) both; }
+@keyframes tag-pop { from { opacity: 0; transform: scale(0.9); } }
+/* 평면 그림 → 입체 장면 바꿈은 0.3초 안에 */
+.home-hero-3d, .home-hero-poster, .gather-3d, .gather-poster { transition-duration: 0.3s; transition-timing-function: var(--ease-out); }
+
+/* Native recovery remains usable even when the client bundle has not started. */
+.loading-recovery { position:absolute; bottom:7%; text-align:center; visibility:hidden; animation:show-loading-recovery 0s 20s forwards; }
+.loading-recovery p { font:400 14px/1.5 var(--sans); margin:0 0 8px; }
+.loading-recovery a { min-height:44px; font-size:16px; }
+@keyframes show-loading-recovery { to { visibility:visible; } }
